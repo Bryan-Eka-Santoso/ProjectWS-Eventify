@@ -1,0 +1,106 @@
+# =========================
+# Logs
+# =========================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================
+# Dependencies
+# =========================
+node_modules/
+.pnp
+.pnp.js
+
+# =========================
+# Build Output
+# =========================
+dist/
+dist-ssr/
+build/
+out/
+.next/
+.nuxt/
+.output/
+
+# =========================
+# Environment Variables
+# =========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Jika ingin tetap upload contoh env, gunakan:
+!.env.example
+
+# =========================
+# Vite / Frontend Cache
+# =========================
+.vite/
+.cache/
+.parcel-cache/
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# Testing / Coverage
+# =========================
+coverage/
+.nyc_output/
+
+# =========================
+# Editor directories and files
+# =========================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# =========================
+# OS Generated Files
+# =========================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# Temporary Files
+# =========================
+tmp/
+temp/
+*.tmp
+*.temp
+
+# =========================
+# Local Files
+# =========================
+*.local
+
+# =========================
+# Package Manager Files
+# =========================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Optional Lock Files
+# =========================
+# Biasanya package-lock.json / yarn.lock / pnpm-lock.yaml tetap DI-COMMIT.
+# Jangan ignore lock file kecuali memang diminta.
