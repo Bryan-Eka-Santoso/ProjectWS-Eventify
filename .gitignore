@@ -104,3 +104,11 @@ pnpm-debug.log*
 # =========================
 # Biasanya package-lock.json / yarn.lock / pnpm-lock.yaml tetap DI-COMMIT.
 # Jangan ignore lock file kecuali memang diminta.
+
+# =========================
+# Database / SQL Files
+# =========================
+*.sql
+*.sqlite
+*.sqlite3
+*.db

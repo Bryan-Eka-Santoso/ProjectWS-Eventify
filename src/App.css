@@ -7,3 +7,17 @@
   scroll-behavior: smooth;
   font-family: "Poppins", sans-serif;
 }
+
+@media (min-width: 992px) {
+  .position-lg-absolute {
+    position: absolute;
+  }
+
+  .start-lg-50 {
+    left: 50%;
+  }
+
+  .translate-middle-lg-x {
+    transform: translateX(-50%);
+  }
+}
