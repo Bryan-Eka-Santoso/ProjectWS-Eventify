@@ -59,6 +59,7 @@ module.exports = {
       organizer_id: { type: Sequelize.INTEGER, allowNull: true, references: { model: 'users', key: 'id' }, onDelete: 'SET NULL', comment: 'Null jika ditarik dari API luar via Axios' },
       title: { type: Sequelize.STRING(255), allowNull: false },
       description: { type: Sequelize.TEXT, allowNull: true },
+      main_image_url: { type: Sequelize.STRING(255), allowNull: false },
       location: { type: Sequelize.TEXT, allowNull: false },
       start_date: { type: Sequelize.DATE, allowNull: false },
       end_date: { type: Sequelize.DATE, allowNull: false },
@@ -67,6 +68,11 @@ module.exports = {
       external_id: { type: Sequelize.STRING(255), unique: true, allowNull: true, comment: 'ID unik dari API pihak ketiga (Axios)' },
       created_at: { type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
       updated_at: { type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP') }
+    });
+    await queryInterface.createTable('event_images', {
+      id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
+      event_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'events', key: 'id' }, onDelete: 'CASCADE' },
+      image_url: { type: Sequelize.STRING(255), allowNull: false }
     });
 
     await queryInterface.createTable('event_categories', {
@@ -158,6 +164,7 @@ module.exports = {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
       name: { type: Sequelize.STRING(255), allowNull: false },
       description: { type: Sequelize.TEXT, allowNull: true },
+      category_id: { type: Sequelize.INTEGER, allowNull: true, references: { model: 'categories', key: 'id' }, onDelete: 'SET NULL' },
       creator_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'users', key: 'id' }, onDelete: 'CASCADE' },
       created_at: { type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
     });
