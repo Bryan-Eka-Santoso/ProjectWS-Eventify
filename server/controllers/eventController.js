@@ -1,28 +1,46 @@
-const { Event } = require("../models");
+const { Event, EventImage } = require("../models");
 
 const eventController = {
-  // Membuat event baru (Status default: draft)
   createEvent: async (req, res) => {
     try {
       const { title, description, location, start_date, end_date } = req.body;
+
+      const main_image_url =
+        req.files && req.files["main_image"]
+          ? req.files["main_image"][0].filename
+          : null;
+
+      if (!main_image_url) {
+        return res
+          .status(400)
+          .json({ message: "Gambar utama (main_image) wajib diunggah!" });
+      }
+
       const newEvent = await Event.create({
-        organizer_id: 1, // Sementara hardcoded untuk simulasi login
+        organizer_id: 1,
         title,
         description,
         location,
         start_date,
         end_date,
+        main_image_url,
         status: "draft",
       });
-      res
-        .status(201)
-        .json({ message: "Event created successfully", data: newEvent });
+
+      if (req.files && req.files["album"] && req.files["album"].length > 0) {
+        const albumData = req.files["album"].map((file) => ({
+          event_id: newEvent.id,
+          image_url: file.filename,
+        }));
+        await EventImage.bulkCreate(albumData);
+      }
+
+      res.status(201).json({ message: "Success", data: newEvent });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
   },
 
-  // Melihat daftar event milik sendiri (Organizer)
   getMyEvents: async (req, res) => {
     try {
       const myEvents = await Event.findAll({
@@ -35,7 +53,6 @@ const eventController = {
     }
   },
 
-  // Mengubah status event (Ajukan/Batal)
   updateStatus: async (req, res) => {
     try {
       const { id } = req.params;
@@ -47,7 +64,6 @@ const eventController = {
     }
   },
 
-  // Menampilkan semua event yang sudah di-publish (Untuk Publik)
   getPublishedEvents: async (req, res) => {
     try {
       const events = await Event.findAll({
@@ -60,18 +76,23 @@ const eventController = {
     }
   },
 
-  // Mengambil satu data event (Untuk Form Edit)
   getEventById: async (req, res) => {
     try {
-      const event = await Event.findByPk(req.params.id);
-      if (!event) return res.status(404).json({ message: "Event not found" });
+      const { id } = req.params;
+      const event = await Event.findByPk(id, {
+        include: [{ model: EventImage, as: "images" }],
+      });
+
+      if (!event) {
+        return res.status(404).json({ message: "Event tidak ditemukan" });
+      }
+
       res.json(event);
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
   },
 
-  // Menyimpan perubahan data event (Edit)
   updateEvent: async (req, res) => {
     try {
       const { id } = req.params;

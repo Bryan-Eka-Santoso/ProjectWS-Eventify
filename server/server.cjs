@@ -13,6 +13,7 @@ app.use(express.json());
 
 // API Routes
 app.use("/api/events", eventRoutes);
+app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

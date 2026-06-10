@@ -23,9 +23,11 @@ db.sequelize = sequelize;
 // Import Model
 db.User = require("./User")(sequelize, DataTypes);
 db.Event = require("./Event")(sequelize, DataTypes);
-
+db.EventImage = require("./EventImage")(sequelize, DataTypes);
 // Relasi (Penting!)
 db.User.hasMany(db.Event, { foreignKey: "organizer_id" });
 db.Event.belongsTo(db.User, { foreignKey: "organizer_id", as: "organizer" });
+db.Event.hasMany(db.EventImage, { foreignKey: "event_id", as: "images" });
+db.EventImage.belongsTo(db.Event, { foreignKey: "event_id" });
 
 module.exports = db;
