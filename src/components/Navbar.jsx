@@ -45,7 +45,7 @@ function Navbar() {
                   `nav-link ${isActive ? "active" : ""}`
                 }
               >
-                <i className="bi bi-calendar4-week"></i> Explore Events
+                <i className="bi bi-calendar4-week"></i> Events
               </NavLink>
             </li>
 
