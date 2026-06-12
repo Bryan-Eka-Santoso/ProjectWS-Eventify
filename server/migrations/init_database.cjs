@@ -170,6 +170,16 @@ module.exports = {
         ),
       },
     });
+    await queryInterface.createTable("event_images", {
+      id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
+      event_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: { model: "events", key: "id" },
+        onDelete: "CASCADE",
+      },
+      image_url: { type: Sequelize.STRING(255), allowNull: false },
+    });
 
     await queryInterface.createTable("event_images", {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
