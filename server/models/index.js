@@ -24,6 +24,7 @@ db.sequelize = sequelize;
 db.User = require("./User")(sequelize, DataTypes);
 db.Event = require("./Event")(sequelize, DataTypes);
 db.EventImage = require("./EventImage")(sequelize, DataTypes);
+db.Category = require("./Category")(sequelize, DataTypes);
 
 // Model Fitur Chat dari Vincent (Disesuaikan agar menggunakan 'sequelize' milikmu)
 db.ChatRoom = require("./ChatRoom")(sequelize, DataTypes);
@@ -35,6 +36,18 @@ db.User.hasMany(db.Event, { foreignKey: "organizer_id" });
 db.Event.belongsTo(db.User, { foreignKey: "organizer_id", as: "organizer" });
 db.Event.hasMany(db.EventImage, { foreignKey: "event_id", as: "images" });
 db.EventImage.belongsTo(db.Event, { foreignKey: "event_id" });
+db.Event.belongsToMany(db.Category, {
+  through: "event_categories",
+  foreignKey: "event_id",
+  as: "categories",
+  timestamps: false,
+});
+db.Category.belongsToMany(db.Event, {
+  through: "event_categories",
+  foreignKey: "category_id",
+  as: "events",
+  timestamps: false,
+});
 
 // 4. Definisi Relasi Tabel Vincent (Fitur Chat)
 db.ChatRoom.hasMany(db.ChatRoomMember, { foreignKey: "chat_room_id" });
