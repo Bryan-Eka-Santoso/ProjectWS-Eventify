@@ -4,6 +4,7 @@ const { Event, EventImage, Category } = db;
 const eventController = {
   createEvent: async (req, res) => {
     try {
+      // 1. Tambahkan 'role' ke dalam destructuring
       const {
         title,
         description,
@@ -11,6 +12,7 @@ const eventController = {
         start_date,
         end_date,
         category_ids,
+        role, // <--- Menangkap role dari frontend
       } = req.body;
 
       const main_image_url = req.files["main_image"]
@@ -23,6 +25,10 @@ const eventController = {
           .json({ message: "Gambar utama (main_image) wajib diunggah!" });
       }
 
+      // 2. LOGIKA DYNAMIC STATUS:
+      // Jika role adalah 'admin', maka 'published'. Selain itu (organizer), maka 'draft'.
+      const eventStatus = role === "admin" ? "published" : "draft";
+
       const newEvent = await Event.create({
         organizer_id: 1,
         title,
@@ -31,22 +37,17 @@ const eventController = {
         start_date,
         end_date,
         main_image_url,
-        status: "draft",
+        status: eventStatus, // <--- Gunakan variabel dinamis di sini
       });
 
-      // --- PERBAIKAN SAKTI SISI BACKEND: MANY-TO-MANY VALIDATION ---
+      // ... (sisanya kodingan Many-to-Many dan upload album tetap sama)
       if (category_ids) {
         let ids = [];
-
         if (typeof category_ids === "string" && category_ids.trim() !== "") {
-          // Jika format FormData berupa string murni "1,2,3"
           ids = category_ids.split(",").map(Number);
         } else if (Array.isArray(category_ids)) {
-          // Jaga-jaga jika dibaca langsung sebagai susunan Array
           ids = category_ids.map(Number);
         }
-
-        // Jalankan sinkronisasi tabel relasi hanya jika ada ID yang valid
         if (ids.length > 0) {
           await newEvent.setCategories(ids);
         }
@@ -62,7 +63,6 @@ const eventController = {
 
       res.status(201).json({ message: "Success", data: newEvent });
     } catch (error) {
-      // Biar kamu gampang melacak error di terminal vscode/cmd
       console.error("🔥 ERROR DI CREATE EVENT:", error);
       res.status(500).json({ message: error.message });
     }
@@ -153,6 +153,59 @@ const eventController = {
       res.json(categories);
     } catch (error) {
       res.status(500).json({ message: error.message });
+    }
+  },
+
+  // --- 🌟 FITUR BARU: MENGIKUTI / MENYIMPAN EVENT LUAR KE DATABASE 🌟 ---
+  // --- 🌟 FITUR BARU: MENGIKUTI / MENYIMPAN EVENT LUAR KE DATABASE 🌟 ---
+  followExternalEvent: async (req, res) => {
+    try {
+      // 1. Ambil 'role' dari req.body yang dikirim oleh frontend
+      const { external_id, title, location, start_date, role } = req.body;
+
+      // Cek apakah sudah pernah diadopsi
+      let event = await Event.findOne({ where: { external_id: external_id } });
+
+      if (event) {
+        return res
+          .status(400)
+          .json({ message: "Event ini sudah pernah diadopsi!" });
+      }
+
+      // 2. JALUR DINAMIS STATUS:
+      // Jika role yang masuk adalah 'admin', langsung 'published'. Jika bukan (organizer), jadi 'draft'.
+      const externalEventStatus = role === "admin" ? "published" : "draft";
+
+      // 3. Simpan ke database dengan status yang sudah dinamis
+      event = await Event.create({
+        organizer_id: 1,
+        title: title,
+        description: "Event internasional hasil kurasi.",
+        location: location || "Online",
+        start_date: new Date(start_date),
+        end_date: new Date(start_date),
+        main_image_url: "default-banner.jpg",
+        status: externalEventStatus, // 🔥 Di sini letak kuncinya gess!
+      });
+
+      event.external_id = String(external_id);
+      await event.save();
+
+      // 4. Berikan pesan alert yang berbeda biar pas demo mantap dilihat dosen
+      const customMessage =
+        role === "admin"
+          ? "Berhasil diadopsi dan LANGSUNG DI-PUBLISH ke halaman utama!"
+          : "Berhasil disimpan ke Draf! Silakan kelola di menu My Events.";
+
+      res.status(201).json({
+        message: customMessage,
+        data: event,
+      });
+    } catch (error) {
+      console.error("🔥 ERROR DI FOLLOW EXTERNAL EVENT:", error);
+      res
+        .status(500)
+        .json({ message: "Error saat menyimpan event eksternal." });
     }
   },
 };

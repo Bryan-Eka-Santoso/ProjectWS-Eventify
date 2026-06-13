@@ -9,7 +9,15 @@ function Events() {
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState(null);
-  const role = "organizer";
+
+  // 🧪 PUSAT KENDALI SIMULASI ROLE
+  // Ganti jadi "admin", "organizer", atau "user" untuk ngetes seluruh alur web gess!
+  const role = "admin"; // Ubah sesuai kebutuhan: "admin", "organizer", atau "user"
+
+  // Setiap kali halaman dimuat atau nilai role diubah, simpan ke localStorage
+  useEffect(() => {
+    localStorage.setItem("simulated_role", role);
+  }, [role]);
 
   useEffect(() => {
     fetchCategories();
@@ -17,7 +25,7 @@ function Events() {
 
   useEffect(() => {
     fetchEvents();
-  }, [activeCategory]); // Otomatis nembak API baru tiap kali kategori diklik!
+  }, [activeCategory]);
 
   const fetchCategories = async () => {
     try {
@@ -50,7 +58,7 @@ function Events() {
     <>
       <Navbar />
       <div className="container mt-5 mb-5" style={{ minHeight: "75vh" }}>
-        {/* --- BARIS SEJAJAR: SEARCH BAR (KIRI) & FILTER KATEGORI (KANAN) --- */}
+        {/* --- BARIS SEJAJAR: SEARCH BAR & FILTER KATEGORI --- */}
         <div className="row g-3 align-items-center mb-4">
           <div className="col-lg-4 col-md-5">
             <input
@@ -82,24 +90,42 @@ function Events() {
           </div>
         </div>
 
-        {/* --- TOMBOL UNTUK AKSES ORGANIZER --- */}
+        {/* --- ACTION BAR BUTTONS (HANYA MUNCUL UNTUK ORGANIZER & ADMIN) --- */}
         {role !== "user" && (
-          <div className="d-flex justify-content-end gap-2 mb-4">
-            <Link
-              to="/events/my-events"
-              className="btn btn-outline-primary fw-semibold"
-            >
-              My Events
-            </Link>
-            <Link to="/events/create" className="btn btn-primary fw-bold">
-              + Create Event
-            </Link>
+          <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+            {/* 🌍 TOMBOL API LUAR */}
+            <div>
+              <Link
+                to="/events/external"
+                className="btn btn-success fw-bold rounded-3 shadow-sm d-flex align-items-center gap-2"
+              >
+                <span>
+                  🌍 Explore International Events ({role.toUpperCase()})
+                </span>
+              </Link>
+            </div>
+
+            {/* TOMBOL MANAJEMEN */}
+            <div className="d-flex gap-2">
+              <Link
+                to="/events/my-events"
+                className="btn btn-outline-primary fw-semibold rounded-3"
+              >
+                My Events
+              </Link>
+              <Link
+                to="/events/create"
+                className="btn btn-primary fw-bold rounded-3"
+              >
+                + Create Event
+              </Link>
+            </div>
           </div>
         )}
 
-        {/* LIST CARDS */}
+        {/* LIST CARDS LOKAL */}
         <h4 className="fw-bold text-primary mb-4 pb-2 border-bottom">
-          🚀 Featured Events
+          🚀 Featured Local Events
         </h4>
 
         {filteredEvents.length === 0 ? (

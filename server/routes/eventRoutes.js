@@ -24,5 +24,7 @@ router.post(
 router.get("/:id", eventController.getEventById);
 router.put("/:id", eventController.updateEvent);
 router.patch("/:id/status", eventController.updateStatus);
+// Tambahkan route ini
+router.post("/follow-external", eventController.followExternalEvent);
 
 module.exports = router;

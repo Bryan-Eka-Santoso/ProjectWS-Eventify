@@ -21,6 +21,10 @@ module.exports = (sequelize, DataTypes) => {
         ),
         defaultValue: "draft",
       },
+      external_id: {
+        type: DataTypes.STRING, // atau DataTypes.INTEGER, sesuaikan dengan database kamu
+        allowNull: true, // Di-set true karena event lokal nilainya bakal NULL
+      },
     },
     {
       tableName: "events",

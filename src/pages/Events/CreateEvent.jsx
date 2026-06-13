@@ -7,6 +7,9 @@ import Footer from "../../components/Footer";
 function CreateEvent() {
   const navigate = useNavigate();
 
+  // 📥 Membaca otomatis role yang sedang aktif dari Events.jsx
+  const currentRole = localStorage.getItem("simulated_role") || "organizer";
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -20,7 +23,6 @@ function CreateEvent() {
   const [categories, setCategories] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
 
-  // Ambil daftar kategori dari database saat load halaman
   useEffect(() => {
     axios
       .get("http://localhost:5000/api/events/categories")
@@ -28,14 +30,11 @@ function CreateEvent() {
       .catch((err) => console.error("Gagal mengambil kategori:", err));
   }, []);
 
-  // PERBAIKAN: Fungsi toggle kategori (Bisa pilih/hapus lebih dari 1 kategori)
   const handleCategoryChange = (id) => {
     setSelectedCategories((prevSelected) => {
       if (prevSelected.includes(id)) {
-        // Jika ID sudah ada, hapus dari list (uncheck)
         return prevSelected.filter((item) => item !== id);
       } else {
-        // Jika ID belum ada, tambahkan ke list (check)
         return [...prevSelected, id];
       }
     });
@@ -48,8 +47,6 @@ function CreateEvent() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!mainImage) return alert("Harap unggah gambar utama event!");
-
-    // Validasi agar user tidak mengosongkan kategori
     if (selectedCategories.length === 0) {
       return alert("Harap pilih minimal 1 kategori untuk event ini!");
     }
@@ -60,18 +57,25 @@ function CreateEvent() {
     data.append("location", formData.location);
     data.append("start_date", formData.start_date);
     data.append("end_date", formData.end_date);
-
-    // Kirim ID kategori sebagai urutan string murni (Contoh: "1,2,4")
     data.append("category_ids", selectedCategories.join(","));
     data.append("main_image", mainImage);
     album.forEach((file) => data.append("album", file));
+
+    // 🔥 Kirim info role ke backend controller gess!
+    data.append("role", currentRole);
 
     try {
       await axios.post("http://localhost:5000/api/events", data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      alert("Event Berhasil Dibuat dengan Status Draft!");
-      navigate("/events/my-events");
+
+      if (currentRole === "admin") {
+        alert("🚀 Sukses! Sebagai Admin, event baru ini langsung di-Publish!");
+        navigate("/events");
+      } else {
+        alert("📥 Sukses! Event berhasil disimpan sebagai Draft.");
+        navigate("/events/my-events");
+      }
     } catch (err) {
       console.error(err);
       alert("Gagal membuat event. Periksa kembali koneksi backend.");
@@ -85,8 +89,12 @@ function CreateEvent() {
         <div className="row justify-content-center">
           <div className="col-md-8">
             <div className="card shadow-lg border-0 rounded-4">
-              <div className="card-header bg-primary text-white p-4">
-                <h4 className="mb-0 fw-bold">🚀 Buat Event Baru</h4>
+              <div
+                className={`card-header text-white p-4 ${currentRole === "admin" ? "bg-success" : "bg-primary"}`}
+              >
+                <h4 className="mb-0 fw-bold">
+                  🚀 Buat Event Baru ({currentRole.toUpperCase()})
+                </h4>
               </div>
 
               <div className="card-body p-4">
@@ -108,35 +116,28 @@ function CreateEvent() {
                       />
                     </div>
 
-                    {/* SECTION PILIH KATEGORI (MANY-TO-MANY) */}
                     <div className="mb-3">
                       <label className="form-label fw-semibold d-block">
                         Pilih Kategori (Bisa lebih dari satu) *
                       </label>
                       <div className="d-flex flex-wrap gap-2 p-3 border rounded bg-light">
-                        {categories.length === 0 ? (
-                          <span className="text-muted small italic">
-                            Memuat daftar kategori database...
-                          </span>
-                        ) : (
-                          categories.map((cat) => (
-                            <div key={cat.id}>
-                              <input
-                                type="checkbox"
-                                className="btn-check"
-                                id={`cat-${cat.id}`}
-                                checked={selectedCategories.includes(cat.id)}
-                                onChange={() => handleCategoryChange(cat.id)}
-                              />
-                              <label
-                                className="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold"
-                                htmlFor={`cat-${cat.id}`}
-                              >
-                                {cat.name}
-                              </label>
-                            </div>
-                          ))
-                        )}
+                        {categories.map((cat) => (
+                          <div key={cat.id}>
+                            <input
+                              type="checkbox"
+                              className="btn-check"
+                              id={`cat-${cat.id}`}
+                              checked={selectedCategories.includes(cat.id)}
+                              onChange={() => handleCategoryChange(cat.id)}
+                            />
+                            <label
+                              className="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold"
+                              htmlFor={`cat-${cat.id}`}
+                            >
+                              {cat.name}
+                            </label>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
@@ -224,9 +225,11 @@ function CreateEvent() {
                   <div className="d-grid gap-2 d-md-flex pt-3 border-top">
                     <button
                       type="submit"
-                      className="btn btn-primary btn-lg px-5 fw-bold"
+                      className={`btn btn-lg px-5 fw-bold text-white ${currentRole === "admin" ? "btn-success" : "btn-primary"}`}
                     >
-                      Simpan sebagai Draft
+                      {currentRole === "admin"
+                        ? "🚀 Publish Event Langsung"
+                        : "📥 Simpan sebagai Draft"}
                     </button>
                     <Link
                       to="/events"
