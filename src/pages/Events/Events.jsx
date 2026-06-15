@@ -3,21 +3,13 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import { AUTH_USER } from "../../config/auth"; // 🔑 Mengikuti pusat kendali auth
 
 function Events() {
   const [events, setEvents] = useState([]);
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState(null);
-
-  // 🧪 PUSAT KENDALI SIMULASI ROLE
-  // Ganti jadi "admin", "organizer", atau "user" untuk ngetes seluruh alur web gess!
-  const role = "admin"; // Ubah sesuai kebutuhan: "admin", "organizer", atau "user"
-
-  // Setiap kali halaman dimuat atau nilai role diubah, simpan ke localStorage
-  useEffect(() => {
-    localStorage.setItem("simulated_role", role);
-  }, [role]);
 
   useEffect(() => {
     fetchCategories();
@@ -58,7 +50,18 @@ function Events() {
     <>
       <Navbar />
       <div className="container mt-5 mb-5" style={{ minHeight: "75vh" }}>
-        {/* --- BARIS SEJAJAR: SEARCH BAR & FILTER KATEGORI --- */}
+        {/* --- ALERT INFO TESTING AKTIF --- */}
+        <div className="alert alert-info border-0 shadow-sm rounded-3 mb-4 d-flex justify-content-between align-items-center">
+          <div>
+            📍 Logged in as: <strong>{AUTH_USER.name}</strong>
+            <span className="badge bg-primary ms-2">
+              {AUTH_USER.role.toUpperCase()}
+            </span>
+          </div>
+          <small className="text-muted">ID User: {AUTH_USER.id}</small>
+        </div>
+
+        {/* --- SEARCH BAR & FILTER KATEGORI --- */}
         <div className="row g-3 align-items-center mb-4">
           <div className="col-lg-4 col-md-5">
             <input
@@ -90,22 +93,18 @@ function Events() {
           </div>
         </div>
 
-        {/* --- ACTION BAR BUTTONS (HANYA MUNCUL UNTUK ORGANIZER & ADMIN) --- */}
-        {role !== "user" && (
+        {/* --- ACTION BAR (HANYA UNTUK ORGANIZER & ADMIN) --- */}
+        {AUTH_USER.role !== "user" && (
           <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-            {/* 🌍 TOMBOL API LUAR */}
             <div>
               <Link
                 to="/events/external"
                 className="btn btn-success fw-bold rounded-3 shadow-sm d-flex align-items-center gap-2"
               >
-                <span>
-                  🌍 Explore International Events ({role.toUpperCase()})
-                </span>
+                <span>🌍 Explore International Events</span>
               </Link>
             </div>
 
-            {/* TOMBOL MANAJEMEN */}
             <div className="d-flex gap-2">
               <Link
                 to="/events/my-events"
@@ -123,16 +122,14 @@ function Events() {
           </div>
         )}
 
-        {/* LIST CARDS LOKAL */}
+        {/* LIST CARDS */}
         <h4 className="fw-bold text-primary mb-4 pb-2 border-bottom">
           🚀 Featured Local Events
         </h4>
 
         {filteredEvents.length === 0 ? (
           <div className="text-center py-5">
-            <h5 className="text-muted">
-              Tidak ada event dalam kategori ini atau belum ada yang di-publish.
-            </h5>
+            <h5 className="text-muted">Tidak ada event dalam kategori ini.</h5>
           </div>
         ) : (
           <div className="row g-4">
@@ -156,6 +153,7 @@ function Events() {
                       </h5>
                       <p className="text-muted small mb-3">📍 {e.location}</p>
                     </div>
+                    {/* Mengarah ke halaman detail beli tiket */}
                     <Link
                       to={`/events/${e.id}`}
                       className="btn btn-primary w-100 fw-bold py-2 rounded-3"

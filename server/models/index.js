@@ -26,14 +26,29 @@ db.Event = require("./Event")(sequelize, DataTypes);
 db.EventImage = require("./EventImage")(sequelize, DataTypes);
 db.Category = require("./Category")(sequelize, DataTypes);
 
+// 🔥 TAMBAHAN BARU: Daftarkan model OrganizerApplication biar ga undefined lagi woii!
+db.OrganizerApplication = require("./OrganizerApplication")(
+  sequelize,
+  DataTypes,
+);
+
 // Model Fitur Chat dari Vincent (Disesuaikan agar menggunakan 'sequelize' milikmu)
 db.ChatRoom = require("./ChatRoom")(sequelize, DataTypes);
 db.ChatRoomMember = require("./ChatRoomMember")(sequelize, DataTypes);
 db.Message = require("./Message")(sequelize, DataTypes);
 
 // 3. Definisi Relasi Tabel Gilbert (Event & Event Image)
-db.User.hasMany(db.Event, { foreignKey: "organizer_id" });
-db.Event.belongsTo(db.User, { foreignKey: "organizer_id", as: "organizer" });
+// 💡 Kunci Utama Perbaikan Logika Kamu Gess:
+// Sekarang relasi db.Event.belongsTo diarahkan ke OrganizerApplication, bukan User biasa!
+db.OrganizerApplication.hasMany(db.Event, { foreignKey: "organizer_id" });
+db.Event.belongsTo(db.OrganizerApplication, {
+  foreignKey: "organizer_id",
+  as: "organizer",
+});
+
+db.User.hasMany(db.OrganizerApplication, { foreignKey: "user_id" });
+db.OrganizerApplication.belongsTo(db.User, { foreignKey: "user_id" });
+
 db.Event.hasMany(db.EventImage, { foreignKey: "event_id", as: "images" });
 db.EventImage.belongsTo(db.Event, { foreignKey: "event_id" });
 db.Event.belongsToMany(db.Category, {

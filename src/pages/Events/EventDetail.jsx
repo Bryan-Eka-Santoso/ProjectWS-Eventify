@@ -10,161 +10,172 @@ function EventDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchEventDetail = async () => {
-      try {
-        const res = await axios.get(`http://localhost:5000/api/events/${id}`);
+    axios
+      .get(`http://localhost:5000/api/events/${id}`)
+      .then((res) => {
         setEvent(res.data);
-      } catch (err) {
-        console.error("Gagal memuat detail event:", err);
-      } finally {
         setLoading(false);
-      }
-    };
-    fetchEventDetail();
+      })
+      .catch((err) => {
+        console.error("Gagal memuat detail event:", err);
+        setLoading(false);
+      });
   }, [id]);
 
-  if (loading) {
+  if (loading)
     return (
-      <div className="text-center mt-5" style={{ minHeight: "70vh" }}>
+      <div className="text-center my-5 p-5">
         <div className="spinner-border text-primary" role="status"></div>
-        <p className="mt-2">Memuat informasi event...</p>
+        <p className="mt-2 text-muted">Memuat detail event...</p>
       </div>
     );
-  }
 
-  if (!event) {
+  if (!event)
     return (
-      <div className="container mt-5 text-center" style={{ minHeight: "70vh" }}>
-        <h3>⚠️ Event Tidak Ditemukan</h3>
-        <Link to="/events" className="btn btn-primary mt-3">
-          Kembali ke Explore
+      <div className="container mt-5 text-center my-5 py-5 bg-light rounded-4">
+        <h3 className="text-muted">Waduh, Event tidak ditemukan gess!</h3>
+        <Link to="/events" className="btn btn-primary mt-3 rounded-pill px-4">
+          Kembali ke List Event
         </Link>
       </div>
     );
-  }
+
+  // Fungsi helper untuk merapikan format tanggal dan waktu Indonesia gess
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "-";
+    // dateString formatnya biasanya: "2026-06-16T19:00:00.000Z"
+    const bagian = dateString.split("T");
+    const tanggalMentah = bagian[0]; // 2026-06-16
+    const waktuMentah = bagian[1].substring(0, 5); // 19:00
+
+    // Ubah ke format Indonesia rapi
+    const [thn, bln, tgl] = tanggalMentah.split("-");
+    const namaBulan = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
+    ];
+
+    return `${tgl} ${namaBulan[parseInt(bln) - 1]} ${thn} Pukul ${waktuMentah}`;
+  };
 
   return (
     <>
       <Navbar />
+      <div className="container mt-5 mb-5" style={{ minHeight: "80vh" }}>
+        <Link
+          to="/events"
+          className="btn btn-light border fw-semibold mb-4 px-3 py-2 rounded-3 shadow-sm"
+        >
+          ⬅️ Kembali ke List Event
+        </Link>
 
-      {/* Container utama dibuat agak ramping (max-width md atau col-md-10) agar enak dibaca dari atas ke bawah */}
-      <div className="container mt-5 mb-5" style={{ minHeight: "75vh" }}>
-        <div className="row justify-content-center">
-          <div className="col-lg-9">
-            {/* CARD UTAMA (BUNGLUSAN ALL-IN-ONE) */}
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-              {/* 1. BANNER UTAMA (PALING ATAS) */}
+        <div className="row g-5">
+          {/* BANNER UTAMA (KIRI) */}
+          <div className="col-md-6">
+            <div className="position-sticky" style={{ top: "100px" }}>
               <img
                 src={`http://localhost:5000/uploads/${event.main_image_url}`}
+                className="img-fluid rounded-4 shadow-lg w-100 border"
                 alt={event.title}
-                className="img-fluid w-100"
                 style={{ maxHeight: "450px", objectFit: "cover" }}
+                onError={(el) => {
+                  el.target.src = "https://placehold.co/600x400?text=No+Banner";
+                }}
               />
-
-              <div className="card-body p-4 p-md-5">
-                {/* 2. JUDUL EVENT */}
-                <h2 className="fw-bold text-dark mb-3">{event.title}</h2>
-                <hr className="my-4 text-muted opacity-25" />
-
-                {/* 3. DESKRIPSI EVENT */}
-                <h5 className="fw-bold text-primary mb-3">Deskripsi Acara</h5>
-                <p
-                  className="text-secondary mb-5"
-                  style={{ whiteSpace: "pre-line", lineHeight: "1.7" }}
-                >
-                  {event.description || "Tidak ada deskripsi untuk event ini."}
-                </p>
-
-                <hr className="my-4 text-muted opacity-25" />
-
-                {/* 4. INFORMASI LOGISTIK (LOKASI & TANGGAL) */}
-                <h5 className="fw-bold text-primary mb-3">
-                  Detail Pelaksanaan
-                </h5>
-                <div className="row g-3 bg-light p-4 rounded-4 mb-5">
-                  <div className="col-md-4">
-                    <label className="text-muted small fw-bold d-block text-uppercase">
-                      📍 Lokasi Tempat
-                    </label>
-                    <span className="fw-semibold text-dark">
-                      {event.location}
-                    </span>
-                  </div>
-                  <div className="col-md-4">
-                    <label className="text-muted small fw-bold d-block text-uppercase">
-                      📅 Tanggal Mulai
-                    </label>
-                    <span className="text-dark">
-                      {new Date(event.start_date).toLocaleString("id-ID")} WIB
-                    </span>
-                  </div>
-                  <div className="col-md-4">
-                    <label className="text-muted small fw-bold d-block text-uppercase">
-                      🏁 Tanggal Selesai
-                    </label>
-                    <span className="text-dark">
-                      {new Date(event.end_date).toLocaleString("id-ID")} WIB
-                    </span>
-                  </div>
-                </div>
-
-                {/* 5. BUTTON AKSI UTAMA */}
-                <div className="d-grid gap-3 mb-5">
-                  <button
-                    className="btn btn-primary btn-lg fw-bold py-3 rounded-3 shadow-sm"
-                    onClick={() => alert("Fitur pembelian tiket segera hadir!")}
-                  >
-                    🎟️ Amankan Tiket Sekarang
-                  </button>
-                </div>
-
-                {/* 6. ALBUM GALLERY (PALING BAWAH SEBELUM TOMBOL BACK) */}
-                {event.images && event.images.length > 0 && (
-                  <div className="mt-5">
-                    <h5 className="fw-bold text-primary mb-3">
-                      📸 Galeri Foto Pendukung
-                    </h5>
-                    <div className="row g-3">
-                      {event.images.map((img) => (
-                        <div className="col-6 col-sm-4 col-md-3" key={img.id}>
-                          <img
-                            src={`http://localhost:5000/uploads/${img.image_url}`}
-                            alt="Dokumentasi Album"
-                            className="img-fluid rounded-3 border"
-                            style={{
-                              height: "140px",
-                              width: "100%",
-                              objectFit: "cover",
-                              cursor: "pointer",
-                            }}
-                            onClick={() =>
-                              window.open(
-                                `http://localhost:5000/uploads/${img.image_url}`,
-                                "_blank",
-                              )
-                            }
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* TOMBOL KEMBALI DI LUAR CARD */}
-            <div className="text-center mt-4">
-              <Link
-                to="/events"
-                className="btn btn-light px-4 border text-muted rounded-3 shadow-sm"
-              >
-                ← Kembali ke Daftar Event
-              </Link>
             </div>
           </div>
-        </div>
-      </div>
 
+          {/* DETAIL KONTEN (KANAN) */}
+          <div className="col-md-6">
+            <span className="badge bg-primary px-3 py-2 rounded-pill mb-2">
+              Local Event
+            </span>
+            <h1 className="fw-bold text-dark mb-3 display-5">{event.title}</h1>
+
+            <div className="d-flex flex-column gap-2 mb-4 p-3 bg-light rounded-3 border">
+              <p className="text-muted mb-0 d-flex align-items-center gap-2">
+                <span className="fs-5">📍</span> <strong>Lokasi:</strong>{" "}
+                {event.location}
+              </p>
+
+              {/* 📅 REVISI WAKTU UTAN: START_DATE DAN END_DATE SEKARANG DITAMPILKAN LENGKAP WOII */}
+              <div className="text-muted mb-0 d-flex align-items-start gap-2">
+                <span className="fs-5">📅</span>
+                <div>
+                  <strong>Waktu Pelaksanaan:</strong>
+                  <div className="small text-dark mt-1">
+                    🛫 <span>Mulai: {formatDateTime(event.start_date)}</span>
+                  </div>
+                  <div className="small text-dark">
+                    🛬 <span>Selesai: {formatDateTime(event.end_date)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-muted mb-0 d-flex align-items-center gap-2 mt-2">
+                <span className="fs-5">🆔</span> <strong>Organizer ID:</strong>{" "}
+                <span className="fw-semibold text-danger">
+                  {event.organizer_id || "Admin (NULL)"}
+                </span>
+              </p>
+            </div>
+
+            <h5 className="fw-bold text-dark mt-4">Deskripsi Event</h5>
+            <p
+              className="text-dark lh-lg mt-2"
+              style={{ textAlign: "justify" }}
+            >
+              {event.description ||
+                "Tidak ada deskripsi detail untuk event ini gess."}
+            </p>
+
+            <button className="btn btn-primary btn-lg w-100 rounded-3 fw-bold mt-4 py-3 shadow d-flex align-items-center justify-content-center gap-2">
+              <span className="fs-4">🎫</span> Beli Tiket Sekarang
+            </button>
+          </div>
+        </div>
+
+        {/* 📸 FITUR GALERI ALBUM (TETAP AMAN SENTOSA) */}
+        {event.images && event.images.length > 0 && (
+          <div className="mt-5 pt-5 border-top">
+            <h4 className="fw-bold text-dark mb-4 pb-2 border-bottom d-inline-block">
+              📸 Galeri Foto Album
+            </h4>
+            <div className="row g-3">
+              {event.images.map((img) => (
+                <div className="col-6 col-sm-4 col-md-3" key={img.id}>
+                  <div className="card h-100 rounded-3 overflow-hidden shadow-sm border p-1 bg-white">
+                    <img
+                      src={`http://localhost:5000/uploads/${img.image_url}`}
+                      alt="Dokumentasi Album Event"
+                      className="w-100 h-100"
+                      style={{
+                        height: "180px",
+                        objectFit: "cover",
+                        borderRadius: "6px",
+                      }}
+                      onError={(el) => {
+                        el.target.src =
+                          "https://placehold.co/300x200?text=Error+Load";
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       <Footer />
     </>
   );

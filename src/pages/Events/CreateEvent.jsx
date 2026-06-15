@@ -3,12 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import { AUTH_USER } from "../../config/auth"; // 🔑 Mengambil config pusat
 
 function CreateEvent() {
   const navigate = useNavigate();
-
-  // 📥 Membaca otomatis role yang sedang aktif dari Events.jsx
-  const currentRole = localStorage.getItem("simulated_role") || "organizer";
 
   const [formData, setFormData] = useState({
     title: "",
@@ -19,7 +17,7 @@ function CreateEvent() {
   });
 
   const [mainImage, setMainImage] = useState(null);
-  const [album, setAlbum] = useState([]);
+  const [album, setAlbum] = useState([]); // 🖼️ State penampung file array album
   const [categories, setCategories] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
 
@@ -47,9 +45,8 @@ function CreateEvent() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!mainImage) return alert("Harap unggah gambar utama event!");
-    if (selectedCategories.length === 0) {
-      return alert("Harap pilih minimal 1 kategori untuk event ini!");
-    }
+    if (selectedCategories.length === 0)
+      return alert("Harap pilih minimal 1 kategori!");
 
     const data = new FormData();
     data.append("title", formData.title);
@@ -59,26 +56,32 @@ function CreateEvent() {
     data.append("end_date", formData.end_date);
     data.append("category_ids", selectedCategories.join(","));
     data.append("main_image", mainImage);
+
+    // 📸 Append album visual galeri kembali gess
     album.forEach((file) => data.append("album", file));
 
-    // 🔥 Kirim info role ke backend controller gess!
-    data.append("role", currentRole);
+    // 🔥 Oper ID User & Role ke backend untuk dicari id aplikasi organizernya
+    data.append("user_id", AUTH_USER.id);
+    data.append("role", AUTH_USER.role);
 
     try {
-      await axios.post("http://localhost:5000/api/events", data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await axios.post(
+        "http://localhost:5000/api/events",
+        data,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
+      alert(response.data.message);
 
-      if (currentRole === "admin") {
-        alert("🚀 Sukses! Sebagai Admin, event baru ini langsung di-Publish!");
+      if (AUTH_USER.role === "admin") {
         navigate("/events");
       } else {
-        alert("📥 Sukses! Event berhasil disimpan sebagai Draft.");
         navigate("/events/my-events");
       }
     } catch (err) {
       console.error(err);
-      alert("Gagal membuat event. Periksa kembali koneksi backend.");
+      alert(err.response?.data?.message || "Gagal membuat event.");
     }
   };
 
@@ -90,10 +93,10 @@ function CreateEvent() {
           <div className="col-md-8">
             <div className="card shadow-lg border-0 rounded-4">
               <div
-                className={`card-header text-white p-4 ${currentRole === "admin" ? "bg-success" : "bg-primary"}`}
+                className={`card-header text-white p-4 ${AUTH_USER.role === "admin" ? "bg-success" : "bg-primary"}`}
               >
                 <h4 className="mb-0 fw-bold">
-                  🚀 Buat Event Baru ({currentRole.toUpperCase()})
+                  🚀 Buat Event Baru ({AUTH_USER.role.toUpperCase()})
                 </h4>
               </div>
 
@@ -118,7 +121,7 @@ function CreateEvent() {
 
                     <div className="mb-3">
                       <label className="form-label fw-semibold d-block">
-                        Pilih Kategori (Bisa lebih dari satu) *
+                        Pilih Kategori *
                       </label>
                       <div className="d-flex flex-wrap gap-2 p-3 border rounded bg-light">
                         {categories.map((cat) => (
@@ -192,6 +195,7 @@ function CreateEvent() {
                     </div>
                   </div>
 
+                  {/* 🖼️ MEDIA VISUAL ALBUM LENGKAP */}
                   <div className="mb-4">
                     <h6 className="text-primary fw-bold border-bottom pb-2 mb-3">
                       Media Visual
@@ -210,7 +214,7 @@ function CreateEvent() {
                     </div>
                     <div className="mb-3">
                       <label className="form-label fw-semibold">
-                        Album Galeri
+                        Album Galeri Tambahan
                       </label>
                       <input
                         type="file"
@@ -225,9 +229,9 @@ function CreateEvent() {
                   <div className="d-grid gap-2 d-md-flex pt-3 border-top">
                     <button
                       type="submit"
-                      className={`btn btn-lg px-5 fw-bold text-white ${currentRole === "admin" ? "btn-success" : "btn-primary"}`}
+                      className={`btn btn-lg px-5 fw-bold text-white ${AUTH_USER.role === "admin" ? "btn-success" : "btn-primary"}`}
                     >
-                      {currentRole === "admin"
+                      {AUTH_USER.role === "admin"
                         ? "🚀 Publish Event Langsung"
                         : "📥 Simpan sebagai Draft"}
                     </button>

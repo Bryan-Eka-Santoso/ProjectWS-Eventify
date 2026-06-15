@@ -3,13 +3,11 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import { AUTH_USER } from "../../config/auth"; // 🔑 Menggunakan pusat kendali auth saklar utama gess
 
 function ExploreExternal() {
   const [externalEvents, setExternalEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Mengambil info role murni untuk keperluan visual judul halaman
-  const currentRole = localStorage.getItem("simulated_role") || "organizer";
 
   useEffect(() => {
     // Menarik 12 data event luar angkasa internasional
@@ -29,14 +27,24 @@ function ExploreExternal() {
     <>
       <Navbar />
       <div className="container mt-5 mb-5" style={{ minHeight: "80vh" }}>
+        {/* --- ALERT INFO TESTING AKTIF --- */}
+        <div className="alert alert-success border-0 shadow-sm rounded-3 mb-4 d-flex justify-content-between align-items-center">
+          <div>
+            🌍 Global API Explorer Active: <strong>{AUTH_USER.name}</strong>
+            <span className="badge bg-success ms-2">
+              {AUTH_USER.role.toUpperCase()}
+            </span>
+          </div>
+          <small className="text-muted">ID User: {AUTH_USER.id}</small>
+        </div>
+
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h2 className="fw-bold text-dark mb-1">
               🌍 International Space Events
             </h2>
             <p className="text-muted mb-0">
-              Adopsi data dari API luar negeri langsung ke SQL lokal (
-              {currentRole.toUpperCase()})
+              Adopsi data dari API luar negeri langsung ke SQL lokal
             </p>
           </div>
           <Link
@@ -86,6 +94,7 @@ function ExploreExternal() {
                         })}
                       </p>
                     </div>
+                    {/* Mengarah ke rute halaman detail eksternal */}
                     <Link
                       to={`/events/external/${item.id}`}
                       className="btn btn-success w-100 fw-bold rounded-3 py-2"

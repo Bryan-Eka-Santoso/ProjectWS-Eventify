@@ -1,10 +1,19 @@
 const db = require("../models");
-const { Event, EventImage, Category } = db;
+
+// 💡 TIPS AMAN: Kita panggil langsung dari objek db agar tidak sensitif uppercase/lowercase saat destructuring
+const Event = db.Event;
+const EventImage = db.EventImage;
+const Category = db.Category;
+
+// Ambil model OrganizerApplication (Sesuaikan dengan nama file di folder models-mu gess)
+const OrganizerApplication =
+  db.OrganizerApplication ||
+  db.organizerApplication ||
+  db.Organizer_application;
 
 const eventController = {
   createEvent: async (req, res) => {
     try {
-      // 1. Tambahkan 'role' ke dalam destructuring
       const {
         title,
         description,
@@ -12,71 +21,97 @@ const eventController = {
         start_date,
         end_date,
         category_ids,
-        role, // <--- Menangkap role dari frontend
+        user_id,
+        role,
       } = req.body;
+      const main_image =
+        req.files && req.files.main_image
+          ? req.files.main_image[0].filename
+          : "default.jpg";
 
-      const main_image_url = req.files["main_image"]
-        ? req.files["main_image"][0].filename
-        : null;
+      // 🔍 ATURAN LOGIKA REVISI BARU:
+      let organizerIdValue = null;
+      const eventStatusValue = role === "admin" ? "published" : "draft";
 
-      if (!main_image_url) {
-        return res
-          .status(400)
-          .json({ message: "Gambar utama (main_image) wajib diunggah!" });
+      if (role === "organizer") {
+        // Cari id dari tabel organizer_applications berdasarkan user_id yang login gess
+        const app = await OrganizerApplication.findOne({
+          where: { user_id: user_id },
+        });
+        if (!app) {
+          return res.status(400).json({
+            message: "Kamu belum terdaftar atau disetujui sebagai Organizer!",
+          });
+        }
+        organizerIdValue = app.id; // 🎯 BERHASIL MENGAMBIL ID DARI ORGANIZER_APPLICATION, BUKAN USER ID!
       }
 
-      // 2. LOGIKA DYNAMIC STATUS:
-      // Jika role adalah 'admin', maka 'published'. Selain itu (organizer), maka 'draft'.
-      const eventStatus = role === "admin" ? "published" : "draft";
-
       const newEvent = await Event.create({
-        organizer_id: 1,
+        organizer_id: organizerIdValue, // ID Aplikasi jika organizer, NULL jika admin
         title,
         description,
         location,
-        start_date,
-        end_date,
-        main_image_url,
-        status: eventStatus, // <--- Gunakan variabel dinamis di sini
+        start_date: new Date(start_date),
+        end_date: new Date(end_date),
+        main_image_url: main_image,
+        status: eventStatusValue,
       });
 
-      // ... (sisanya kodingan Many-to-Many dan upload album tetap sama)
+      // Masukkan ke tabel pivot many-to-many kategori jika ada (Aman tidak dibuang!)
       if (category_ids) {
-        let ids = [];
-        if (typeof category_ids === "string" && category_ids.trim() !== "") {
-          ids = category_ids.split(",").map(Number);
-        } else if (Array.isArray(category_ids)) {
-          ids = category_ids.map(Number);
-        }
-        if (ids.length > 0) {
-          await newEvent.setCategories(ids);
-        }
+        const ids = category_ids.split(",").map(Number);
+        await newEvent.addCategories(ids);
       }
 
-      if (req.files && req.files["album"] && req.files["album"].length > 0) {
-        const albumData = req.files["album"].map((file) => ({
+      // 🖼️ FITUR ALBUM: Simpan array gambar ke tabel event_images
+      if (req.files && req.files.album) {
+        const albumImages = req.files.album.map((file) => ({
           event_id: newEvent.id,
           image_url: file.filename,
         }));
-        await EventImage.bulkCreate(albumData);
+        await EventImage.bulkCreate(albumImages);
       }
 
-      res.status(201).json({ message: "Success", data: newEvent });
+      res.status(201).json({
+        message:
+          role === "admin"
+            ? "Event berhasil di-publish oleh Admin!"
+            : "Event berhasil disimpan sebagai Draft oleh Organizer!",
+        data: newEvent,
+      });
     } catch (error) {
-      console.error("🔥 ERROR DI CREATE EVENT:", error);
-      res.status(500).json({ message: error.message });
+      console.error(error);
+      res.status(500).json({ message: "Error saat membuat event." });
     }
   },
 
   getMyEvents: async (req, res) => {
     try {
-      const myEvents = await Event.findAll({
-        where: { organizer_id: 1 },
-        order: [["id", "DESC"]],
-      });
-      res.json(myEvents);
+      const { user_id, role } = req.query;
+
+      let whereClause = {};
+
+      // 🔍 SINCRONISASI LOGIKA GLOBAL ADMIN DI SINI WOII:
+      if (role === "organizer") {
+        // Cari dulu data aplikasinya agar tahu ID organizer-nya berapa
+        const app = await OrganizerApplication.findOne({
+          where: { user_id: user_id },
+        });
+        if (app) {
+          whereClause = { organizer_id: app.id }; // Saring berdasarkan ID OrganizerApplication-nya gess
+        } else {
+          whereClause = { organizer_id: -1 }; // Jika tidak ketemu, kunci agar tidak keluar data random
+        }
+      } else if (role === "admin") {
+        // 🎯 KONSEP GLOBAL ADMIN SAKTI: Menampilkan mutlak seluruh event yang di-handle instansi Admin (id = null)
+        whereClause = { organizer_id: null };
+      }
+
+      const events = await Event.findAll({ where: whereClause });
+      res.json(events);
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      console.error("Error getMyEvents:", error);
+      res.status(500).json({ message: "Gagal memuat daftar event kamu." });
     }
   },
 
@@ -124,6 +159,7 @@ const eventController = {
     try {
       const { id } = req.params;
       const event = await Event.findByPk(id, {
+        // 📸 Memastikan relasi album ("images" sesuai kodingan lamamu) ikut terbawa ke detail beli tiket!
         include: [{ model: EventImage, as: "images" }],
       });
 
@@ -156,56 +192,60 @@ const eventController = {
     }
   },
 
-  // --- 🌟 FITUR BARU: MENGIKUTI / MENYIMPAN EVENT LUAR KE DATABASE 🌟 ---
-  // --- 🌟 FITUR BARU: MENGIKUTI / MENYIMPAN EVENT LUAR KE DATABASE 🌟 ---
+  // --- 🌟 FITUR MENGIKUTI / MENYIMPAN EVENT LUAR KE DATABASE 🌟 ---
   followExternalEvent: async (req, res) => {
     try {
-      // 1. Ambil 'role' dari req.body yang dikirim oleh frontend
-      const { external_id, title, location, start_date, role } = req.body;
+      const { external_id, title, location, start_date, user_id, role } =
+        req.body;
 
-      // Cek apakah sudah pernah diadopsi
-      let event = await Event.findOne({ where: { external_id: external_id } });
-
+      let event = await Event.findOne({
+        where: { external_id: String(external_id) },
+      });
       if (event) {
         return res
           .status(400)
           .json({ message: "Event ini sudah pernah diadopsi!" });
       }
 
-      // 2. JALUR DINAMIS STATUS:
-      // Jika role yang masuk adalah 'admin', langsung 'published'. Jika bukan (organizer), jadi 'draft'.
-      const externalEventStatus = role === "admin" ? "published" : "draft";
+      // 🔍 ATURAN LOGIKA REVISI BARU UNTUK ADOPSI API:
+      let organizerIdValue = null;
+      const eventStatusValue = role === "admin" ? "published" : "draft";
 
-      // 3. Simpan ke database dengan status yang sudah dinamis
+      if (role === "organizer") {
+        const app = await OrganizerApplication.findOne({
+          where: { user_id: user_id },
+        });
+        if (!app) {
+          return res.status(400).json({
+            message: "Kamu belum terdaftar atau disetujui sebagai Organizer!",
+          });
+        }
+        organizerIdValue = app.id; // 🎯 Mengambil ID dari organizer_applications, BUKAN User ID!
+      }
+
       event = await Event.create({
-        organizer_id: 1,
+        organizer_id: organizerIdValue,
         title: title,
         description: "Event internasional hasil kurasi.",
         location: location || "Online",
         start_date: new Date(start_date),
         end_date: new Date(start_date),
         main_image_url: "default-banner.jpg",
-        status: externalEventStatus, // 🔥 Di sini letak kuncinya gess!
+        status: eventStatusValue,
+        external_id: String(external_id),
       });
 
-      event.external_id = String(external_id);
-      await event.save();
-
-      // 4. Berikan pesan alert yang berbeda biar pas demo mantap dilihat dosen
       const customMessage =
         role === "admin"
-          ? "Berhasil diadopsi dan LANGSUNG DI-PUBLISH ke halaman utama!"
-          : "Berhasil disimpan ke Draf! Silakan kelola di menu My Events.";
+          ? "Berhasil diadopsi dan LANGSUNG DI-PUBLISH (organizer_id = NULL)!"
+          : "Berhasil disimpan ke Draf (organizer_id = ID Organizer Application)!";
 
-      res.status(201).json({
-        message: customMessage,
-        data: event,
-      });
+      res.status(201).json({ message: customMessage, data: event });
     } catch (error) {
-      console.error("🔥 ERROR DI FOLLOW EXTERNAL EVENT:", error);
+      console.error(error);
       res
         .status(500)
-        .json({ message: "Error saat menyimpan event eksternal." });
+        .json({ message: "Error saat mengadopsi event eksternal." });
     }
   },
 };
