@@ -3,11 +3,13 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import { AUTH_USER } from "../../config/auth"; // 🔑 Mengikuti pusat kendali auth
 
 function EventDetail() {
   const { id } = useParams();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSaved, setIsSaved] = useState(false); // 🔖 State status bookmark
 
   useEffect(() => {
     axios
@@ -20,7 +22,33 @@ function EventDetail() {
         console.error("Gagal memuat detail event:", err);
         setLoading(false);
       });
+
+    // 🔍 Jalankan pengecekan status awal saat halaman dibuka gess
+    axios
+      .get(
+        `http://localhost:5000/api/events/${id}/check-save?user_id=${AUTH_USER.id}`,
+      )
+      .then((res) => setIsSaved(res.data.isSaved))
+      .catch((err) => console.error(err));
   }, [id]);
+
+  // 🔥 Fungsi eksekusi simpan & batalkan simpan otomatis (Toggle)
+  const handleToggleSave = async () => {
+    try {
+      const res = await axios.post(
+        "http://localhost:5000/api/events/toggle-save",
+        {
+          user_id: AUTH_USER.id,
+          event_id: id,
+        },
+      );
+      alert(res.data.message);
+      setIsSaved(res.data.isSaved); // Ubah visual tombol langsung tanpa refresh gess
+    } catch (err) {
+      console.error(err);
+      alert("Gagal memproses simpan event.");
+    }
+  };
 
   if (loading)
     return (
@@ -40,15 +68,11 @@ function EventDetail() {
       </div>
     );
 
-  // Fungsi helper untuk merapikan format tanggal dan waktu Indonesia gess
   const formatDateTime = (dateString) => {
     if (!dateString) return "-";
-    // dateString formatnya biasanya: "2026-06-16T19:00:00.000Z"
     const bagian = dateString.split("T");
-    const tanggalMentah = bagian[0]; // 2026-06-16
-    const waktuMentah = bagian[1].substring(0, 5); // 19:00
-
-    // Ubah ke format Indonesia rapi
+    const tanggalMentah = bagian[0];
+    const waktuMentah = bagian[1].substring(0, 5);
     const [thn, bln, tgl] = tanggalMentah.split("-");
     const namaBulan = [
       "Januari",
@@ -64,7 +88,6 @@ function EventDetail() {
       "November",
       "Desember",
     ];
-
     return `${tgl} ${namaBulan[parseInt(bln) - 1]} ${thn} Pukul ${waktuMentah}`;
   };
 
@@ -80,7 +103,6 @@ function EventDetail() {
         </Link>
 
         <div className="row g-5">
-          {/* BANNER UTAMA (KIRI) */}
           <div className="col-md-6">
             <div className="position-sticky" style={{ top: "100px" }}>
               <img
@@ -95,7 +117,6 @@ function EventDetail() {
             </div>
           </div>
 
-          {/* DETAIL KONTEN (KANAN) */}
           <div className="col-md-6">
             <span className="badge bg-primary px-3 py-2 rounded-pill mb-2">
               Local Event
@@ -107,8 +128,6 @@ function EventDetail() {
                 <span className="fs-5">📍</span> <strong>Lokasi:</strong>{" "}
                 {event.location}
               </p>
-
-              {/* 📅 REVISI WAKTU UTAN: START_DATE DAN END_DATE SEKARANG DITAMPILKAN LENGKAP WOII */}
               <div className="text-muted mb-0 d-flex align-items-start gap-2">
                 <span className="fs-5">📅</span>
                 <div>
@@ -121,7 +140,6 @@ function EventDetail() {
                   </div>
                 </div>
               </div>
-
               <p className="text-muted mb-0 d-flex align-items-center gap-2 mt-2">
                 <span className="fs-5">🆔</span> <strong>Organizer ID:</strong>{" "}
                 <span className="fw-semibold text-danger">
@@ -139,13 +157,26 @@ function EventDetail() {
                 "Tidak ada deskripsi detail untuk event ini gess."}
             </p>
 
-            <button className="btn btn-primary btn-lg w-100 rounded-3 fw-bold mt-4 py-3 shadow d-flex align-items-center justify-content-center gap-2">
-              <span className="fs-4">🎫</span> Beli Tiket Sekarang
-            </button>
+            {/* 🔥 BARIS BUTTON INTERAKSI KELOMPOK */}
+            <div className="d-flex flex-column gap-2 mt-4">
+              <button className="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow d-flex align-items-center justify-content-center gap-2">
+                <span className="fs-4">🎫</span> Beli Tiket Sekarang
+              </button>
+
+              {/* 🔖 TOMBOL TOGGLE SAVE / BATAL SAVE RESMI HADIR */}
+              <button
+                className={`btn btn-lg w-100 rounded-3 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 ${isSaved ? "btn-danger text-white" : "btn-outline-warning text-dark"}`}
+                onClick={handleToggleSave}
+              >
+                <span>
+                  {isSaved ? "❌ Batalkan Simpan Event" : "🔖 Save Event Ini"}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* 📸 FITUR GALERI ALBUM (TETAP AMAN SENTOSA) */}
+        {/* FITUR GALERI ALBUM AMAN SENTOSA */}
         {event.images && event.images.length > 0 && (
           <div className="mt-5 pt-5 border-top">
             <h4 className="fw-bold text-dark mb-4 pb-2 border-bottom d-inline-block">

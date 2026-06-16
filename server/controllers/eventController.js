@@ -1,15 +1,11 @@
 const db = require("../models");
 
-// 💡 TIPS AMAN: Kita panggil langsung dari objek db agar tidak sensitif uppercase/lowercase saat destructuring
 const Event = db.Event;
 const EventImage = db.EventImage;
 const Category = db.Category;
-
-// Ambil model OrganizerApplication (Sesuaikan dengan nama file di folder models-mu gess)
-const OrganizerApplication =
-  db.OrganizerApplication ||
-  db.organizerApplication ||
-  db.Organizer_application;
+const User = db.User;
+const SavedEvent = db.SavedEvent; // 🎯 Sekarang ini dijamin 100% aman dan terbaca karena sudah didaftarkan di index.js!
+const OrganizerApplication = db.OrganizerApplication;
 
 const eventController = {
   createEvent: async (req, res) => {
@@ -29,12 +25,24 @@ const eventController = {
           ? req.files.main_image[0].filename
           : "default.jpg";
 
-      // 🔍 ATURAN LOGIKA REVISI BARU:
+      // 🛡️ VALIDASI MODEL USER: Cek apakah user yang bikin beneran terdaftar di SQL DB kamu
+      const checkUser = await User.findByPk(user_id);
+      if (!checkUser) {
+        return res
+          .status(404)
+          .json({ message: "User pembuat tidak ditemukan di database gess!" });
+      }
+      if (checkUser.role !== role) {
+        return res.status(403).json({
+          message:
+            "Manipulasi data terdeteksi! Role tidak cocok dengan database.",
+        });
+      }
+
       let organizerIdValue = null;
       const eventStatusValue = role === "admin" ? "published" : "draft";
 
       if (role === "organizer") {
-        // Cari id dari tabel organizer_applications berdasarkan user_id yang login gess
         const app = await OrganizerApplication.findOne({
           where: { user_id: user_id },
         });
@@ -43,11 +51,11 @@ const eventController = {
             message: "Kamu belum terdaftar atau disetujui sebagai Organizer!",
           });
         }
-        organizerIdValue = app.id; // 🎯 BERHASIL MENGAMBIL ID DARI ORGANIZER_APPLICATION, BUKAN USER ID!
+        organizerIdValue = app.id;
       }
 
       const newEvent = await Event.create({
-        organizer_id: organizerIdValue, // ID Aplikasi jika organizer, NULL jika admin
+        organizer_id: organizerIdValue,
         title,
         description,
         location,
@@ -57,13 +65,11 @@ const eventController = {
         status: eventStatusValue,
       });
 
-      // Masukkan ke tabel pivot many-to-many kategori jika ada (Aman tidak dibuang!)
       if (category_ids) {
         const ids = category_ids.split(",").map(Number);
         await newEvent.addCategories(ids);
       }
 
-      // 🖼️ FITUR ALBUM: Simpan array gambar ke tabel event_images
       if (req.files && req.files.album) {
         const albumImages = req.files.album.map((file) => ({
           event_id: newEvent.id,
@@ -91,19 +97,16 @@ const eventController = {
 
       let whereClause = {};
 
-      // 🔍 SINCRONISASI LOGIKA GLOBAL ADMIN DI SINI WOII:
       if (role === "organizer") {
-        // Cari dulu data aplikasinya agar tahu ID organizer-nya berapa
         const app = await OrganizerApplication.findOne({
           where: { user_id: user_id },
         });
         if (app) {
-          whereClause = { organizer_id: app.id }; // Saring berdasarkan ID OrganizerApplication-nya gess
+          whereClause = { organizer_id: app.id };
         } else {
-          whereClause = { organizer_id: -1 }; // Jika tidak ketemu, kunci agar tidak keluar data random
+          whereClause = { organizer_id: -1 };
         }
       } else if (role === "admin") {
-        // 🎯 KONSEP GLOBAL ADMIN SAKTI: Menampilkan mutlak seluruh event yang di-handle instansi Admin (id = null)
         whereClause = { organizer_id: null };
       }
 
@@ -158,9 +161,18 @@ const eventController = {
   getEventById: async (req, res) => {
     try {
       const { id } = req.params;
+
+      // 🎯 SEKARANG GET DETAIL TURUT MELAKUKAN JOIN TABLE YANG RELEVAN
       const event = await Event.findByPk(id, {
-        // 📸 Memastikan relasi album ("images" sesuai kodingan lamamu) ikut terbawa ke detail beli tiket!
-        include: [{ model: EventImage, as: "images" }],
+        include: [
+          { model: EventImage, as: "images" },
+          {
+            model: OrganizerApplication,
+            as: "organizer",
+            // Meng-include User di dalam aplikasi organizer untuk menarik nama asli user
+            include: [{ model: User, attributes: ["name", "email"] }],
+          },
+        ],
       });
 
       if (!event) {
@@ -192,7 +204,6 @@ const eventController = {
     }
   },
 
-  // --- 🌟 FITUR MENGIKUTI / MENYIMPAN EVENT LUAR KE DATABASE 🌟 ---
   followExternalEvent: async (req, res) => {
     try {
       const { external_id, title, location, start_date, user_id, role } =
@@ -207,7 +218,14 @@ const eventController = {
           .json({ message: "Event ini sudah pernah diadopsi!" });
       }
 
-      // 🔍 ATURAN LOGIKA REVISI BARU UNTUK ADOPSI API:
+      // 🛡️ VALIDASI MODEL USER SAAT ADOPSI API GLOBAL
+      const checkUser = await User.findByPk(user_id);
+      if (!checkUser) {
+        return res
+          .status(404)
+          .json({ message: "User pengadopsi tidak ditemukan gess!" });
+      }
+
       let organizerIdValue = null;
       const eventStatusValue = role === "admin" ? "published" : "draft";
 
@@ -220,7 +238,7 @@ const eventController = {
             message: "Kamu belum terdaftar atau disetujui sebagai Organizer!",
           });
         }
-        organizerIdValue = app.id; // 🎯 Mengambil ID dari organizer_applications, BUKAN User ID!
+        organizerIdValue = app.id;
       }
 
       event = await Event.create({
@@ -246,6 +264,83 @@ const eventController = {
       res
         .status(500)
         .json({ message: "Error saat mengadopsi event eksternal." });
+    }
+  },
+
+  // 🔥 FUNGSI 1: Toggle Save / Unsave Event (Gaya ORM)
+  toggleSaveEvent: async (req, res) => {
+    try {
+      const { user_id, event_id } = req.body;
+
+      // 🔍 Cari tahu apakah data bookmark sudah ada di database gess
+      const alreadySaved = await SavedEvent.findOne({
+        where: { user_id, event_id },
+      });
+
+      if (alreadySaved) {
+        // Jika ketemu, langsung hapus (Unsave) gess! Lebih ringkas kan?
+        await alreadySaved.destroy();
+        return res.json({
+          message: "Berhasil membatalkan simpan event!",
+          isSaved: false,
+        });
+      } else {
+        // Jika tidak ada, buat baris data baru (Save) gess!
+        await SavedEvent.create({ user_id, event_id });
+        return res.json({
+          message: "Event berhasil disimpan gess!",
+          isSaved: true,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Gagal memproses bookmark event." });
+    }
+  },
+
+  // 🔥 FUNGSI 2: Cek status apakah user sudah save event ini (Gaya ORM)
+  checkSaveStatus: async (req, res) => {
+    try {
+      const { id } = req.params; // ini event_id
+      const { user_id } = req.query;
+
+      if (!user_id) return res.json({ isSaved: false });
+
+      // Cukup hitung jumlah datanya, kalau > 0 berarti true gess
+      const count = await SavedEvent.count({
+        where: { user_id, event_id: id },
+      });
+
+      res.json({ isSaved: count > 0 });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  // 🔥 FUNGSI 3: Tarik semua event yang disimpan user dengan teknik JOIN ORM (Include)
+  getSavedEventsList: async (req, res) => {
+    try {
+      const { user_id } = req.query;
+
+      // Ambil data langsung dari tabel SavedEvent, lalu JOIN otomatis ke tabel Event
+      const savedList = await SavedEvent.findAll({
+        where: { user_id },
+        include: [
+          {
+            model: Event,
+            as: "event", // Pastikan alias ini sama dengan yang kamu set di file asosiasi models/savedevent.js
+            required: true, // bertindak sebagai INNER JOIN gess
+          },
+        ],
+      });
+
+      // Map hasilnya biar frontend dapet data array object event murni langsung gess
+      const eventsOnly = savedList.map((item) => item.event);
+
+      res.json(eventsOnly);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Gagal memuat daftar simpanan event." });
     }
   },
 };

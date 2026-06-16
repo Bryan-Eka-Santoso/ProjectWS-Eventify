@@ -7,6 +7,9 @@ const upload = require("../middlewares/upload");
 router.get("/published", eventController.getPublishedEvents);
 router.get("/my-events", eventController.getMyEvents);
 
+// 🔥 TAMBAHAN FITUR SAVED EVENTS: Tarik list event yang disimpan per user
+router.get("/saved-list", eventController.getSavedEventsList);
+
 // 2. Route untuk mengambil daftar kategori dari database (Dipakai React CreateEvent & Events Filter)
 router.get("/categories", eventController.getCategories);
 
@@ -24,7 +27,10 @@ router.post(
 router.get("/:id", eventController.getEventById);
 router.put("/:id", eventController.updateEvent);
 router.patch("/:id/status", eventController.updateStatus);
-// Tambahkan route ini
 router.post("/follow-external", eventController.followExternalEvent);
+
+// 🔥 TAMBAHAN FITUR SAVED EVENTS: Toggle save dan cek status save
+router.post("/toggle-save", eventController.toggleSaveEvent);
+router.get("/:id/check-save", eventController.checkSaveStatus);
 
 module.exports = router;

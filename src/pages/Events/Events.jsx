@@ -93,34 +93,48 @@ function Events() {
           </div>
         </div>
 
-        {/* --- ACTION BAR (HANYA UNTUK ORGANIZER & ADMIN) --- */}
-        {AUTH_USER.role !== "user" && (
-          <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-            <div>
+        {/* --- 🔥 REVISI ACTION BAR BARU: SEKARANG TERBUKA UNTUK SEMUA ROLE GESS --- */}
+        <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+          <div>
+            {/* Tombol Explore International hanya muncul untuk Admin & Organizer */}
+            {AUTH_USER.role !== "user" && (
               <Link
                 to="/events/external"
                 className="btn btn-success fw-bold rounded-3 shadow-sm d-flex align-items-center gap-2"
               >
                 <span>🌍 Explore International Events</span>
               </Link>
-            </div>
-
-            <div className="d-flex gap-2">
-              <Link
-                to="/events/my-events"
-                className="btn btn-outline-primary fw-semibold rounded-3"
-              >
-                My Events
-              </Link>
-              <Link
-                to="/events/create"
-                className="btn btn-primary fw-bold rounded-3"
-              >
-                + Create Event
-              </Link>
-            </div>
+            )}
           </div>
-        )}
+
+          <div className="d-flex gap-2">
+            {/* 📁 TOMBOL SAVED EVENTS: Dikeluarkan dari pembatas role agar USER biasa bisa klik gess woii! */}
+            <Link
+              to="/events/saved"
+              className="btn btn-warning fw-bold rounded-3 text-dark d-flex align-items-center gap-1 shadow-sm"
+            >
+              📁 Saved Events
+            </Link>
+
+            {/* Pembatas khusus ini mengunci tombol manajemen event internal saja gess */}
+            {AUTH_USER.role !== "user" && (
+              <>
+                <Link
+                  to="/events/my-events"
+                  className="btn btn-outline-primary fw-semibold rounded-3 shadow-sm"
+                >
+                  My Events
+                </Link>
+                <Link
+                  to="/events/create"
+                  className="btn btn-primary fw-bold rounded-3 shadow-sm"
+                >
+                  + Create Event
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
 
         {/* LIST CARDS */}
         <h4 className="fw-bold text-primary mb-4 pb-2 border-bottom">

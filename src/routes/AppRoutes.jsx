@@ -10,6 +10,7 @@ import CreateEvent from "../pages/Events/CreateEvent";
 import MyEvents from "../pages/Events/MyEvents";
 import EditEvent from "../pages/Events/EditEvent";
 import EventDetail from "../pages/Events/EventDetail";
+import SavedEvents from "../pages/Events/SavedEvents";
 
 // --- 🌟 IMPORT 2 HALAMAN BARU UNTUK API LUAR DI SINI 🌟 ---
 import ExploreExternal from "../pages/Events/ExploreExternal"; // sesuaikan path folder kamu gais
@@ -38,6 +39,9 @@ function AppRoutes() {
 
       {/* --- Community --- */}
       <Route path="/community" element={<Community />} />
+
+      {/* --- 🔖 RUTE BARU UNTUK HALAMAN SAVED EVENTS (Bookmark) --- */}
+      <Route path="/events/saved" element={<SavedEvents />} />
     </Routes>
   );
 }

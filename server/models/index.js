@@ -32,6 +32,9 @@ db.OrganizerApplication = require("./OrganizerApplication")(
   DataTypes,
 );
 
+// 🔥 TAMBAHAN BARU FITUR SAVED EVENTS: Daftarkan model SavedEvent ke dalam Sequelize ORM gess!
+db.SavedEvent = require("./SavedEvent")(sequelize, DataTypes);
+
 // Model Fitur Chat dari Vincent (Disesuaikan agar menggunakan 'sequelize' milikmu)
 db.ChatRoom = require("./ChatRoom")(sequelize, DataTypes);
 db.ChatRoomMember = require("./ChatRoomMember")(sequelize, DataTypes);
@@ -63,6 +66,13 @@ db.Category.belongsToMany(db.Event, {
   as: "events",
   timestamps: false,
 });
+
+// 🔥 TAMBAHAN BARU FITUR SAVED EVENTS: Definisi asosiasi relasi antar tabel (Wajib untuk JOIN / Include ORM)
+db.User.hasMany(db.SavedEvent, { foreignKey: "user_id" });
+db.SavedEvent.belongsTo(db.User, { foreignKey: "user_id" });
+
+db.Event.hasMany(db.SavedEvent, { foreignKey: "event_id" });
+db.SavedEvent.belongsTo(db.Event, { foreignKey: "event_id", as: "event" });
 
 // 4. Definisi Relasi Tabel Vincent (Fitur Chat)
 db.ChatRoom.hasMany(db.ChatRoomMember, { foreignKey: "chat_room_id" });
