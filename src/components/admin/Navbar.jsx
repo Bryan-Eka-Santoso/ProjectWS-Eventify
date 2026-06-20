@@ -29,7 +29,7 @@ function Navbar() {
           <ul className="navbar-nav mx-auto mb-2 mb-lg-0 gap-2 position-lg-absolute start-lg-50 translate-middle-lg-x">
             <li className="nav-item">
               <NavLink
-                to="/"
+                to="/admin/home"
                 className={({ isActive }) =>
                   `nav-link ${isActive ? "active" : ""}`
                 }

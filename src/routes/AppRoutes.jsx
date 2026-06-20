@@ -7,6 +7,8 @@ import Home from "../pages/Home";
 import Events from "../pages/Events";
 import Community from "../pages/Community";
 
+import HomeAdmin from "../pages/admin/HomeAdmin";
+
 function AppRoutes() {
   return (
     <Routes>
@@ -15,6 +17,7 @@ function AppRoutes() {
       <Route path="/register" element={<Register />} />
       <Route path="/events" element={<Events />} />
       <Route path="/community" element={<Community />} />
+      <Route path="/admin/home" element={<HomeAdmin />} />
     </Routes>
   );
 }

@@ -1,7 +1,9 @@
 const { DataTypes } = require("sequelize");
-const connection = require("../config/connection");
-const connection = require("./Pengguna");
+const connection = require("../databases/connection");
+const Pengguna = require("./Pengguna");
 
 const db = {};
 
 db.Pengguna = Pengguna(connection, DataTypes);
+
+module.exports = db;
