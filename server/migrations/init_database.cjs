@@ -25,6 +25,12 @@ module.exports = {
           "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
         ),
       },
+
+      deletedAt: {
+        type: Sequelize.DATE,
+        allowNull: true,
+        defaultValue: null,
+      },
     });
 
     await queryInterface.createTable("organizer_applications", {

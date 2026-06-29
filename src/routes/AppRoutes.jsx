@@ -19,6 +19,8 @@ import DetailExternal from "../pages/Events/DetailExternal"; // sesuaikan path f
 //Community
 import Community from "../pages/Community";
 
+import HomeAdmin from "../pages/admin/HomeAdmin";
+
 function AppRoutes() {
   return (
     <Routes>
@@ -42,6 +44,7 @@ function AppRoutes() {
 
       {/* --- 🔖 RUTE BARU UNTUK HALAMAN SAVED EVENTS (Bookmark) --- */}
       <Route path="/events/saved" element={<SavedEvents />} />
+      <Route path="/admin/home" element={<HomeAdmin />} />
     </Routes>
   );
 }

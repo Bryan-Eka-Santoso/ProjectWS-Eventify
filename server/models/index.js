@@ -1,5 +1,5 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../databases/connectionEventify");
+const sequelize = require("../databases/connection");
 
 
 // Import semua models

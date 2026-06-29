@@ -9,6 +9,8 @@ const app = express();
 const eventRoutes = require("./routes/eventRoutes");
 const communityRoutes = require("./routes/community");
 
+app.use(express.urlencoded({ extended: true }));
+
 app.use(cors());
 app.use(express.json());
 

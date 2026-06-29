@@ -1,10 +1,78 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import logoEventify from "../assets/images/Logo-Eventify.png";
+import Swal from "sweetalert2";
 
 function Login() {
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+
   useEffect(() => {
     document.title = "Login | Eventify";
   }, []);
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const response = await fetch("http://localhost:3005/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.status >= 200 && response.status < 300) {
+        localStorage.setItem("token", data.token);
+
+        await Swal.fire({
+          icon: "success",
+          text: data.message,
+        });
+
+        setFormData({
+          email: "",
+          password: "",
+        });
+
+        window.location.href = "/";
+      } else if (response.status >= 400 && response.status < 500) {
+        Swal.fire({
+          icon: "warning",
+          text: data.message,
+        });
+      } else if (response.status >= 500) {
+        Swal.fire({
+          icon: "error",
+          text: data.message,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+
+      Swal.fire({
+        icon: "error",
+        text: "Unable to connect to the server. Please try again later.",
+      });
+    }
+  };
+
   return (
     <div className="container min-vh-100 d-flex align-items-center justify-content-center py-5">
       <div className="card border-0 shadow-lg rounded-4 overflow-hidden w-100">
@@ -40,19 +108,23 @@ function Login() {
                   </a>
                 </div>
 
-                <form action="" method="POST">
+                <form onSubmit={handleSubmit}>
                   <div className="mb-3">
                     <label className="form-label fw-semibold">
                       Email Address
                     </label>
                     <div className="input-group">
                       <span className="input-group-text">
-                        <i class="bi bi-envelope-at"></i>
+                        <i className="bi bi-envelope-at"></i>
                       </span>
                       <input
                         type="email"
+                        name="email"
                         className="form-control"
                         placeholder="Enter Email Address"
+                        value={formData.email}
+                        onChange={handleChange}
+                        autoComplete="off"
                         required
                       />
                     </div>
@@ -62,12 +134,16 @@ function Login() {
                     <label className="form-label fw-semibold">Password</label>
                     <div className="input-group">
                       <span className="input-group-text">
-                        <i class="bi bi-lock"></i>
+                        <i className="bi bi-lock"></i>
                       </span>
                       <input
                         type="password"
+                        name="password"
                         className="form-control"
                         placeholder="Enter Password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        autoComplete="off"
                         required
                       />
                     </div>
@@ -91,11 +167,11 @@ function Login() {
                     </div>
 
                     <button className="btn btn-outline-dark" type="button">
-                      <i class="bi bi-google"></i> Login with Google
+                      <i className="bi bi-google"></i> Login with Google
                     </button>
 
                     <div className="text-center">
-                      <a href="#" className="text-decoration-none text-muted">
+                      <a href="/" className="text-decoration-none text-muted">
                         Continue as Guest
                       </a>
                     </div>

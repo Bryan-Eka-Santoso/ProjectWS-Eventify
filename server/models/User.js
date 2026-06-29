@@ -2,20 +2,50 @@ module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define(
     "User",
     {
-      name: { type: DataTypes.STRING, allowNull: false },
-      email: { type: DataTypes.STRING, unique: true, allowNull: false },
-      password: { type: DataTypes.STRING, allowNull: false },
+      id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      name: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      email: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      password: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
       role: {
         type: DataTypes.ENUM("admin", "organizer", "user"),
         allowNull: false,
       },
-      points: { type: DataTypes.INTEGER, defaultValue: 0 },
+      avatar: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      bio: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      points: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+      },
     },
     {
-      tableName: "users", // Harus sama dengan di Migration
-      timestamps: true,
-      createdAt: "created_at",
-      updatedAt: "updated_at",
+      sequelize,
+      modelName: "pengguna",
+      tableName: "users",
+      paranoid: true,
+      name: {
+        singular: "pengguna",
+        plural: "pengguna",
+      },
     },
   );
   return User;
