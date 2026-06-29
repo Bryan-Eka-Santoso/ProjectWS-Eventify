@@ -22,13 +22,24 @@ function Community() {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [sortBy, setSortBy] = useState("newest");
 
-    // Mock categories (idealnya ambil dari API)
-  const CATEGORIES = [
-    { id: 1, name: "Technology" },
-    { id: 2, name: "Sports" },
-    { id: 3, name: "Music" },
-    { id: 4, name: "Art" },
-  ];
+// ========== CATEGORIES STATE ==========
+const [categories, setCategories] = useState([]);
+
+// Fetch categories dari API (jalankan sekali saat mount)
+useEffect(() => {
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/categories`);
+      setCategories(response.data.data);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      // Fallback ke empty array jika error
+      setCategories([]);
+    }
+  };
+
+  fetchCategories();
+}, []);
 
   const [currentUser] = useState({
     id: 1, // TODO: Get from auth/context
@@ -36,7 +47,57 @@ function Community() {
   });
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
+// CREATE ROOM FORM STATE
+const [showCreateModal, setShowCreateModal] = useState(false);
+const [createForm, setCreateForm] = useState({
+  name: "",
+  description: "",
+  profile_image_file: null,
+  category_ids: [],
+});
 
+const [imagePreview, setImagePreview] = useState(null);
+
+// CREATE ROOM HANDLER
+const handleCreateRoom = async () => {
+  try {
+    if (!createForm.name.trim()) {
+      alert("Nama ruangan harus diisi");
+      return;
+    }
+
+    if (!createForm.profile_image_file) {
+      alert("Foto group harus diisi");
+      return;
+    }
+
+      const formData = new FormData();
+      formData.append("name", createForm.name);
+      formData.append("description", createForm.description || "");
+      formData.append("creator_id", currentUser.id);
+      formData.append("category_ids", JSON.stringify(createForm.category_ids));
+      formData.append("profile_image", createForm.profile_image_file);
+
+      const response = await axios.post(API_URL, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+    // Add new room ke list
+    setChatRooms((prev) => [response.data.data, ...prev]);
+
+    // Reset form & close modal
+    setCreateForm({ name: "", description: "", profile_image_file: null, category_ids: [] });
+    setImagePreview(null);
+    setShowCreateModal(false);
+
+    alert("Ruangan berhasil dibuat!");
+  } catch (error) {
+    console.error("Error creating room:", error);
+    alert("Gagal membuat ruangan: " + error.response?.data?.message);
+  }
+};
   // ==========================================
   // 1. FETCH CHAT ROOMS & CONNECT SOCKET (ESLint Fixed)
   // ==========================================
@@ -53,7 +114,7 @@ function Community() {
           search: searchInput,
           sort: sortBy,
           // Kirim array kategori sebagai string yang dipisah koma (misal: "1,3")
-          categories: selectedCategories.join(",") 
+          categoryIds: selectedCategories.join(","),
         };
 
         const response = await axios.get(API_URL, { params });
@@ -250,6 +311,157 @@ function Community() {
           {/* ========== LEFT: SIDEBAR ========== */}
           <div style={{ borderRight: "1px solid #ddd", paddingRight: "1rem" }}>
             <h4 className="fw-semibold mb-3">🔍 Temukan Ruangan</h4>
+            {/* CREATE CHAT ROOM BUTTON */}
+            <div className="mb-3">
+              <button
+                className="btn btn-primary w-100"
+                onClick={() => setShowCreateModal(true)}
+              >
+                ➕ Buat Ruangan Baru
+              </button>
+            </div>
+
+            {/* CREATE CHAT ROOM MODAL */}
+            {showCreateModal && (
+              <div style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1000,
+              }}>
+                <div style={{
+                  backgroundColor: "white",
+                  borderRadius: "8px",
+                  padding: "2rem",
+                  width: "500px",
+                  maxHeight: "80vh",
+                  overflowY: "auto",
+                }}>
+                  <h4 className="mb-4">Buat Ruangan Obrolan Baru</h4>
+
+                  {/* Form */}
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Nama Ruangan</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Contoh: Web Development Discussion"
+                      value={createForm.name}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, name: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Deskripsi</label>
+                    <textarea
+                      className="form-control"
+                      placeholder="Jelaskan tujuan ruangan..."
+                      value={createForm.description}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, description: e.target.value })
+                      }
+                      rows={3}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Foto Group</label>
+
+                    <input
+                      type="file"
+                      className="form-control"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+
+                        if (file) {
+                          setCreateForm({
+                            ...createForm,
+                            profile_image_file: file,
+                          });
+
+                          setImagePreview(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
+
+                    {imagePreview && (
+                      <div className="mt-3 text-center">
+                        <img
+                          src={imagePreview}
+                          alt="Preview Foto Group"
+                          style={{
+                            width: "120px",
+                            height: "120px",
+                            borderRadius: "50%",
+                            objectFit: "cover",
+                            border: "2px solid #ddd",
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Pilih Kategori</label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      {categories.map((category) => (
+                        <div key={category.id} className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id={`create-category-${category.id}`}
+                            checked={createForm.category_ids.includes(category.id)}
+                            onChange={() => {
+                              setCreateForm({
+                                ...createForm,
+                                category_ids: createForm.category_ids.includes(category.id)
+                                  ? createForm.category_ids.filter((id) => id !== category.id)
+                                  : [...createForm.category_ids, category.id],
+                              });
+                            }}
+                          />
+                          <label
+                            className="form-check-label"
+                            htmlFor={`create-category-${category.id}`}
+                          >
+                            {category.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Buttons */}
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                      className="btn btn-primary flex-grow-1"
+                      onClick={handleCreateRoom}
+                      disabled={
+                        !createForm.name.trim() ||
+                        !createForm.profile_image_file
+                      }
+                    >
+                      Buat Ruangan
+                    </button>
+                    <button
+                      className="btn btn-secondary flex-grow-1"
+                      onClick={() => setShowCreateModal(false)}
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
 
             {/* SEARCH INPUT */}
             <div className="mb-3">
@@ -290,7 +502,7 @@ function Community() {
                 Kategori
               </label>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {CATEGORIES.map((category) => (
+                {categories.map((category) => (
                   <div key={category.id} className="form-check">
                     <input
                       className="form-check-input"
@@ -346,14 +558,35 @@ function Community() {
                       cursor: "pointer",
                       backgroundColor: selectedRoom?.id === room.id ? "#f0f4ff" : "white",
                       transition: "all 0.2s",
+                      display: "flex",
+                      gap: "0.75rem",
+                      alignItems: "center",
                     }}
                   >
-                    <h6 className="mb-1" style={{ fontSize: "0.95rem" }}>
-                      {room.name}
-                    </h6>
-                    <small style={{ color: "#666", display: "block", marginBottom: "0.25rem" }}>
-                      {room.description?.substring(0, 40) || "Tidak ada deskripsi"}
-                    </small>
+                    <img
+                      src={`http://localhost:5000${room.profile_image_url}`}
+                      alt={room.name}
+                      style={{
+                        width: "48px",
+                        height: "48px",
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                        border: "1px solid #ddd",
+                        flexShrink: 0,
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.src = "https://via.placeholder.com/48";
+                      }}
+                    />
+
+                    <div>
+                      <h6 className="mb-1" style={{ fontSize: "0.95rem" }}>
+                        {room.name}
+                      </h6>
+                      <small style={{ color: "#666", display: "block", marginBottom: "0.25rem" }}>
+                        {room.description?.substring(0, 40) || "Tidak ada deskripsi"}
+                      </small>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -364,11 +597,37 @@ function Community() {
           <div>
             {selectedRoom ? (
               <div style={{ display: "flex", flexDirection: "column", height: "600px" }}>
-                <div style={{ marginBottom: "1rem", paddingBottom: "1rem", borderBottom: "2px solid #ddd" }}>
-                  <h4 className="mb-0 fw-semibold">{selectedRoom.name}</h4>
-                  <small style={{ color: "#666" }}>
-                    {selectedRoom.description || "Tidak ada deskripsi"}
-                  </small>
+                <div
+                  style={{
+                    marginBottom: "1rem",
+                    paddingBottom: "1rem",
+                    borderBottom: "2px solid #ddd",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "1rem",
+                  }}
+                >
+                  <img
+                    src={`http://localhost:5000${selectedRoom.profile_image_url}`}
+                    alt={selectedRoom.name}
+                    style={{
+                      width: "64px",
+                      height: "64px",
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      border: "1px solid #ddd",
+                    }}
+                    onError={(e) => {
+                      e.currentTarget.src = "https://via.placeholder.com/64";
+                    }}
+                  />
+
+                  <div>
+                    <h4 className="mb-0 fw-semibold">{selectedRoom.name}</h4>
+                    <small style={{ color: "#666" }}>
+                      {selectedRoom.description || "Tidak ada deskripsi"}
+                    </small>
+                  </div>
                 </div>
 
                 {/* Messages */}

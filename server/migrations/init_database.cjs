@@ -181,17 +181,6 @@ module.exports = {
       image_url: { type: Sequelize.STRING(255), allowNull: false },
     });
 
-    await queryInterface.createTable("event_images", {
-      id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-      event_id: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: { model: "events", key: "id" },
-        onDelete: "CASCADE",
-      },
-      image_url: { type: Sequelize.STRING(255), allowNull: false },
-    });
-
     await queryInterface.createTable("event_categories", {
       event_id: {
         type: Sequelize.INTEGER,
@@ -395,21 +384,38 @@ module.exports = {
       },
     });
 
-    // === 4. COMMUNITY & CHAT ROOMS (REAL-TIME) ===
+   // === 4. COMMUNITY & CHAT ROOMS (REAL-TIME) ===
     await queryInterface.createTable("chat_rooms", {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
       name: { type: Sequelize.STRING(255), allowNull: false },
       description: { type: Sequelize.TEXT, allowNull: true },
-      category_id: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        references: { model: "categories", key: "id" },
-        onDelete: "SET NULL",
-      },
+      profile_image_url: { type: Sequelize.STRING(255), allowNull: false },
+      // REMOVED: category_id foreign key
       creator_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: { model: "users", key: "id" },
+        onDelete: "CASCADE",
+      },
+      created_at: {
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+      },
+    });
+
+    // ===== PIVOT TABLE: Chat Rooms & Categories =====
+    await queryInterface.createTable("chat_room_categories", {
+      id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
+      chat_room_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: { model: "chat_rooms", key: "id" },
+        onDelete: "CASCADE",
+      },
+      category_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: { model: "categories", key: "id" },
         onDelete: "CASCADE",
       },
       created_at: {
@@ -431,6 +437,11 @@ module.exports = {
         allowNull: false,
         references: { model: "users", key: "id" },
         onDelete: "CASCADE",
+      },
+      role: {
+        type: Sequelize.ENUM("owner", "admin", "member"),
+        allowNull: false,
+        defaultValue: "member",
       },
       joined_at: {
         type: Sequelize.DATE,
@@ -464,17 +475,76 @@ module.exports = {
         references: { model: "events", key: "id" },
         onDelete: "SET NULL",
       },
+      is_pinned: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      pinned_at: {
+        type: Sequelize.DATE,
+        allowNull: true,
+      },
+      pinned_by: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: { model: "users", key: "id" },
+        onDelete: "SET NULL",
+      },
+      deleted_at: {
+        type: Sequelize.DATE,
+        allowNull: true,
+      },
       created_at: {
         type: Sequelize.DATE,
         defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
+
+    await queryInterface.createTable("message_reads", {
+      id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
+      message_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: { model: "messages", key: "id" },
+        onDelete: "CASCADE",
+      },
+      chat_room_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: { model: "chat_rooms", key: "id" },
+        onDelete: "CASCADE",
+      },
+      user_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: { model: "users", key: "id" },
+        onDelete: "CASCADE",
+      },
+      read_at: {
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+      },
+    });
+
+    await queryInterface.addConstraint("message_reads", {
+      fields: ["message_id", "user_id"],
+      type: "unique",
+      name: "unique_message_read_per_user", 
+    });
+
+    await queryInterface.addIndex("messages", ["chat_room_id"]);
+    await queryInterface.addIndex("messages", ["sender_id"]);
+    await queryInterface.addIndex("messages", ["is_pinned"]);
+    await queryInterface.addIndex("message_reads", ["chat_room_id"]);
+    await queryInterface.addIndex("message_reads", ["user_id"]);
   },
 
   down: async (queryInterface, Sequelize) => {
     // Drop tabel dilakukan dengan urutan terbalik untuk menghindari error Foreign Key
+   await queryInterface.dropTable("message_reads");
     await queryInterface.dropTable("messages");
     await queryInterface.dropTable("chat_room_members");
+    await queryInterface.dropTable("chat_room_categories");
     await queryInterface.dropTable("chat_rooms");
 
     await queryInterface.dropTable("user_tickets");
@@ -487,6 +557,7 @@ module.exports = {
     await queryInterface.dropTable("saved_events");
     await queryInterface.dropTable("ticket_types");
     await queryInterface.dropTable("event_categories");
+    await queryInterface.dropTable("event_images");
     await queryInterface.dropTable("events");
     await queryInterface.dropTable("categories");
 

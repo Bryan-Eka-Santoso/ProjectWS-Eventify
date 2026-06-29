@@ -1,13 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
-  const ChatRoomMember = sequelize.define(
-    "ChatRoomMember",
+  const MessageRead = sequelize.define(
+    "MessageRead",
     {
       id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true,
       },
-      chat_room_id: {
+      message_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
@@ -15,20 +15,20 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      role: {
-        type: DataTypes.ENUM("owner", "admin", "member"),
-        defaultValue: "member",
+      chat_room_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
       },
-      joined_at: {
+      read_at: {
         type: DataTypes.DATE,
         defaultValue: sequelize.literal("CURRENT_TIMESTAMP"),
       },
     },
     {
-      tableName: "chat_room_members",
+      tableName: "message_reads",
       timestamps: false,
     }
   );
 
-  return ChatRoomMember;
+  return MessageRead;
 };

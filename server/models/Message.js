@@ -27,6 +27,18 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
+      is_pinned: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
+      pinned_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      pinned_by: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       recommended_event_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
@@ -34,8 +46,11 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       tableName: 'messages',
-      timestamps: false,
+      timestamps: true,
       createdAt: 'created_at',
+      updatedAt: false,
+      paranoid: true,
+      deletedAt: 'deleted_at',
     }
   );
 

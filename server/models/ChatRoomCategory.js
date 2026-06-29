@@ -1,31 +1,28 @@
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
-  const ChatRoom = sequelize.define(
-    "ChatRoom",
+  const ChatRoomCategory = sequelize.define(
+    "ChatRoomCategory",
     {
       id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true,
       },
-      name: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-      },
-      description: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-      },
-      profile_image_url: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-      },
-      creator_id: {
+      chat_room_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-          model: "users",
+          model: "chat_rooms",
+          key: "id",
+        },
+        onDelete: "CASCADE",
+      },
+      category_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "categories",
           key: "id",
         },
         onDelete: "CASCADE",
@@ -36,10 +33,10 @@ module.exports = (sequelize) => {
       },
     },
     {
-      tableName: "chat_rooms",
+      tableName: "chat_room_categories",
       timestamps: false,
     }
   );
 
-  return ChatRoom;
+  return ChatRoomCategory;
 };
