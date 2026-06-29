@@ -1,5 +1,4 @@
 const path = require("path");
-// Memanggil dotenv agar file config bisa membaca isi file .env
 require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 
 module.exports = {
