@@ -7,6 +7,7 @@ import { AUTH_USER } from "../config/auth";
 
 const SERVER_URL = "http://localhost:5000";
 const API_URL = `${SERVER_URL}/api/community`;
+const EVENT_API_URL = `${SERVER_URL}/api/events`;
 
 const initialCreateForm = {
   name: "",
@@ -15,9 +16,10 @@ const initialCreateForm = {
   category_ids: [],
 };
 
-const initialShareForm = {
-  recommended_event_id: "",
+const initialMediaForm = {
+  file: null,
   body: "",
+  preview: "",
 };
 
 function Community() {
@@ -51,18 +53,25 @@ function Community() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
-  const [showShareEventModal, setShowShareEventModal] = useState(false);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [showEventPickerModal, setShowEventPickerModal] = useState(false);
+  const [showEventDetailModal, setShowEventDetailModal] = useState(false);
+  const [showEventShareModal, setShowEventShareModal] = useState(false);
+  const [showMediaModal, setShowMediaModal] = useState(false);
 
   const [createForm, setCreateForm] = useState(initialCreateForm);
   const [imagePreview, setImagePreview] = useState(null);
-  const [shareForm, setShareForm] = useState(initialShareForm);
+  const [events, setEvents] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [eventShareMessage, setEventShareMessage] = useState("");
+  const [mediaForm, setMediaForm] = useState(initialMediaForm);
 
   const [toast, setToast] = useState("");
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const toastTimeoutRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   const currentUserName = currentUser?.name || "User";
 
@@ -94,6 +103,46 @@ function Community() {
       minute: "2-digit",
     });
   }, []);
+
+
+  const formatEventDate = useCallback((dateValue) => {
+    if (!dateValue) return "Tanggal belum tersedia";
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return String(dateValue);
+    return date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  }, []);
+
+  const getEventId = useCallback((event) => {
+    return event?.id || event?.event_id || event?.eventId;
+  }, []);
+
+  const getEventTitle = useCallback((event) => {
+    return event?.title || event?.name || event?.event_name || event?.eventName || `Event #${getEventId(event) || "?"}`;
+  }, [getEventId]);
+
+  const getEventLocation = useCallback((event) => {
+    return event?.location || event?.venue || event?.place || event?.address || "Lokasi belum tersedia";
+  }, []);
+
+  const getEventDate = useCallback((event) => {
+    return event?.event_date || event?.date || event?.start_date || event?.start_time || event?.created_at;
+  }, []);
+
+  const getEventPrice = useCallback((event) => {
+    const value = event?.price || event?.ticket_price || event?.start_price || event?.min_price;
+    if (value === undefined || value === null || value === "") return "Harga belum tersedia";
+    if (typeof value === "number") return `Rp${value.toLocaleString("id-ID")}`;
+    return String(value);
+  }, []);
+
+  const getEventImage = useCallback((event) => {
+    const url = event?.image_url || event?.poster_url || event?.poster || event?.image || event?.thumbnail;
+    return imageSrc(url);
+  }, [imageSrc]);
 
   const roomCategories = useCallback((room) => {
     return room?.Categories || room?.categories || [];
@@ -163,6 +212,37 @@ function Community() {
       setCategories([]);
     }
   }, []);
+
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      setLoadingEvents(true);
+      const response = await axios.get(EVENT_API_URL, {
+        params: { page: 1, limit: 100 },
+      });
+
+      const payload = response.data;
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.data?.data)
+          ? payload.data.data
+          : Array.isArray(payload?.data?.rows)
+            ? payload.data.rows
+            : Array.isArray(payload?.events)
+              ? payload.events
+              : Array.isArray(payload)
+                ? payload
+                : [];
+
+      setEvents(list);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      setEvents([]);
+      showToast(error.response?.data?.message || "Gagal mengambil data event");
+    } finally {
+      setLoadingEvents(false);
+    }
+  }, [showToast]);
 
   const fetchRoomMembers = useCallback(async (roomId) => {
     const response = await axios.get(`${API_URL}/${roomId}/members`, {
@@ -385,58 +465,116 @@ function Community() {
     }
   };
 
-  const handleShareEvent = async (event) => {
+  const openAttachmentMenu = () => {
+    if (!selectedRoom || !isMember) return;
+    setShowAttachmentMenu((prev) => !prev);
+  };
+
+  const openEventPicker = async () => {
+    if (!selectedRoom || !isMember) return;
+    setShowAttachmentMenu(false);
+    setShowEventPickerModal(true);
+    await fetchEvents();
+  };
+
+  const openMediaPicker = () => {
+    if (!selectedRoom || !isMember) return;
+    setShowAttachmentMenu(false);
+    setMediaForm(initialMediaForm);
+    setShowMediaModal(true);
+  };
+
+  const openEventDetail = (event) => {
+    setSelectedEvent(event);
+    setShowEventDetailModal(true);
+  };
+
+  const openEventShare = (event) => {
+    setSelectedEvent(event);
+    setEventShareMessage(`Aku share event ${getEventTitle(event)}. Mungkin cocok untuk group ini.`);
+    setShowEventPickerModal(false);
+    setShowEventShareModal(true);
+  };
+
+  const handleShareSelectedEvent = async (event) => {
     event.preventDefault();
 
-    if (!selectedRoom || !isMember) return;
-    if (!shareForm.recommended_event_id) {
-      showToast("Event ID wajib diisi");
+    if (!selectedRoom || !isMember || !selectedEvent) return;
+
+    const recommendedEventId = getEventId(selectedEvent);
+    if (!recommendedEventId) {
+      showToast("Event ID tidak ditemukan");
       return;
     }
 
     try {
       const response = await axios.post(`${API_URL}/${selectedRoom.id}/messages/share-event`, {
         sender_id: currentUser.id,
-        recommended_event_id: Number(shareForm.recommended_event_id),
-        body: shareForm.body || "Membagikan event",
+        recommended_event_id: Number(recommendedEventId),
+        body: eventShareMessage.trim() || `Membagikan event ${getEventTitle(selectedEvent)}`,
       });
 
       setMessages((prev) => [...prev, response.data.data]);
-      setShareForm(initialShareForm);
-      setShowShareEventModal(false);
+      setEventShareMessage("");
+      setSelectedEvent(null);
+      setShowEventShareModal(false);
       showToast("Event berhasil dibagikan ke chat");
     } catch (error) {
       console.error("Error sharing event:", error);
-      showToast(error.response?.data?.message || "Gagal share event. Pastikan Event ID valid.");
+      showToast(error.response?.data?.message || "Gagal membagikan event");
     }
   };
 
-  const handleMediaUpload = async (event) => {
+  const handleMediaFileChange = (event) => {
     const file = event.target.files?.[0];
-    if (!file || !selectedRoom || !isMember) return;
+    if (!file) return;
+
+    if (mediaForm.preview) URL.revokeObjectURL(mediaForm.preview);
+
+    setMediaForm((prev) => ({
+      ...prev,
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+  };
+
+  const closeMediaModal = () => {
+    if (mediaForm.preview) URL.revokeObjectURL(mediaForm.preview);
+    setMediaForm(initialMediaForm);
+    setShowMediaModal(false);
+  };
+
+  const handleMediaSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!selectedRoom || !isMember) return;
+    if (!mediaForm.file) {
+      showToast("Pilih foto atau video terlebih dahulu");
+      return;
+    }
 
     try {
       setMediaUploading(true);
 
-      const messageType = file.type.startsWith("video") ? "video" : "image";
+      const messageType = mediaForm.file.type.startsWith("video") ? "video" : "image";
       const formData = new FormData();
       formData.append("sender_id", currentUser.id);
       formData.append("message_type", messageType);
-      formData.append("body", "");
-      formData.append("media", file);
+      formData.append("body", mediaForm.body.trim());
+      formData.append("media", mediaForm.file);
 
       const response = await axios.post(`${API_URL}/${selectedRoom.id}/messages/media`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       setMessages((prev) => [...prev, response.data.data]);
+      closeMediaModal();
       showToast("Media berhasil dikirim");
     } catch (error) {
       console.error("Error uploading media:", error);
       showToast(error.response?.data?.message || "Gagal upload media");
     } finally {
       setMediaUploading(false);
-      event.target.value = "";
     }
   };
 
@@ -557,7 +695,14 @@ function Community() {
 
   useEffect(() => {
     document.title = "Community | Eventix";
-    fetchCategories();
+
+    // Dipanggil secara async/deferred supaya tidak kena warning eslint:
+    // react-hooks/set-state-in-effect
+    const timer = setTimeout(() => {
+      fetchCategories();
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [fetchCategories]);
 
   useEffect(() => {
@@ -627,8 +772,9 @@ function Community() {
       clearTimeout(typingTimeoutRef.current);
       clearTimeout(toastTimeoutRef.current);
       if (imagePreview) URL.revokeObjectURL(imagePreview);
+      if (mediaForm.preview) URL.revokeObjectURL(mediaForm.preview);
     };
-  }, [imagePreview]);
+  }, [imagePreview, mediaForm.preview]);
 
   const renderMessageContent = (message) => {
     if (message.message_type === "image") {
@@ -661,7 +807,10 @@ function Community() {
             <button
               type="button"
               className="community-btn community-btn-primary community-btn-small"
-              onClick={() => showToast(`Buka detail Event ID ${message.recommended_event_id}`)}
+              onClick={() => {
+                if (event) openEventDetail(event);
+                else showToast(`Buka detail Event ID ${message.recommended_event_id}`);
+              }}
             >
               View Event
             </button>
@@ -841,17 +990,6 @@ function Community() {
                   </div>
 
                   <div className="community-chat-actions">
-                    {isMember && (
-                      <>
-                        <button type="button" className="community-btn community-btn-secondary" onClick={() => setShowShareEventModal(true)}>
-                          Share Event
-                        </button>
-                        <button type="button" className="community-btn community-btn-outline" onClick={() => fileInputRef.current?.click()} disabled={mediaUploading}>
-                          {mediaUploading ? "Uploading..." : "Media"}
-                        </button>
-                        <input ref={fileInputRef} type="file" accept="image/*,video/*" hidden onChange={handleMediaUpload} />
-                      </>
-                    )}
                     <button type="button" className="community-btn community-btn-outline" onClick={() => setShowDetailModal(true)}>
                       Detail
                     </button>
@@ -912,9 +1050,25 @@ function Community() {
                     </div>
 
                     <div className="community-chat-input">
-                      <button type="button" className="community-btn community-btn-outline" onClick={() => setShowShareEventModal(true)}>
-                        +
-                      </button>
+                      <div className="community-plus-wrapper">
+                        <button type="button" className="community-btn community-btn-outline community-plus-button" onClick={openAttachmentMenu}>
+                          +
+                        </button>
+
+                        {showAttachmentMenu && (
+                          <div className="community-attachment-menu">
+                            <button type="button" onClick={openEventPicker}>
+                              <strong>Share Event</strong>
+                              <span>Pilih event dari daftar lalu bagikan ke chat</span>
+                            </button>
+                            <button type="button" onClick={openMediaPicker}>
+                              <strong>Upload Media</strong>
+                              <span>Kirim foto atau video dari laptop</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
                       <input
                         type="text"
                         placeholder="Write a message..."
@@ -1008,13 +1162,21 @@ function Community() {
                 </div>
 
                 <div className="community-detail-section">
-                  <h3>Members</h3>
-                  {members.slice(0, 4).map((member) => renderMemberItem(member, true))}
-                  {members.length === 0 && <p className="community-muted">Belum ada data member.</p>}
-                  {members.length > 4 && (
-                    <button type="button" className="community-link-button" onClick={() => setShowMembersModal(true)}>
-                      View all {members.length} members
-                    </button>
+                  <div className="community-section-title-row">
+                    <h3>Members</h3>
+                    {members.length > 0 && (
+                      <button type="button" className="community-link-button compact" onClick={() => setShowMembersModal(true)}>
+                        View all
+                      </button>
+                    )}
+                  </div>
+
+                  {members.length === 0 ? (
+                    <p className="community-muted">Belum ada data member.</p>
+                  ) : (
+                    <div className="community-detail-members-scroll">
+                      {members.map((member) => renderMemberItem(member, true))}
+                    </div>
                   )}
                 </div>
 
@@ -1118,40 +1280,153 @@ function Community() {
         </div>
       )}
 
-      {showShareEventModal && (
+      {showEventPickerModal && selectedRoom && (
         <div className="community-modal-overlay">
-          <form className="community-modal" onSubmit={handleShareEvent}>
+          <div className="community-modal community-modal-wide">
             <div className="community-modal-header">
-              <h2>Share Event</h2>
-              <button type="button" onClick={() => setShowShareEventModal(false)}>×</button>
+              <h2>Pilih Event untuk Dibagikan</h2>
+              <button type="button" onClick={() => setShowEventPickerModal(false)}>×</button>
             </div>
 
             <p className="community-muted">
-              Masukkan Event ID dari data event yang sudah ada di backend. Community tidak wajib punya event utama.
+              Pilih salah satu event, lihat detailnya bila perlu, lalu tekan Bagikan untuk menambahkan pesan sebelum dikirim ke chat.
             </p>
 
-            <label>Event ID</label>
-            <input
-              type="number"
-              value={shareForm.recommended_event_id}
-              onChange={(event) => setShareForm((prev) => ({ ...prev, recommended_event_id: event.target.value }))}
-              placeholder="Contoh: 1"
-            />
+            {loadingEvents ? (
+              <div className="community-empty-small">Loading events...</div>
+            ) : events.length === 0 ? (
+              <div className="community-empty-small">
+                Event belum tersedia atau endpoint <b>/api/events</b> belum mengembalikan data.
+              </div>
+            ) : (
+              <div className="community-event-grid">
+                {events.map((event) => (
+                  <div className="community-event-card" key={getEventId(event) || getEventTitle(event)}>
+                    <img src={getEventImage(event)} alt={getEventTitle(event)} />
+                    <div className="community-event-card-body">
+                      <h3>{getEventTitle(event)}</h3>
+                      <p>{formatEventDate(getEventDate(event))}</p>
+                      <p>{getEventLocation(event)}</p>
+                      <strong>{getEventPrice(event)}</strong>
+                    </div>
+                    <div className="community-event-card-actions">
+                      <button type="button" className="community-btn community-btn-outline" onClick={() => openEventDetail(event)}>
+                        Detail
+                      </button>
+                      <button type="button" className="community-btn community-btn-primary" onClick={() => openEventShare(event)}>
+                        Bagikan
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-            <label>Message</label>
+      {showEventDetailModal && selectedEvent && (
+        <div className="community-modal-overlay">
+          <div className="community-modal">
+            <div className="community-modal-header">
+              <h2>Detail Event</h2>
+              <button type="button" onClick={() => setShowEventDetailModal(false)}>×</button>
+            </div>
+
+            <div className="community-event-detail">
+              <img src={getEventImage(selectedEvent)} alt={getEventTitle(selectedEvent)} />
+              <h3>{getEventTitle(selectedEvent)}</h3>
+              <p><b>Tanggal:</b> {formatEventDate(getEventDate(selectedEvent))}</p>
+              <p><b>Lokasi:</b> {getEventLocation(selectedEvent)}</p>
+              <p><b>Harga:</b> {getEventPrice(selectedEvent)}</p>
+              <p>{selectedEvent.description || selectedEvent.detail || "Deskripsi event belum tersedia."}</p>
+            </div>
+
+            <div className="community-modal-actions">
+              <button type="button" className="community-btn community-btn-outline" onClick={() => setShowEventDetailModal(false)}>
+                Tutup
+              </button>
+              <button type="button" className="community-btn community-btn-primary" onClick={() => { setShowEventDetailModal(false); openEventShare(selectedEvent); }}>
+                Bagikan Event
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEventShareModal && selectedEvent && (
+        <div className="community-modal-overlay">
+          <form className="community-modal" onSubmit={handleShareSelectedEvent}>
+            <div className="community-modal-header">
+              <h2>Bagikan Event</h2>
+              <button type="button" onClick={() => setShowEventShareModal(false)}>×</button>
+            </div>
+
+            <div className="community-selected-event-box">
+              <img src={getEventImage(selectedEvent)} alt={getEventTitle(selectedEvent)} />
+              <div>
+                <h3>{getEventTitle(selectedEvent)}</h3>
+                <p>{formatEventDate(getEventDate(selectedEvent))} · {getEventLocation(selectedEvent)}</p>
+                <strong>{getEventPrice(selectedEvent)}</strong>
+              </div>
+            </div>
+
+            <label>Pesan tambahan</label>
             <textarea
-              rows="3"
-              value={shareForm.body}
-              onChange={(event) => setShareForm((prev) => ({ ...prev, body: event.target.value }))}
-              placeholder="Tulis alasan kenapa event ini cocok untuk group..."
+              rows="4"
+              value={eventShareMessage}
+              onChange={(event) => setEventShareMessage(event.target.value)}
+              placeholder="Tulis pesan sebelum membagikan event..."
             />
 
             <div className="community-modal-actions">
-              <button type="button" className="community-btn community-btn-outline" onClick={() => setShowShareEventModal(false)}>
+              <button type="button" className="community-btn community-btn-outline" onClick={() => setShowEventShareModal(false)}>
                 Cancel
               </button>
               <button type="submit" className="community-btn community-btn-primary">
-                Share
+                Kirim ke Chat
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showMediaModal && selectedRoom && (
+        <div className="community-modal-overlay">
+          <form className="community-modal" onSubmit={handleMediaSubmit}>
+            <div className="community-modal-header">
+              <h2>Kirim Media</h2>
+              <button type="button" onClick={closeMediaModal}>×</button>
+            </div>
+
+            <label>Pilih foto / video</label>
+            <input type="file" accept="image/*,video/*" onChange={handleMediaFileChange} />
+
+            {mediaForm.file && (
+              <div className="community-media-preview">
+                <strong>{mediaForm.file.name}</strong>
+                {mediaForm.file.type.startsWith("video") ? (
+                  <video src={mediaForm.preview} controls />
+                ) : (
+                  <img src={mediaForm.preview} alt="preview media" />
+                )}
+              </div>
+            )}
+
+            <label>Pesan tambahan</label>
+            <textarea
+              rows="3"
+              value={mediaForm.body}
+              onChange={(event) => setMediaForm((prev) => ({ ...prev, body: event.target.value }))}
+              placeholder="Tulis caption untuk media ini..."
+            />
+
+            <div className="community-modal-actions">
+              <button type="button" className="community-btn community-btn-outline" onClick={closeMediaModal}>
+                Cancel
+              </button>
+              <button type="submit" className="community-btn community-btn-primary" disabled={mediaUploading}>
+                {mediaUploading ? "Uploading..." : "Kirim Media"}
               </button>
             </div>
           </form>
@@ -1227,7 +1502,10 @@ const communityStyles = `
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr) 340px;
   gap: 20px;
-  min-height: 760px;
+
+  /* supaya sidebar, chat, dan detail punya batas tinggi */
+  height: calc(100vh - 170px);
+  min-height: 680px;
 }
 
 .community-panel {
@@ -1240,6 +1518,19 @@ const communityStyles = `
 .community-sidebar,
 .community-detail {
   padding: 22px;
+
+  /* panel tidak memanjang terus, bagian dalam yang scroll */
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.community-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+.community-detail {
   overflow-y: auto;
 }
 
@@ -1356,6 +1647,34 @@ const communityStyles = `
   display: flex;
   flex-direction: column;
   gap: 10px;
+
+  /* SCROLL UNTUK LIST GROUP */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.community-room-list::-webkit-scrollbar,
+.community-message-list::-webkit-scrollbar,
+.community-detail-members-scroll::-webkit-scrollbar,
+.community-members-modal-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.community-room-list::-webkit-scrollbar-thumb,
+.community-message-list::-webkit-scrollbar-thumb,
+.community-detail-members-scroll::-webkit-scrollbar-thumb,
+.community-members-modal-list::-webkit-scrollbar-thumb {
+  background: #c4b5fd;
+  border-radius: 999px;
+}
+
+.community-room-list::-webkit-scrollbar-track,
+.community-message-list::-webkit-scrollbar-track,
+.community-detail-members-scroll::-webkit-scrollbar-track,
+.community-members-modal-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .community-room-card {
@@ -1448,6 +1767,10 @@ const communityStyles = `
 .community-chat {
   display: flex;
   flex-direction: column;
+
+  /* batas tinggi panel chat */
+  height: 100%;
+  min-height: 0;
 }
 
 .community-chat-header {
@@ -1535,8 +1858,11 @@ const communityStyles = `
 
 .community-message-list {
   flex: 1;
+  min-height: 0;
   background: #fafafa;
   padding: 24px;
+
+  /* SCROLL UNTUK ISI CHAT */
   overflow-y: auto;
 }
 
@@ -1823,6 +2149,29 @@ const communityStyles = `
   color: #111827;
 }
 
+.community-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.community-section-title-row h3 {
+  margin-bottom: 0;
+}
+
+.community-link-button.compact {
+  margin-bottom: 0;
+}
+
+.community-detail-members-scroll {
+  /* SCROLL UNTUK LIST MEMBER DI DETAIL PANEL */
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
 .community-info-grid {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -2043,6 +2392,11 @@ const communityStyles = `
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  /* kalau member di modal banyak, modal tidak jadi terlalu panjang */
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 6px;
 }
 
 .community-toast {
@@ -2058,19 +2412,236 @@ const communityStyles = `
   box-shadow: 0 12px 30px rgba(15, 23, 42, .2);
 }
 
+
+.community-plus-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.community-plus-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.community-attachment-menu {
+  position: absolute;
+  left: 0;
+  bottom: 56px;
+  width: 250px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, .18);
+  padding: 8px;
+  z-index: 30;
+}
+
+.community-attachment-menu button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 14px;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.community-attachment-menu button:hover {
+  background: #f5f3ff;
+}
+
+.community-attachment-menu strong,
+.community-attachment-menu span {
+  display: block;
+}
+
+.community-attachment-menu strong {
+  color: #111827;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.community-attachment-menu span {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.community-event-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.community-event-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.community-event-card img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  background: #ede9fe;
+}
+
+.community-event-card-body {
+  padding: 14px;
+  flex: 1;
+}
+
+.community-event-card-body h3 {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 16px;
+}
+
+.community-event-card-body p {
+  margin: 4px 0;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.community-event-card-body strong {
+  display: block;
+  margin-top: 8px;
+  color: #6d28d9;
+  font-size: 14px;
+}
+
+.community-event-card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.community-event-card-actions .community-btn {
+  flex: 1;
+}
+
+.community-event-detail img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 18px;
+  margin-bottom: 16px;
+  background: #ede9fe;
+}
+
+.community-event-detail h3 {
+  margin: 0 0 10px;
+  color: #111827;
+}
+
+.community-event-detail p {
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 6px 0;
+}
+
+.community-selected-event-box {
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #ddd6fe;
+  background: #f5f3ff;
+  border-radius: 18px;
+  margin-bottom: 16px;
+}
+
+.community-selected-event-box img {
+  width: 86px;
+  height: 86px;
+  object-fit: cover;
+  border-radius: 16px;
+  background: #ede9fe;
+  flex-shrink: 0;
+}
+
+.community-selected-event-box h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: #111827;
+}
+
+.community-selected-event-box p {
+  margin: 0 0 6px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.community-selected-event-box strong {
+  color: #6d28d9;
+  font-size: 14px;
+}
+
+.community-media-preview {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #f9fafb;
+}
+
+.community-media-preview strong {
+  display: block;
+  color: #374151;
+  font-size: 13px;
+  margin-bottom: 10px;
+  word-break: break-all;
+}
+
+.community-media-preview img,
+.community-media-preview video {
+  display: block;
+  max-width: 100%;
+  max-height: 260px;
+  border-radius: 14px;
+  object-fit: contain;
+  background: #111827;
+}
+
 @media (max-width: 1200px) {
   .community-shell {
     grid-template-columns: 300px 1fr;
+    height: auto;
+  }
+
+  .community-sidebar,
+  .community-chat {
+    height: 720px;
   }
 
   .community-detail {
     grid-column: 1 / -1;
+    max-height: 620px;
   }
 }
 
 @media (max-width: 900px) {
   .community-shell {
     grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .community-sidebar,
+  .community-chat {
+    height: 680px;
+  }
+
+  .community-detail {
+    max-height: 680px;
   }
 
   .community-chat-header {
@@ -2090,6 +2661,19 @@ const communityStyles = `
 
   .community-message {
     max-width: 94%;
+  }
+
+  .community-event-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .community-selected-event-box {
+    flex-direction: column;
+  }
+
+  .community-selected-event-box img {
+    width: 100%;
+    height: 180px;
   }
 }
 `;
