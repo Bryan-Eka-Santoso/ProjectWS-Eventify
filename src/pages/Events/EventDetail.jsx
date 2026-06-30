@@ -3,13 +3,16 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth"; // 🔑 Mengikuti pusat kendali auth
+import { AUTH_USER } from "../../config/auth";
 
 function EventDetail() {
   const { id } = useParams();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isSaved, setIsSaved] = useState(false); // 🔖 State status bookmark
+  const [isSaved, setIsSaved] = useState(false);
+
+  // 🔥 State Baru: Untuk mengontrol pop-up modal tiket gess
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     axios
@@ -23,7 +26,6 @@ function EventDetail() {
         setLoading(false);
       });
 
-    // 🔍 Jalankan pengecekan status awal saat halaman dibuka gess
     axios
       .get(
         `http://localhost:5000/api/events/${id}/check-save?user_id=${AUTH_USER.id}`,
@@ -32,7 +34,6 @@ function EventDetail() {
       .catch((err) => console.error(err));
   }, [id]);
 
-  // 🔥 Fungsi eksekusi simpan & batalkan simpan otomatis (Toggle)
   const handleToggleSave = async () => {
     try {
       const res = await axios.post(
@@ -43,7 +44,7 @@ function EventDetail() {
         },
       );
       alert(res.data.message);
-      setIsSaved(res.data.isSaved); // Ubah visual tombol langsung tanpa refresh gess
+      setIsSaved(res.data.isSaved);
     } catch (err) {
       console.error(err);
       alert("Gagal memproses simpan event.");
@@ -63,7 +64,7 @@ function EventDetail() {
       <div className="container mt-5 text-center my-5 py-5 bg-light rounded-4">
         <h3 className="text-muted">Waduh, Event tidak ditemukan gess!</h3>
         <Link to="/events" className="btn btn-primary mt-3 rounded-pill px-4">
-          Kembali ke List Event
+          Back ke List Event
         </Link>
       </div>
     );
@@ -89,6 +90,16 @@ function EventDetail() {
       "Desember",
     ];
     return `${tgl} ${namaBulan[parseInt(bln) - 1]} ${thn} Pukul ${waktuMentah}`;
+  };
+
+  // 🔥 Fungsi formatter rupiah gess
+  const formatRupiah = (angka) => {
+    if (angka === 0) return "GRATIS";
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(angka);
   };
 
   return (
@@ -157,13 +168,15 @@ function EventDetail() {
                 "Tidak ada deskripsi detail untuk event ini gess."}
             </p>
 
-            {/* 🔥 BARIS BUTTON INTERAKSI KELOMPOK */}
             <div className="d-flex flex-column gap-2 mt-4">
-              <button className="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow d-flex align-items-center justify-content-center gap-2">
+              {/* 🔥 Ketika diklik, langsung set state modal jadi true gess */}
+              <button
+                onClick={() => setShowModal(true)}
+                className="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow d-flex align-items-center justify-content-center gap-2"
+              >
                 <span className="fs-4">🎫</span> Beli Tiket Sekarang
               </button>
 
-              {/* 🔖 TOMBOL TOGGLE SAVE / BATAL SAVE RESMI HADIR */}
               <button
                 className={`btn btn-lg w-100 rounded-3 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 ${isSaved ? "btn-danger text-white" : "btn-outline-warning text-dark"}`}
                 onClick={handleToggleSave}
@@ -176,7 +189,7 @@ function EventDetail() {
           </div>
         </div>
 
-        {/* FITUR GALERI ALBUM AMAN SENTOSA */}
+        {/* Galeri Foto Album */}
         {event.images && event.images.length > 0 && (
           <div className="mt-5 pt-5 border-top">
             <h4 className="fw-bold text-dark mb-4 pb-2 border-bottom d-inline-block">
@@ -207,6 +220,118 @@ function EventDetail() {
           </div>
         )}
       </div>
+
+      {/* 🔥 MODAL POP-UP TICKETS SELECTION (BOOTSTRAP PURE CSS-REACT TRIGGERED) */}
+      {showModal && (
+        <>
+          {/* Backdrop / Background hitam transparan gess */}
+          <div
+            className="modal-backdrop fade show"
+            onClick={() => setShowModal(false)}
+            style={{ zIndex: 1040 }}
+          ></div>
+
+          {/* Box Main Modal */}
+          <div
+            className="modal fade show d-block animate__animated animate__fadeInUp"
+            tabIndex="-1"
+            role="dialog"
+            style={{ zIndex: 1050, top: "10%" }}
+          >
+            <div
+              className="modal-dialog modal-dialog-centered modal-md"
+              role="document"
+            >
+              <div className="modal-content border-0 rounded-4 shadow-lg">
+                {/* Header Pop Up */}
+                <div className="modal-header bg-primary text-white p-4 rounded-top-4">
+                  <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
+                    <span>🎫</span> Kategori Tiket Tersedia
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    aria-label="Close"
+                    onClick={() => setShowModal(false)}
+                  ></button>
+                </div>
+
+                {/* Body Pop Up Konten Tiket */}
+                <div
+                  className="modal-body p-4"
+                  style={{ maxHeight: "60vh", overflowY: "auto" }}
+                >
+                  <p className="text-muted small mb-3">
+                    Silahkan pilih jenis tiket untuk event{" "}
+                    <strong>{event.title}</strong>:
+                  </p>
+
+                  {event.ticket_types && event.ticket_types.length > 0 ? (
+                    <div className="d-flex flex-column gap-3">
+                      {event.ticket_types.map((ticket) => (
+                        <div
+                          key={ticket.id}
+                          className="d-flex justify-content-between align-items-center p-3 border-2 rounded-3 bg-light hover-shadow transition-all"
+                        >
+                          <div>
+                            <div className="fw-bold text-dark text-uppercase mb-1">
+                              {ticket.name}
+                            </div>
+                            <small className="text-muted d-block">
+                              Sisa Kuota:{" "}
+                              <span
+                                className={
+                                  ticket.remaining_quota > 0
+                                    ? "text-success fw-bold"
+                                    : "text-danger fw-bold"
+                                }
+                              >
+                                {ticket.remaining_quota} / {ticket.quota} Tiket
+                              </span>
+                            </small>
+                          </div>
+                          <div className="text-end">
+                            <span className="badge bg-dark fs-6 px-3 py-2 rounded-pill shadow-sm">
+                              {formatRupiah(ticket.price)}
+                            </span>
+                            {/* Di-disable dulu sesuai instruksi alur transaksi belum jalan */}
+                            <button
+                              disabled
+                              className="btn btn-sm btn-outline-secondary d-block mt-2 w-100 fw-bold rounded-pill"
+                              style={{ fontSize: "11px" }}
+                            >
+                              Pilih
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-muted mb-0">
+                        Waduh gess! Event ini belum mengonfigurasi tipe tiket
+                        masuk.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Pop Up */}
+                <div className="modal-footer bg-light p-3 rounded-bottom-4">
+                  <button
+                    type="button"
+                    className="btn btn-secondary w-100 fw-bold rounded-3"
+                    onClick={() => setShowModal(false)}
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <Footer />
     </>
   );

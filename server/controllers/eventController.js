@@ -4,8 +4,10 @@ const Event = db.Event;
 const EventImage = db.EventImage;
 const Category = db.Category;
 const User = db.User;
-const SavedEvent = db.SavedEvent; // 🎯 Sekarang ini dijamin 100% aman dan terbaca karena sudah didaftarkan di index.js!
+const SavedEvent = db.SavedEvent;
 const OrganizerApplication = db.OrganizerApplication;
+// 🔥 Panggil model TicketType gess!
+const TicketType = db.TicketType;
 
 const eventController = {
   createEvent: async (req, res) => {
@@ -19,13 +21,14 @@ const eventController = {
         category_ids,
         user_id,
         role,
+        tickets, // 🔥 Menangkap payload jenis tiket dari frontend (masih berbentuk JSON String)
       } = req.body;
       const main_image =
         req.files && req.files.main_image
           ? req.files.main_image[0].filename
           : "default.jpg";
 
-      // 🛡️ VALIDASI MODEL USER: Cek apakah user yang bikin beneran terdaftar di SQL DB kamu
+      // VALIDASI MODEL USER
       const checkUser = await User.findByPk(user_id);
       if (!checkUser) {
         return res
@@ -54,6 +57,7 @@ const eventController = {
         organizerIdValue = app.id;
       }
 
+      // 1. Simpan Event Utama
       const newEvent = await Event.create({
         organizer_id: organizerIdValue,
         title,
@@ -65,11 +69,13 @@ const eventController = {
         status: eventStatusValue,
       });
 
+      // 2. Simpan Relasi Kategori Pivot
       if (category_ids) {
         const ids = category_ids.split(",").map(Number);
         await newEvent.addCategories(ids);
       }
 
+      // 3. Simpan Album Galeri Tambahan (Aman & Tidak Rusak)
       if (req.files && req.files.album) {
         const albumImages = req.files.album.map((file) => ({
           event_id: newEvent.id,
@@ -78,11 +84,27 @@ const eventController = {
         await EventImage.bulkCreate(albumImages);
       }
 
+      // 🔥 4. SIMPAN DYNAMIC TICKET TYPES KE DATABASE
+      if (tickets) {
+        const parsedTickets = JSON.parse(tickets); // Parse string ke bentuk Array asli gess
+        if (Array.isArray(parsedTickets) && parsedTickets.length > 0) {
+          const ticketsData = parsedTickets.map((ticket) => ({
+            event_id: newEvent.id,
+            name: ticket.name,
+            price: parseInt(ticket.price) || 0,
+            quota: parseInt(ticket.quota),
+            remaining_quota: parseInt(ticket.quota), // 🎯 Aturan: remaining_quota ngikut quota awal
+          }));
+
+          await TicketType.bulkCreate(ticketsData);
+        }
+      }
+
       res.status(201).json({
         message:
           role === "admin"
-            ? "Event berhasil di-publish oleh Admin!"
-            : "Event berhasil disimpan sebagai Draft oleh Organizer!",
+            ? "Event beserta tipe tiket berhasil di-publish oleh Admin!"
+            : "Event beserta tipe tiket berhasil disimpan sebagai Draft oleh Organizer!",
         data: newEvent,
       });
     } catch (error) {
@@ -94,7 +116,6 @@ const eventController = {
   getMyEvents: async (req, res) => {
     try {
       const { user_id, role } = req.query;
-
       let whereClause = {};
 
       if (role === "organizer") {
@@ -132,7 +153,6 @@ const eventController = {
   getPublishedEvents: async (req, res) => {
     try {
       const { category_id } = req.query;
-
       let options = {
         where: { status: "published" },
         include: [
@@ -162,14 +182,18 @@ const eventController = {
     try {
       const { id } = req.params;
 
-      // 🎯 SEKARANG GET DETAIL TURUT MELAKUKAN JOIN TABLE YANG RELEVAN
+      // 🎯 SEKARANG GET DETAIL TURUT MELAKUKAN JOIN KE TICKET TYPES SECARA OTOMATIS
       const event = await Event.findByPk(id, {
         include: [
           { model: EventImage, as: "images" },
           {
+            // 🔥 Sertakan list tiket bawaan event ini gess
+            model: TicketType,
+            as: "ticket_types",
+          },
+          {
             model: OrganizerApplication,
             as: "organizer",
-            // Meng-include User di dalam aplikasi organizer untuk menarik nama asli user
             include: [{ model: User, attributes: ["name", "email"] }],
           },
         ],
@@ -218,7 +242,6 @@ const eventController = {
           .json({ message: "Event ini sudah pernah diadopsi!" });
       }
 
-      // 🛡️ VALIDASI MODEL USER SAAT ADOPSI API GLOBAL
       const checkUser = await User.findByPk(user_id);
       if (!checkUser) {
         return res
@@ -267,25 +290,20 @@ const eventController = {
     }
   },
 
-  // 🔥 FUNGSI 1: Toggle Save / Unsave Event (Gaya ORM)
   toggleSaveEvent: async (req, res) => {
     try {
       const { user_id, event_id } = req.body;
-
-      // 🔍 Cari tahu apakah data bookmark sudah ada di database gess
       const alreadySaved = await SavedEvent.findOne({
         where: { user_id, event_id },
       });
 
       if (alreadySaved) {
-        // Jika ketemu, langsung hapus (Unsave) gess! Lebih ringkas kan?
         await alreadySaved.destroy();
         return res.json({
           message: "Berhasil membatalkan simpan event!",
           isSaved: false,
         });
       } else {
-        // Jika tidak ada, buat baris data baru (Save) gess!
         await SavedEvent.create({ user_id, event_id });
         return res.json({
           message: "Event berhasil disimpan gess!",
@@ -298,15 +316,13 @@ const eventController = {
     }
   },
 
-  // 🔥 FUNGSI 2: Cek status apakah user sudah save event ini (Gaya ORM)
   checkSaveStatus: async (req, res) => {
     try {
-      const { id } = req.params; // ini event_id
+      const { id } = req.params;
       const { user_id } = req.query;
 
       if (!user_id) return res.json({ isSaved: false });
 
-      // Cukup hitung jumlah datanya, kalau > 0 berarti true gess
       const count = await SavedEvent.count({
         where: { user_id, event_id: id },
       });
@@ -317,26 +333,21 @@ const eventController = {
     }
   },
 
-  // 🔥 FUNGSI 3: Tarik semua event yang disimpan user dengan teknik JOIN ORM (Include)
   getSavedEventsList: async (req, res) => {
     try {
       const { user_id } = req.query;
-
-      // Ambil data langsung dari tabel SavedEvent, lalu JOIN otomatis ke tabel Event
       const savedList = await SavedEvent.findAll({
         where: { user_id },
         include: [
           {
             model: Event,
-            as: "event", // Pastikan alias ini sama dengan yang kamu set di file asosiasi models/savedevent.js
-            required: true, // bertindak sebagai INNER JOIN gess
+            as: "event",
+            required: true,
           },
         ],
       });
 
-      // Map hasilnya biar frontend dapet data array object event murni langsung gess
       const eventsOnly = savedList.map((item) => item.event);
-
       res.json(eventsOnly);
     } catch (error) {
       console.error(error);

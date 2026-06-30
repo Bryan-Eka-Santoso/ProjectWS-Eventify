@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth"; // 🔑 Mengambil config pusat
+import { AUTH_USER } from "../../config/auth";
 
 function CreateEvent() {
   const navigate = useNavigate();
@@ -17,9 +17,12 @@ function CreateEvent() {
   });
 
   const [mainImage, setMainImage] = useState(null);
-  const [album, setAlbum] = useState([]); // 🖼️ State penampung file array album
+  const [album, setAlbum] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
+
+  // 🔥 1. State Awal Jenis Tiket (Default 1 Opsi Kosong Sesuai Permintaanmu)
+  const [tickets, setTickets] = useState([{ name: "", price: "", quota: "" }]);
 
   useEffect(() => {
     axios
@@ -42,11 +45,43 @@ function CreateEvent() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // 🔥 2. Fungsi Mengubah Data Inputan Di Salah Satu Opsi Tiket
+  const handleTicketChange = (index, e) => {
+    const updatedTickets = [...tickets];
+    updatedTickets[index][e.target.name] = e.target.value;
+    setTickets(updatedTickets);
+  };
+
+  // 🔥 3. Tombol (+) Menambah Opsi Jenis Tiket Baru
+  const addTicketRow = () => {
+    setTickets([...tickets, { name: "", price: "", quota: "" }]);
+  };
+
+  // 🔥 4. Tombol Hapus Opsi Jenis Tiket Tertentu
+  const removeTicketRow = (index) => {
+    // Sisakan minimal 1 baris input jenis tiket agar tidak kosong melompong gess
+    if (tickets.length === 1) {
+      alert("Minimal harus menyediakan 1 jenis tiket gess!");
+      return;
+    }
+    const filteredTickets = tickets.filter((_, i) => i !== index);
+    setTickets(filteredTickets);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!mainImage) return alert("Harap unggah gambar utama event!");
     if (selectedCategories.length === 0)
       return alert("Harap pilih minimal 1 kategori!");
+
+    // Validasi singkat agar user tidak mengirim tiket kosong
+    for (let i = 0; i < tickets.length; i++) {
+      if (!tickets[i].name || !tickets[i].quota) {
+        return alert(
+          `Harap lengkapi Nama Tiket dan Quota pada baris ke-${i + 1}!`,
+        );
+      }
+    }
 
     const data = new FormData();
     data.append("title", formData.title);
@@ -57,12 +92,13 @@ function CreateEvent() {
     data.append("category_ids", selectedCategories.join(","));
     data.append("main_image", mainImage);
 
-    // 📸 Append album visual galeri kembali gess
     album.forEach((file) => data.append("album", file));
 
-    // 🔥 Oper ID User & Role ke backend untuk dicari id aplikasi organizernya
     data.append("user_id", AUTH_USER.id);
     data.append("role", AUTH_USER.role);
+
+    // 🔥 5. Append array jenis tiket yang dikonversi ke JSON String
+    data.append("tickets", JSON.stringify(tickets));
 
     try {
       const response = await axios.post(
@@ -195,7 +231,84 @@ function CreateEvent() {
                     </div>
                   </div>
 
-                  {/* 🖼️ MEDIA VISUAL ALBUM LENGKAP */}
+                  {/* 🔥 BLOK BARU: INPUT DINAMIS JENIS TIKET */}
+                  <div className="mb-4">
+                    <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                      <h6 className="text-primary fw-bold mb-0">
+                        🎫 Konfigurasi Kategori Jenis Tiket
+                      </h6>
+                      <button
+                        type="button"
+                        className="btn btn-outline-success btn-sm fw-bold rounded-pill px-3"
+                        onClick={addTicketRow}
+                      >
+                        ➕ Tambah Jenis Tiket
+                      </button>
+                    </div>
+
+                    {tickets.map((ticket, index) => (
+                      <div
+                        className="row g-2 align-items-end p-3 mb-2 rounded border bg-light position-relative"
+                        key={index}
+                      >
+                        <div className="col-md-5">
+                          <label className="form-label small fw-bold">
+                            Nama Tiket (Contoh: VIP / Regular) *
+                          </label>
+                          <input
+                            type="text"
+                            name="name"
+                            placeholder="Nama tiket gess"
+                            className="form-control form-control-sm border-2"
+                            value={ticket.name}
+                            required
+                            onChange={(e) => handleTicketChange(index, e)}
+                          />
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label small fw-bold">
+                            Harga Tiket (IDR) *
+                          </label>
+                          <input
+                            type="number"
+                            name="price"
+                            placeholder="0 (Jika gratis)"
+                            className="form-control form-control-sm border-2"
+                            value={ticket.price}
+                            required
+                            min="0"
+                            onChange={(e) => handleTicketChange(index, e)}
+                          />
+                        </div>
+                        <div className="col-md-2">
+                          <label className="form-label small fw-bold">
+                            Quota *
+                          </label>
+                          <input
+                            type="number"
+                            name="quota"
+                            placeholder="100"
+                            className="form-control form-control-sm border-2"
+                            value={ticket.quota}
+                            required
+                            min="1"
+                            onChange={(e) => handleTicketChange(index, e)}
+                          />
+                        </div>
+                        <div className="col-md-1 text-center">
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm rounded-3 mb-1"
+                            onClick={() => removeTicketRow(index)}
+                            title="Hapus tipe tiket"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
                   <div className="mb-4">
                     <h6 className="text-primary fw-bold border-bottom pb-2 mb-3">
                       Media Visual
