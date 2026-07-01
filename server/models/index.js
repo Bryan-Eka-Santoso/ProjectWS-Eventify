@@ -19,7 +19,7 @@ const db = {};
 db.Sequelize = Sequelize;
 db.sequelize = sequelize;
 
-// Import Semua Model
+// Import Semua Model Utama
 db.User = require("./User")(sequelize, DataTypes);
 db.Event = require("./Event")(sequelize, DataTypes);
 db.EventImage = require("./EventImage")(sequelize, DataTypes);
@@ -29,8 +29,6 @@ db.OrganizerApplication = require("./OrganizerApplication")(
   DataTypes,
 );
 db.SavedEvent = require("./SavedEvent")(sequelize, DataTypes);
-
-// 🔥 TAMBAHAN BARU: Daftarkan model TicketType ke ORM gess!
 db.TicketType = require("./TicketType")(sequelize, DataTypes);
 
 // Model Fitur Chat
@@ -38,7 +36,11 @@ db.ChatRoom = require("./ChatRoom")(sequelize, DataTypes);
 db.ChatRoomMember = require("./ChatRoomMember")(sequelize, DataTypes);
 db.Message = require("./Message")(sequelize, DataTypes);
 
-// Definisi Relasi Tabel
+// 🔥 SEKARANG IMPORT MEMAKAI FILE MODEL SENDIRI YANG SUDAH SINKRON MIGRATION
+db.Voucher = require("./Voucher")(sequelize, DataTypes);
+db.UserVoucher = require("./UserVoucher")(sequelize, DataTypes);
+
+// Definisi Relasi Tabel Lama
 db.OrganizerApplication.hasMany(db.Event, { foreignKey: "organizer_id" });
 db.Event.belongsTo(db.OrganizerApplication, {
   foreignKey: "organizer_id",
@@ -51,7 +53,6 @@ db.OrganizerApplication.belongsTo(db.User, { foreignKey: "user_id" });
 db.Event.hasMany(db.EventImage, { foreignKey: "event_id", as: "images" });
 db.EventImage.belongsTo(db.Event, { foreignKey: "event_id" });
 
-// 🔥 TAMBAHAN BARU: Definisikan relasi Event ke TicketType biar bisa di-include saat Get Detail!
 db.Event.hasMany(db.TicketType, { foreignKey: "event_id", as: "ticket_types" });
 db.TicketType.belongsTo(db.Event, { foreignKey: "event_id" });
 
@@ -73,10 +74,28 @@ db.SavedEvent.belongsTo(db.User, { foreignKey: "user_id" });
 db.Event.hasMany(db.SavedEvent, { foreignKey: "event_id" });
 db.SavedEvent.belongsTo(db.Event, { foreignKey: "event_id", as: "event" });
 
-// Definisi Relasi Tabel Vincent (Fitur Chat)
 db.ChatRoom.hasMany(db.ChatRoomMember, { foreignKey: "chat_room_id" });
 db.ChatRoomMember.belongsTo(db.ChatRoom, { foreignKey: "chat_room_id" });
 db.ChatRoom.hasMany(db.Message, { foreignKey: "chat_room_id" });
 db.Message.belongsTo(db.ChatRoom, { foreignKey: "chat_room_id" });
+
+// ==========================================
+// 🔥 RELASI USER KE VOUCHER YANG PREMANEN & RAPI
+// ==========================================
+db.User.belongsToMany(db.Voucher, {
+  through: db.UserVoucher,
+  foreignKey: "user_id",
+  as: "vouchers",
+});
+db.Voucher.belongsToMany(db.User, {
+  through: db.UserVoucher,
+  foreignKey: "voucher_id",
+});
+
+db.UserVoucher.belongsTo(db.Voucher, {
+  foreignKey: "voucher_id",
+  as: "voucher",
+});
+db.UserVoucher.belongsTo(db.User, { foreignKey: "user_id", as: "user" });
 
 module.exports = db;

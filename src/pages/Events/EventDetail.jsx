@@ -10,9 +10,10 @@ function EventDetail() {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
-
-  // 🔥 State Baru: Untuk mengontrol pop-up modal tiket gess
   const [showModal, setShowModal] = useState(false);
+
+  // 🔥 State Baru: Untuk menampung daftar voucher yang dimiliki user gess
+  const [myVouchers, setMyVouchers] = useState([]);
 
   useEffect(() => {
     axios
@@ -33,6 +34,20 @@ function EventDetail() {
       .then((res) => setIsSaved(res.data.isSaved))
       .catch((err) => console.error(err));
   }, [id]);
+
+  // 🔥 Trigger penarikan voucher kepemilikan ketika modal tiket terbuka gess!
+  useEffect(() => {
+    if (showModal) {
+      axios
+        .get(
+          `http://localhost:5000/api/events/vouchers/my-vouchers?user_id=${AUTH_USER.id}`,
+        )
+        .then((res) => {
+          setMyVouchers(res.data);
+        })
+        .catch((err) => console.error("Gagal mengambil voucher user:", err));
+    }
+  }, [showModal]);
 
   const handleToggleSave = async () => {
     try {
@@ -92,7 +107,6 @@ function EventDetail() {
     return `${tgl} ${namaBulan[parseInt(bln) - 1]} ${thn} Pukul ${waktuMentah}`;
   };
 
-  // 🔥 Fungsi formatter rupiah gess
   const formatRupiah = (angka) => {
     if (angka === 0) return "GRATIS";
     return new Intl.NumberFormat("id-ID", {
@@ -169,7 +183,6 @@ function EventDetail() {
             </p>
 
             <div className="d-flex flex-column gap-2 mt-4">
-              {/* 🔥 Ketika diklik, langsung set state modal jadi true gess */}
               <button
                 onClick={() => setShowModal(true)}
                 className="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow d-flex align-items-center justify-content-center gap-2"
@@ -221,45 +234,40 @@ function EventDetail() {
         )}
       </div>
 
-      {/* 🔥 MODAL POP-UP TICKETS SELECTION (BOOTSTRAP PURE CSS-REACT TRIGGERED) */}
+      {/* MODAL POP-UP TICKETS SELECTION */}
       {showModal && (
         <>
-          {/* Backdrop / Background hitam transparan gess */}
           <div
             className="modal-backdrop fade show"
             onClick={() => setShowModal(false)}
             style={{ zIndex: 1040 }}
           ></div>
 
-          {/* Box Main Modal */}
           <div
-            className="modal fade show d-block animate__animated animate__fadeInUp"
+            className="modal fade show d-block"
             tabIndex="-1"
             role="dialog"
-            style={{ zIndex: 1050, top: "10%" }}
+            style={{ zIndex: 1050, top: "5%" }}
           >
             <div
               className="modal-dialog modal-dialog-centered modal-md"
               role="document"
             >
               <div className="modal-content border-0 rounded-4 shadow-lg">
-                {/* Header Pop Up */}
                 <div className="modal-header bg-primary text-white p-4 rounded-top-4">
                   <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
-                    <span>🎫</span> Kategori Tiket Tersedia
+                    <span>🎫</span> Kategori Tiket & Voucher Kamu
                   </h5>
                   <button
                     type="button"
                     className="btn-close btn-close-white"
-                    aria-label="Close"
                     onClick={() => setShowModal(false)}
                   ></button>
                 </div>
 
-                {/* Body Pop Up Konten Tiket */}
                 <div
                   className="modal-body p-4"
-                  style={{ maxHeight: "60vh", overflowY: "auto" }}
+                  style={{ maxHeight: "65vh", overflowY: "auto" }}
                 >
                   <p className="text-muted small mb-3">
                     Silahkan pilih jenis tiket untuk event{" "}
@@ -267,11 +275,11 @@ function EventDetail() {
                   </p>
 
                   {event.ticket_types && event.ticket_types.length > 0 ? (
-                    <div className="d-flex flex-column gap-3">
+                    <div className="d-flex flex-column gap-3 mb-4">
                       {event.ticket_types.map((ticket) => (
                         <div
                           key={ticket.id}
-                          className="d-flex justify-content-between align-items-center p-3 border-2 rounded-3 bg-light hover-shadow transition-all"
+                          className="d-flex justify-content-between align-items-center p-3 border rounded-3 bg-light"
                         >
                           <div>
                             <div className="fw-bold text-dark text-uppercase mb-1">
@@ -294,7 +302,6 @@ function EventDetail() {
                             <span className="badge bg-dark fs-6 px-3 py-2 rounded-pill shadow-sm">
                               {formatRupiah(ticket.price)}
                             </span>
-                            {/* Di-disable dulu sesuai instruksi alur transaksi belum jalan */}
                             <button
                               disabled
                               className="btn btn-sm btn-outline-secondary d-block mt-2 w-100 fw-bold rounded-pill"
@@ -307,16 +314,81 @@ function EventDetail() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-4">
+                    <div className="text-center py-3 mb-4">
                       <p className="text-muted mb-0">
-                        Waduh gess! Event ini belum mengonfigurasi tipe tiket
-                        masuk.
+                        Event ini belum mengonfigurasi tipe tiket.
                       </p>
                     </div>
                   )}
+
+                  {/* 🔥 SEKTOR TAMBAHAN: MENAMPILKAN VOUCHER YANG DIMILIKI USER GESS --- */}
+                  <div className="pt-3 border-top">
+                    <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                      <span>🎁</span> Voucher Diskon Milikmu (
+                      {myVouchers.length})
+                    </h6>
+
+                    {myVouchers.length === 0 ? (
+                      <div className="p-3 bg-light rounded-3 text-center border">
+                        <small className="text-muted d-block">
+                          Kamu belum mempunyai voucher apapun gess.
+                        </small>
+                        <Link
+                          to="/events/vouchers"
+                          onClick={() => setShowModal(false)}
+                          className="small fw-bold text-primary text-decoration-none d-inline-block mt-1"
+                        >
+                          Tukar poin di sini ➡️
+                        </Link>
+                      </div>
+                    ) : (
+                      <div
+                        className="d-flex flex-column gap-2"
+                        style={{ maxHeight: "180px", overflowY: "auto" }}
+                      >
+                        {myVouchers.map((item) => (
+                          <div
+                            key={item.id}
+                            className="p-3 border-2 border-dashed rounded-3 bg-light d-flex justify-content-between align-items-center"
+                            style={{ borderStyle: "dashed" }}
+                          >
+                            <div>
+                              <span
+                                className="badge bg-danger mb-1"
+                                style={{ fontSize: "10px" }}
+                              >
+                                Diskon {item.voucher?.percentage}%
+                              </span>
+                              <div className="fw-bold text-dark small">
+                                {item.voucher?.name}
+                              </div>
+                              <code className="text-muted small">
+                                Code: {item.voucher?.code}
+                              </code>
+                            </div>
+                            <div>
+                              <button
+                                disabled
+                                className="btn btn-sm btn-secondary rounded-pill px-3 fw-bold"
+                                style={{ fontSize: "11px" }}
+                              >
+                                Tersedia
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <small
+                      className="text-muted d-block mt-2"
+                      style={{ fontSize: "11px" }}
+                    >
+                      *Voucher baru bisa dipasang saat alur transaksi tiket
+                      diaktifkan nanti gess.
+                    </small>
+                  </div>
                 </div>
 
-                {/* Footer Pop Up */}
                 <div className="modal-footer bg-light p-3 rounded-bottom-4">
                   <button
                     type="button"

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth"; // 🔑 Mengikuti pusat kendali auth
+import { AUTH_USER } from "../../config/auth";
 
 function Events() {
   const [events, setEvents] = useState([]);
@@ -93,10 +93,9 @@ function Events() {
           </div>
         </div>
 
-        {/* --- 🔥 REVISI ACTION BAR BARU: SEKARANG TERBUKA UNTUK SEMUA ROLE GESS --- */}
+        {/* --- REVISI ACTION BAR BARU --- */}
         <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
           <div>
-            {/* Tombol Explore International hanya muncul untuk Admin & Organizer */}
             {AUTH_USER.role !== "user" && (
               <Link
                 to="/events/external"
@@ -107,8 +106,16 @@ function Events() {
             )}
           </div>
 
-          <div className="d-flex gap-2">
-            {/* 📁 TOMBOL SAVED EVENTS: Dikeluarkan dari pembatas role agar USER biasa bisa klik gess woii! */}
+          <div className="d-flex flex-wrap gap-2">
+            {/* 🔥 TOMBOL LIST VOUCHER: Kita taruh di barisan depan gess biar eye-catching */}
+            <Link
+              to="/events/vouchers"
+              className="btn btn-info fw-bold rounded-3 text-white d-flex align-items-center gap-1 shadow-sm"
+            >
+              🎟️ List Voucher
+            </Link>
+
+            {/* TOMBOL SAVED EVENTS */}
             <Link
               to="/events/saved"
               className="btn btn-warning fw-bold rounded-3 text-dark d-flex align-items-center gap-1 shadow-sm"
@@ -116,7 +123,7 @@ function Events() {
               📁 Saved Events
             </Link>
 
-            {/* Pembatas khusus ini mengunci tombol manajemen event internal saja gess */}
+            {/* Pembatas khusus Admin / Organizer */}
             {AUTH_USER.role !== "user" && (
               <>
                 <Link
@@ -149,7 +156,7 @@ function Events() {
           <div className="row g-4">
             {filteredEvents.map((e) => (
               <div className="col-sm-6 col-md-4 col-lg-3" key={e.id}>
-                <div className="card h-100 shadow border-0 rounded-4 overflow-hidden">
+                <div className="card h-100 shadow shadow-sm border-0 rounded-4 overflow-hidden">
                   <img
                     src={`http://localhost:5000/uploads/${e.main_image_url}`}
                     alt={e.title}
@@ -167,7 +174,6 @@ function Events() {
                       </h5>
                       <p className="text-muted small mb-3">📍 {e.location}</p>
                     </div>
-                    {/* Mengarah ke halaman detail beli tiket */}
                     <Link
                       to={`/events/${e.id}`}
                       className="btn btn-primary w-100 fw-bold py-2 rounded-3"

@@ -6,8 +6,11 @@ const Category = db.Category;
 const User = db.User;
 const SavedEvent = db.SavedEvent;
 const OrganizerApplication = db.OrganizerApplication;
-// 🔥 Panggil model TicketType gess!
 const TicketType = db.TicketType;
+
+// 🔥 Menggunakan model terpisah hasil sinkronisasi dengan skema database migrasi kamu gess
+const Voucher = db.Voucher;
+const UserVoucher = db.UserVoucher;
 
 const eventController = {
   createEvent: async (req, res) => {
@@ -21,14 +24,13 @@ const eventController = {
         category_ids,
         user_id,
         role,
-        tickets, // 🔥 Menangkap payload jenis tiket dari frontend (masih berbentuk JSON String)
+        tickets,
       } = req.body;
       const main_image =
         req.files && req.files.main_image
           ? req.files.main_image[0].filename
           : "default.jpg";
 
-      // VALIDASI MODEL USER
       const checkUser = await User.findByPk(user_id);
       if (!checkUser) {
         return res
@@ -57,7 +59,6 @@ const eventController = {
         organizerIdValue = app.id;
       }
 
-      // 1. Simpan Event Utama
       const newEvent = await Event.create({
         organizer_id: organizerIdValue,
         title,
@@ -69,13 +70,11 @@ const eventController = {
         status: eventStatusValue,
       });
 
-      // 2. Simpan Relasi Kategori Pivot
       if (category_ids) {
         const ids = category_ids.split(",").map(Number);
         await newEvent.addCategories(ids);
       }
 
-      // 3. Simpan Album Galeri Tambahan (Aman & Tidak Rusak)
       if (req.files && req.files.album) {
         const albumImages = req.files.album.map((file) => ({
           event_id: newEvent.id,
@@ -84,16 +83,15 @@ const eventController = {
         await EventImage.bulkCreate(albumImages);
       }
 
-      // 🔥 4. SIMPAN DYNAMIC TICKET TYPES KE DATABASE
       if (tickets) {
-        const parsedTickets = JSON.parse(tickets); // Parse string ke bentuk Array asli gess
+        const parsedTickets = JSON.parse(tickets);
         if (Array.isArray(parsedTickets) && parsedTickets.length > 0) {
           const ticketsData = parsedTickets.map((ticket) => ({
             event_id: newEvent.id,
             name: ticket.name,
             price: parseInt(ticket.price) || 0,
             quota: parseInt(ticket.quota),
-            remaining_quota: parseInt(ticket.quota), // 🎯 Aturan: remaining_quota ngikut quota awal
+            remaining_quota: parseInt(ticket.quota),
           }));
 
           await TicketType.bulkCreate(ticketsData);
@@ -182,12 +180,10 @@ const eventController = {
     try {
       const { id } = req.params;
 
-      // 🎯 SEKARANG GET DETAIL TURUT MELAKUKAN JOIN KE TICKET TYPES SECARA OTOMATIS
       const event = await Event.findByPk(id, {
         include: [
           { model: EventImage, as: "images" },
           {
-            // 🔥 Sertakan list tiket bawaan event ini gess
             model: TicketType,
             as: "ticket_types",
           },
@@ -352,6 +348,141 @@ const eventController = {
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Gagal memuat daftar simpanan event." });
+    }
+  },
+
+  // ==========================================
+  // 🔥 TAMBAHAN BARU: LOGIC FITUR VOUCHER & POIN USER GESS!
+  // ==========================================
+
+  // A. Ambil info poin user yang sedang login
+  getUserPoints: async (req, res) => {
+    try {
+      const { user_id } = req.query;
+      if (!user_id)
+        return res.status(400).json({ message: "User ID dibutuhkan gess!" });
+
+      const user = await User.findByPk(user_id, {
+        attributes: ["id", "name", "points"],
+      });
+      if (!user)
+        return res.status(404).json({ message: "User tidak ditemukan." });
+
+      const currentPoints =
+        user.points !== undefined && user.points !== null ? user.points : 0;
+
+      res.json({ points: currentPoints });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Gagal mengambil poin user." });
+    }
+  },
+
+  // B. Ambil list semua jenis voucher murni langsung dari SQL (Tanpa auto-insert dummy gess!)
+  getAllVouchers: async (req, res) => {
+    try {
+      // 1. Menampilkan voucher toko yang berstatus aktif saja gess
+      const vouchers = await Voucher.findAll({
+        where: { is_active: true },
+      });
+
+      // 2. 🔥 TRIK AMAN: Gandakan points_required menjadi point_cost agar terbaca oleh Frontend kamu gess!
+      const formattedVouchers = vouchers.map((v) => {
+        const plainVoucher = v.get({ plain: true });
+        return {
+          ...plainVoucher,
+          point_cost: plainVoucher.points_required, // Frontend membaca ini, backend aman pakai points_required!
+        };
+      });
+
+      // 3. Kirim balik data yang sudah diformat ke React frontend
+      return res.json(formattedVouchers);
+    } catch (error) {
+      console.error("🔥 ERROR SELEKSI VOUCHER:", error);
+      return res.status(500).json({
+        message: "Gagal memuat daftar toko voucher gess.",
+        error: error.message,
+      });
+    }
+  },
+
+  // C. Tukarkan poin user dengan Voucher (Akurasi field points_required & is_used)
+  claimVoucher: async (req, res) => {
+    try {
+      const { user_id, voucher_id } = req.body;
+
+      const user = await User.findByPk(user_id);
+      const voucher = await Voucher.findByPk(voucher_id);
+
+      if (!user) return res.status(404).json({ message: "User tidak valid!" });
+      if (!voucher)
+        return res.status(404).json({ message: "Voucher tidak ditemukan!" });
+
+      const userPoints =
+        user.points !== undefined && user.points !== null ? user.points : 0;
+
+      // 🔥 VALIDASI UTAMA: Sesuai dengan field points_required gess!
+      if (userPoints < voucher.points_required) {
+        return res.status(400).json({
+          message: `Poin kamu tidak cukup gess! Butuh ${voucher.points_required} poin, poin kamu saat ini hanya ${userPoints}.`,
+        });
+      }
+
+      // Validasi Opsional: Jika stock di database kamu diisi limit tertentu
+      if (voucher.stock !== null && voucher.stock <= 0) {
+        return res
+          .status(400)
+          .json({ message: "Aduh, kuota voucher ini sudah habis gess!" });
+      }
+
+      // Potong poin user di database
+      const newPointsBalance = userPoints - voucher.points_required;
+      await User.update(
+        { points: newPointsBalance },
+        { where: { id: user_id } },
+      );
+
+      // Kurangi stock voucher toko jika tidak unlimited
+      if (voucher.stock !== null) {
+        await Voucher.update(
+          { stock: voucher.stock - 1 },
+          { where: { id: voucher_id } },
+        );
+      }
+
+      // Catat klaim voucher ke tabel user_vouchers dengan default is_used = false (0) sesuai migrasi gess
+      await UserVoucher.create({
+        user_id,
+        voucher_id,
+        is_used: false,
+      });
+
+      res.json({
+        message: `Sukses menukarkan ${voucher.points_required} poin dengan voucher ${voucher.name}!`,
+        remainingPoints: newPointsBalance,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Gagal memproses penukaran voucher." });
+    }
+  },
+
+  // D. Ambil list voucher milik user yang statusnya is_used = false
+  getMyVouchers: async (req, res) => {
+    try {
+      const { user_id } = req.query;
+      if (!user_id)
+        return res.status(400).json({ message: "User ID diperlukan." });
+
+      const myVouchers = await UserVoucher.findAll({
+        where: { user_id, is_used: false }, // 🎯 Sesuai kolom is_used di database kamu gess!
+        include: [{ model: Voucher, as: "voucher" }],
+      });
+
+      res.json(myVouchers);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Gagal memuat voucher milik user." });
     }
   },
 };
