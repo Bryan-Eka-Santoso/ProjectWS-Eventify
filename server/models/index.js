@@ -2,12 +2,14 @@ const { Sequelize, DataTypes } = require("sequelize");
 const path = require("path");
 const dotenv = require("dotenv");
 
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+// 🎯 FIXED: Path disesuaikan karena .env berada satu tingkat di atas folder models
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
+// 🎯 FIXED: Menyamakan nama variabel dari DB_PASS menjadi DB_PASSWORD sesuai standar env kamu
 const sequelize = new Sequelize(
   process.env.DB_NAME,
   process.env.DB_USER,
-  process.env.DB_PASS || "",
+  process.env.DB_PASSWORD || "",
   {
     host: process.env.DB_HOST,
     dialect: "mysql",
@@ -36,9 +38,14 @@ db.ChatRoom = require("./ChatRoom")(sequelize, DataTypes);
 db.ChatRoomMember = require("./ChatRoomMember")(sequelize, DataTypes);
 db.Message = require("./Message")(sequelize, DataTypes);
 
-// 🔥 SEKARANG IMPORT MEMAKAI FILE MODEL SENDIRI YANG SUDAH SINKRON MIGRATION
+// Model Fitur Voucher
 db.Voucher = require("./Voucher")(sequelize, DataTypes);
 db.UserVoucher = require("./UserVoucher")(sequelize, DataTypes);
+
+// 🔥 TAMBAHAN BARU: Import 3 Model Transaksi & Tiket User Sesuai Skema Migration
+db.Transaction = require("./Transaction")(sequelize, DataTypes);
+db.TransactionDetail = require("./TransactionDetail")(sequelize, DataTypes);
+db.UserTicket = require("./UserTicket")(sequelize, DataTypes);
 
 // Definisi Relasi Tabel Lama
 db.OrganizerApplication.hasMany(db.Event, { foreignKey: "organizer_id" });
@@ -79,9 +86,7 @@ db.ChatRoomMember.belongsTo(db.ChatRoom, { foreignKey: "chat_room_id" });
 db.ChatRoom.hasMany(db.Message, { foreignKey: "chat_room_id" });
 db.Message.belongsTo(db.ChatRoom, { foreignKey: "chat_room_id" });
 
-// ==========================================
-// 🔥 RELASI USER KE VOUCHER YANG PREMANEN & RAPI
-// ==========================================
+// Relasi User ke Voucher
 db.User.belongsToMany(db.Voucher, {
   through: db.UserVoucher,
   foreignKey: "user_id",
@@ -91,11 +96,46 @@ db.Voucher.belongsToMany(db.User, {
   through: db.UserVoucher,
   foreignKey: "voucher_id",
 });
-
 db.UserVoucher.belongsTo(db.Voucher, {
   foreignKey: "voucher_id",
   as: "voucher",
 });
 db.UserVoucher.belongsTo(db.User, { foreignKey: "user_id", as: "user" });
+
+// ==========================================
+// 🔥 TAMBAHAN BARU: ASOSIASI RELASI SISTEM TRANSAKSI & TIKET SINKRON
+// ==========================================
+db.Transaction.belongsTo(db.User, { foreignKey: "user_id", as: "user" });
+db.Transaction.belongsTo(db.UserVoucher, {
+  foreignKey: "user_voucher_id",
+  as: "user_voucher",
+});
+db.Transaction.hasMany(db.TransactionDetail, {
+  foreignKey: "transaction_id",
+  as: "details",
+});
+
+db.TransactionDetail.belongsTo(db.Transaction, {
+  foreignKey: "transaction_id",
+  as: "transaction",
+});
+db.TransactionDetail.belongsTo(db.TicketType, {
+  foreignKey: "ticket_type_id",
+  as: "ticket_type",
+});
+db.TransactionDetail.hasMany(db.UserTicket, {
+  foreignKey: "transaction_detail_id",
+  as: "user_tickets",
+});
+
+db.UserTicket.belongsTo(db.User, { foreignKey: "user_id", as: "user" });
+db.UserTicket.belongsTo(db.TicketType, {
+  foreignKey: "ticket_type_id",
+  as: "ticket_type",
+});
+db.UserTicket.belongsTo(db.TransactionDetail, {
+  foreignKey: "transaction_detail_id",
+  as: "detail",
+});
 
 module.exports = db;

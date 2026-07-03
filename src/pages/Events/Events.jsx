@@ -107,7 +107,15 @@ function Events() {
           </div>
 
           <div className="d-flex flex-wrap gap-2">
-            {/* 🔥 TOMBOL LIST VOUCHER: Kita taruh di barisan depan gess biar eye-catching */}
+            {/* 🔥 TOMBOL MY TICKETS BARU MILIK USER GESS */}
+            <Link
+              to="/events/my-tickets"
+              className="btn btn-primary fw-bold rounded-3 text-white d-flex align-items-center gap-1 shadow-sm"
+            >
+              🎫 My Tickets
+            </Link>
+
+            {/* TOMBOL LIST VOUCHER */}
             <Link
               to="/events/vouchers"
               className="btn btn-info fw-bold rounded-3 text-white d-flex align-items-center gap-1 shadow-sm"

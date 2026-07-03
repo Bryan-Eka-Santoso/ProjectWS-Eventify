@@ -3,7 +3,8 @@ const dotenv = require("dotenv");
 const path = require("path");
 const cors = require("cors");
 
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+// 🎯 FIXED: Path disesuaikan karena .env sudah masuk ke dalam folder server gess!
+dotenv.config({ path: path.resolve(__dirname, "./.env") });
 
 const app = express();
 const eventRoutes = require("./routes/eventRoutes");
