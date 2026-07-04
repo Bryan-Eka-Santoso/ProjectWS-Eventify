@@ -6,7 +6,6 @@ const EventImage = db.EventImage;
 const Category = db.Category;
 const User = db.User;
 const SavedEvent = db.SavedEvent;
-const OrganizerApplication = db.OrganizerApplication;
 const TicketType = db.TicketType;
 const Voucher = db.Voucher;
 const UserVoucher = db.UserVoucher;
@@ -48,19 +47,12 @@ const eventController = {
         });
       }
 
+      // 🔥 FIXED: organizer_id sekarang langsung diisi dengan user_id si organizer gess!
       let organizerIdValue = null;
       const eventStatusValue = role === "admin" ? "published" : "draft";
 
       if (role === "organizer") {
-        const app = await OrganizerApplication.findOne({
-          where: { user_id: user_id },
-        });
-        if (!app) {
-          return res.status(400).json({
-            message: "Kamu belum terdaftar atau disetujui sebagai Organizer!",
-          });
-        }
-        organizerIdValue = app.id;
+        organizerIdValue = user_id;
       }
 
       const newEvent = await Event.create({
@@ -120,15 +112,9 @@ const eventController = {
       const { user_id, role } = req.query;
       let whereClause = {};
 
+      // 🔥 FIXED: Pencarian langsung dicocokkan ke user_id milik organizer tanpa lewat aplikasi lagi
       if (role === "organizer") {
-        const app = await OrganizerApplication.findOne({
-          where: { user_id: user_id },
-        });
-        if (app) {
-          whereClause = { organizer_id: app.id };
-        } else {
-          whereClause = { organizer_id: -1 };
-        }
+        whereClause = { organizer_id: user_id };
       } else if (role === "admin") {
         whereClause = { organizer_id: null };
       }
@@ -184,6 +170,7 @@ const eventController = {
     try {
       const { id } = req.params;
 
+      // 🔥 FIXED: Karena organizer_id mereferensikan user_id, include model diubah langsung ke User
       const event = await Event.findByPk(id, {
         include: [
           { model: EventImage, as: "images" },
@@ -192,9 +179,9 @@ const eventController = {
             as: "ticket_types",
           },
           {
-            model: OrganizerApplication,
-            as: "organizer",
-            include: [{ model: User, attributes: ["name", "email"] }],
+            model: User,
+            as: "organizer", // Pastikan alias "organizer" sudah didefinisikan di Event.belongsTo(User, { as: 'organizer' }) kamu gess
+            attributes: ["name", "email"],
           },
         ],
       });
@@ -249,19 +236,12 @@ const eventController = {
           .json({ message: "User pengadopsi tidak ditemukan gess!" });
       }
 
+      // 🔥 FIXED: organizer_id adopsi event juga langsung diisi dengan user_id gess!
       let organizerIdValue = null;
       const eventStatusValue = role === "admin" ? "published" : "draft";
 
       if (role === "organizer") {
-        const app = await OrganizerApplication.findOne({
-          where: { user_id: user_id },
-        });
-        if (!app) {
-          return res.status(400).json({
-            message: "Kamu belum terdaftar atau disetujui sebagai Organizer!",
-          });
-        }
-        organizerIdValue = app.id;
+        organizerIdValue = user_id;
       }
 
       event = await Event.create({
@@ -279,7 +259,7 @@ const eventController = {
       const customMessage =
         role === "admin"
           ? "Berhasil diadopsi dan LANGSUNG DI-PUBLISH (organizer_id = NULL)!"
-          : "Berhasil disimpan ke Draf (organizer_id = ID Organizer Application)!";
+          : "Berhasil disimpan ke Draf (organizer_id = ID Users terkait)!";
 
       res.status(201).json({ message: customMessage, data: event });
     } catch (error) {
@@ -475,7 +455,7 @@ const eventController = {
   },
 
   // ==========================================
-  // 🔥 TAMBAHAN MANTAP: INTEGRASI SISTEM MIDTRANS SNAP GATEWAY & PEMBELIAN TIKET
+  // 🔥 INTEGRASI SISTEM MIDTRANS SNAP GATEWAY & PEMBELIAN TIKET
   // ==========================================
 
   createTicketCheckout: async (req, res) => {
@@ -488,7 +468,6 @@ const eventController = {
           .json({ message: "Data kualifikasi pembelian kurang lengkap gess!" });
       }
 
-      // 🎯 OPER TUGAS: Panggil dapur Service buat ngolah transaksi berat gess
       const result = await transactionService.processCheckout({
         user_id,
         ticket_type_id,
@@ -519,7 +498,6 @@ const eventController = {
         `⚡ Callback Masuk untuk Order ID: ${order_id} | Status: ${transaction_status} (Via Service Layer)`,
       );
 
-      // 🎯 OPER TUGAS: Biarkan Service mengurus status kelulusan payment & cetak tiket fisik gess
       const callbackResult = await transactionService.processMidtransCallback({
         order_id,
         transaction_status,
@@ -544,7 +522,6 @@ const eventController = {
       if (!user_id)
         return res.status(400).json({ message: "User ID diperlukan gess!" });
 
-      // 🎯 FIXED TOTAL: Menyamakan alias huruf kapital sesuai pengaturan database kamu gess!
       const tickets = await UserTicket.findAll({
         where: { user_id, status: "active" },
         include: [
@@ -554,7 +531,7 @@ const eventController = {
             include: [
               {
                 model: Event,
-                as: "Event", // 👈 UTAMA: Diubah jadi huruf kapital "Event" biar Sequelize nggak protes lagi gess!
+                as: "Event",
               },
             ],
           },

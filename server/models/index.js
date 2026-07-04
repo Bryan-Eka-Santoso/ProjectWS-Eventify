@@ -47,16 +47,22 @@ db.Transaction = require("./Transaction")(sequelize, DataTypes);
 db.TransactionDetail = require("./TransactionDetail")(sequelize, DataTypes);
 db.UserTicket = require("./UserTicket")(sequelize, DataTypes);
 
-// Definisi Relasi Tabel Lama
-db.OrganizerApplication.hasMany(db.Event, { foreignKey: "organizer_id" });
-db.Event.belongsTo(db.OrganizerApplication, {
+// ==========================================
+// 🔥 RELASI BARU: MENYAMAKAN SEKUEL KE TABEL USERS GESS! (SUDAH FIX)
+// ==========================================
+db.User.hasMany(db.Event, { foreignKey: "organizer_id", as: "events" });
+db.Event.belongsTo(db.User, {
   foreignKey: "organizer_id",
   as: "organizer",
 });
 
+// Relasi pendaftaran aplikasi tetap dibiarkan aman gess
 db.User.hasMany(db.OrganizerApplication, { foreignKey: "user_id" });
 db.OrganizerApplication.belongsTo(db.User, { foreignKey: "user_id" });
 
+// ==========================================
+// Definisi Relasi Tabel Lainnya
+// ==========================================
 db.Event.hasMany(db.EventImage, { foreignKey: "event_id", as: "images" });
 db.EventImage.belongsTo(db.Event, { foreignKey: "event_id" });
 
