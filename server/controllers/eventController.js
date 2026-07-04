@@ -1,4 +1,5 @@
 const db = require("../models");
+const transactionService = require("../services/transactionService");
 
 const Event = db.Event;
 const EventImage = db.EventImage;
@@ -14,14 +15,6 @@ const UserVoucher = db.UserVoucher;
 const Transaction = db.Transaction;
 const TransactionDetail = db.TransactionDetail;
 const UserTicket = db.UserTicket;
-
-// Inisialisasi Engine Midtrans SDK Client
-const midtransClient = require("midtrans-client");
-const snap = new midtransClient.Snap({
-  isProduction: false,
-  serverKey: process.env.MIDTRANS_SERVER_KEY,
-  clientKey: process.env.MIDTRANS_CLIENT_KEY,
-});
 
 const eventController = {
   createEvent: async (req, res) => {
@@ -495,103 +488,20 @@ const eventController = {
           .json({ message: "Data kualifikasi pembelian kurang lengkap gess!" });
       }
 
-      // 🎯 FIXED: Menghapus as: "event" karena relasi aslimu di index.js langsung db.TicketType.belongsTo(db.Event)
-      const ticketType = await TicketType.findByPk(ticket_type_id, {
-        include: [{ model: Event }],
-      });
-      if (!ticketType)
-        return res
-          .status(404)
-          .json({ message: "Tipe kategori tiket tidak ditemukan." });
-
-      if (ticketType.remaining_quota < quantity) {
-        return res.status(400).json({
-          message: `Gagal checkout, sisa kuota tiket tinggal ${ticketType.remaining_quota} unit.`,
-        });
-      }
-
-      const user = await User.findByPk(user_id);
-      if (!user)
-        return res.status(404).json({ message: "User tidak ditemukan gess." });
-
-      // Hitung rincian finansial tiket
-      let totalAmount = ticketType.price * quantity;
-      let discountAmount = 0;
-
-      if (user_voucher_id) {
-        const checkVoucher = await UserVoucher.findOne({
-          where: { id: user_voucher_id, user_id, is_used: false },
-          include: [{ model: Voucher, as: "voucher" }],
-        });
-
-        if (checkVoucher && checkVoucher.voucher) {
-          discountAmount = Math.floor(
-            (checkVoucher.voucher.percentage / 100) * totalAmount,
-          );
-          if (
-            checkVoucher.voucher.max_cut &&
-            discountAmount > checkVoucher.voucher.max_cut
-          ) {
-            discountAmount = checkVoucher.voucher.max_cut;
-          }
-        }
-      }
-
-      let finalAmount = totalAmount - discountAmount;
-      if (finalAmount < 0) finalAmount = 0;
-
-      // 1. Simpan baris data ke tabel transactions (payment_status = pending)
-      const newTransaction = await Transaction.create({
+      // 🎯 OPER TUGAS: Panggil dapur Service buat ngolah transaksi berat gess
+      const result = await transactionService.processCheckout({
         user_id,
-        user_voucher_id: user_voucher_id || null,
-        total_amount: totalAmount,
-        discount_amount: discountAmount,
-        final_amount: finalAmount,
-        payment_status: "pending",
+        ticket_type_id,
+        quantity,
+        user_voucher_id,
       });
 
-      // 2. Simpan rincian kuantitas ke tabel transaction_details
-      await TransactionDetail.create({
-        transaction_id: newTransaction.id,
-        ticket_type_id: ticket_type_id,
-        quantity: quantity,
-        subtotal: finalAmount,
-      });
-
-      // 🎯 SINKRONISASI MIDTRANS ID: Menggunakan Event (Huruf Kapital) sesuai relasi barumu
-      const midtransOrderId = `INV-${newTransaction.id}-${Date.now()}`;
-      const eventTitle = ticketType.Event ? ticketType.Event.title : "Ticket";
-
-      let parameter = {
-        transaction_details: {
-          order_id: midtransOrderId,
-          gross_amount: finalAmount,
-        },
-        item_details: [
-          {
-            id: String(ticketType.id),
-            price: finalAmount,
-            quantity: 1,
-            name: `${ticketType.name} - ${eventTitle}`,
-          },
-        ],
-        customer_details: {
-          first_name: user.name,
-          email: user.email,
-        },
-      };
-
-      const midtransTx = await snap.createTransaction(parameter);
-
-      return res.status(200).json({
-        snapToken: midtransTx.token,
-        orderId: midtransOrderId,
-        transactionId: newTransaction.id,
-      });
+      return res.status(200).json(result);
     } catch (error) {
-      console.error("🔥 CHECKOUT ERROR:", error);
+      console.error("🔥 CHECKOUT ERROR VIA SERVICE:", error);
       return res.status(500).json({
-        message: "Gagal memproses checkout pembayaran Midtrans gess.",
+        message:
+          error.message || "Gagal memproses checkout pembayaran Midtrans gess.",
       });
     }
   },
@@ -606,126 +516,22 @@ const eventController = {
       } = req.body;
 
       console.log(
-        `⚡ Callback Masuk untuk Order ID: ${order_id} | Status: ${transaction_status}`,
+        `⚡ Callback Masuk untuk Order ID: ${order_id} | Status: ${transaction_status} (Via Service Layer)`,
       );
 
-      // 🎯 HACK OPERASI ID: Kupas kembali ID transaksi asli lewat pemotongan string token order_id gess!
-      const partId = order_id.split("-")[1];
-      const transactionId = parseInt(partId);
-
-      const tx = await Transaction.findByPk(transactionId, {
-        include: [{ model: TransactionDetail, as: "details" }],
+      // 🎯 OPER TUGAS: Biarkan Service mengurus status kelulusan payment & cetak tiket fisik gess
+      const callbackResult = await transactionService.processMidtransCallback({
+        order_id,
+        transaction_status,
+        fraud_status,
+        payment_type,
       });
 
-      if (!tx)
-        return res
-          .status(404)
-          .json({ message: "Data transaksi internal tidak valid." });
-      if (tx.payment_status === "paid")
-        return res
-          .status(200)
-          .json({ message: "Transaksi ini sudah lunas diproses." });
-
-      // Deteksi status kelulusan pembayaran dari Midtrans (Settlement / Capture Accept)
-      if (
-        transaction_status === "settlement" ||
-        (transaction_status === "capture" && fraud_status === "accept")
-      ) {
-        // A. Ambil item detail rincian pembelian
-        const detail = tx.details[0];
-
-        // 1. Potong sisa kuota (remaining_quota) di tabel TicketType
-        const ticketType = await TicketType.findByPk(detail.ticket_type_id);
-        if (ticketType) {
-          await TicketType.update(
-            {
-              remaining_quota: Math.max(
-                0,
-                ticketType.remaining_quota - detail.quantity,
-              ),
-            },
-            { where: { id: ticketType.id } },
-          );
-        }
-
-        // 2. Jika bertransaksi memakai voucher, kunci status voucher jadi hangus (is_used = true)
-        if (tx.user_voucher_id) {
-          await UserVoucher.update(
-            { is_used: true, used_at: new Date() },
-            { where: { id: tx.user_voucher_id } },
-          );
-        }
-
-        // 3. Terbitkan Tiket Fisik Resmi berstatus 'active' ke tabel user_tickets sebanyak quantity yang dibeli
-        const ticketsToCreate = [];
-        for (let i = 0; i < detail.quantity; i++) {
-          const generatedCode = `TIX-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${detail.id}-${i}`;
-          ticketsToCreate.push({
-            user_id: tx.user_id,
-            ticket_type_id: detail.ticket_type_id,
-            transaction_detail_id: detail.id,
-            ticket_code: generatedCode,
-            status: "active",
-          });
-        }
-        await UserTicket.bulkCreate(ticketsToCreate);
-
-        // 4. 🔥 KALKULASI REWARD POIN: Jika total pembelian (final_amount) DI ATAS ATAU SAMA DENGAN 500.000 gess!
-        let calculatedPoints = 0;
-        if (tx.final_amount >= 500000) {
-          calculatedPoints = Math.floor(tx.final_amount / 1000); // 🎯 Dibagi 1000 sesuai rumus request kamu gess!
-
-          const buyer = await User.findByPk(tx.user_id);
-          if (buyer) {
-            const currentPoints =
-              buyer.points !== undefined && buyer.points !== null
-                ? buyer.points
-                : 0;
-            // Akumulasi tambah poin ke user
-            await User.update(
-              { points: currentPoints + calculatedPoints },
-              { where: { id: tx.user_id } },
-            );
-
-            // Catat log sejarah koin ke tabel point_histories agar klop dengan skema migrasi gess
-            await db.sequelize.query(
-              `INSERT INTO point_histories (user_id, amount, type, description, created_at) VALUES (${tx.user_id}, ${calculatedPoints}, 'earn', 'Bonus pembelian tiket di atas 500rb', NOW())`,
-            );
-            console.log(
-              `🎁 SUNTIK BONUS POIN BERHASIL: User ${buyer.name} dapet +${calculatedPoints} koin.`,
-            );
-          }
-        }
-
-        // B. Update status pembayaran transaksi utama menjadi 'paid'
-        await Transaction.update(
-          {
-            payment_status: "paid",
-            payment_method: payment_type,
-            earned_points: calculatedPoints, // Catat poin yang didapat ke dalam transaksi
-          },
-          { where: { id: transactionId } },
-        );
-
-        return res.status(200).json({
-          message: "Transaksi sukses terbayar, tiket resmi diterbitkan!",
-        });
-      } else if (["cancel", "deny", "expire"].includes(transaction_status)) {
-        // Jika pembayaran kedaluwarsa atau dibatalkan user, tandai status failed
-        await Transaction.update(
-          { payment_status: "failed" },
-          { where: { id: transactionId } },
-        );
-        return res
-          .status(200)
-          .json({ message: "Transaksi ditandai gagal gess." });
-      }
-
       return res
-        .status(200)
-        .json({ message: "Webhook diterima tanpa perubahan state." });
+        .status(callbackResult.status)
+        .json({ message: callbackResult.message });
     } catch (error) {
-      console.error("🔥 ERROR MIDTRANS CALLBACK WEBHOOK:", error);
+      console.error("🔥 ERROR MIDTRANS CALLBACK VIA SERVICE:", error);
       return res
         .status(500)
         .json({ message: "Callback internal error server webhook." });
