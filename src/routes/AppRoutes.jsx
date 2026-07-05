@@ -11,10 +11,12 @@ import MyEvents from "../pages/Events/MyEvents";
 import EditEvent from "../pages/Events/EditEvent";
 import EventDetail from "../pages/Events/EventDetail";
 import SavedEvents from "../pages/Events/SavedEvents";
+import VoucherShop from "../pages/Events/VoucherShop"; // 🔥 IMPORT BARU HALAMAN VOUCHER GESS!
+import MyTickets from "../pages/Events/MyTickets"; // 🔥 IMPORT BARU HALAMAN MY TICKETS USER GESS!
 
 // --- 🌟 IMPORT 2 HALAMAN BARU UNTUK API LUAR DI SINI 🌟 ---
-import ExploreExternal from "../pages/Events/ExploreExternal"; // sesuaikan path folder kamu gais
-import DetailExternal from "../pages/Events/DetailExternal"; // sesuaikan path folder kamu gais
+import ExploreExternal from "../pages/Events/ExploreExternal";
+import DetailExternal from "../pages/Events/DetailExternal";
 
 //Community
 import Community from "../pages/Community";
@@ -34,6 +36,12 @@ function AppRoutes() {
       <Route path="/events/my-events" element={<MyEvents />} />
       <Route path="/events/edit/:id" element={<EditEvent />} />
       <Route path="/events/:id" element={<EventDetail />} />
+
+      {/* --- 🔥 RUTE BARU PENUKARAN VOUCHER DENGAN POIN USER --- */}
+      <Route path="/events/vouchers" element={<VoucherShop />} />
+
+      {/* --- 🔥 RUTE BARU UNTUK DAFTAR TIKET RESMI MILIK USER --- */}
+      <Route path="/events/my-tickets" element={<MyTickets />} />
 
       {/* --- 🌟 2 RUTE BARU UNTUK INTEGRASI API LUAR 🌟 --- */}
       <Route path="/events/external" element={<ExploreExternal />} />

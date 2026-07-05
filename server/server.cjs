@@ -5,7 +5,8 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+// 🎯 FIXED: Path disesuaikan karena .env sudah masuk ke dalam folder server gess!
+dotenv.config({ path: path.resolve(__dirname, "./.env") });
 
 const app = express();
 

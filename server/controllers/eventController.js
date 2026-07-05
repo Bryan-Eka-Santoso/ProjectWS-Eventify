@@ -1,19 +1,25 @@
 const db = require("../models");
+const transactionService = require("../services/transactionService");
 
 const Event = db.Event;
 const EventImage = db.EventImage;
 const Category = db.Category;
 const User = db.User;
-const SavedEvent = db.SavedEvent; // 🎯 Sekarang ini dijamin 100% aman dan terbaca karena sudah didaftarkan di index.js!
-const OrganizerApplication = db.OrganizerApplication;
+const SavedEvent = db.SavedEvent;
+const TicketType = db.TicketType;
+const Voucher = db.Voucher;
+const UserVoucher = db.UserVoucher;
+
+// Ambil model relasi transaksi baru dari database gess
+const Transaction = db.Transaction;
+const TransactionDetail = db.TransactionDetail;
+const UserTicket = db.UserTicket;
 
 const { Op } = require("sequelize");
 
 const EventChange = db.EventChange;
 const EventCancellationRequest = db.EventCancellationRequest;
-const Transaction = db.Transaction;
-const TransactionDetail = db.TransactionDetail;
-const TicketType = db.TicketType;
+
 const notificationService = require("../services/notificationService");
 const refundService = require("../services/refundService");
 const emailService = require("../services/emailService");
@@ -196,13 +202,13 @@ const eventController = {
         category_ids,
         user_id,
         role,
+        tickets,
       } = req.body;
       const main_image =
         req.files && req.files.main_image
           ? req.files.main_image[0].filename
           : "default.jpg";
 
-      // 🛡️ VALIDASI MODEL USER: Cek apakah user yang bikin beneran terdaftar di SQL DB kamu
       const checkUser = await User.findByPk(user_id);
       if (!checkUser) {
         return res
@@ -216,19 +222,12 @@ const eventController = {
         });
       }
 
+      // 🔥 FIXED: organizer_id sekarang langsung diisi dengan user_id si organizer gess!
       let organizerIdValue = null;
       const eventStatusValue = role === "admin" ? "published" : "draft";
 
       if (role === "organizer") {
-        const app = await OrganizerApplication.findOne({
-          where: { user_id: user_id },
-        });
-        if (!app) {
-          return res.status(400).json({
-            message: "Kamu belum terdaftar atau disetujui sebagai Organizer!",
-          });
-        }
-        organizerIdValue = app.user_id;
+        organizerIdValue = user_id;
       }
 
       const newEvent = await Event.create({
@@ -255,11 +254,26 @@ const eventController = {
         await EventImage.bulkCreate(albumImages);
       }
 
+      if (tickets) {
+        const parsedTickets = JSON.parse(tickets);
+        if (Array.isArray(parsedTickets) && parsedTickets.length > 0) {
+          const ticketsData = parsedTickets.map((ticket) => ({
+            event_id: newEvent.id,
+            name: ticket.name,
+            price: parseInt(ticket.price) || 0,
+            quota: parseInt(ticket.quota),
+            remaining_quota: parseInt(ticket.quota),
+          }));
+
+          await TicketType.bulkCreate(ticketsData);
+        }
+      }
+
       res.status(201).json({
         message:
           role === "admin"
-            ? "Event berhasil di-publish oleh Admin!"
-            : "Event berhasil disimpan sebagai Draft oleh Organizer!",
+            ? "Event beserta tipe tiket berhasil di-publish oleh Admin!"
+            : "Event beserta tipe tiket berhasil disimpan sebagai Draft oleh Organizer!",
         data: newEvent,
       });
     } catch (error) {
@@ -271,18 +285,11 @@ const eventController = {
   getMyEvents: async (req, res) => {
     try {
       const { user_id, role } = req.query;
-
       let whereClause = {};
 
+      // 🔥 FIXED: Pencarian langsung dicocokkan ke user_id milik organizer tanpa lewat aplikasi lagi
       if (role === "organizer") {
-        const app = await OrganizerApplication.findOne({
-          where: { user_id: user_id },
-        });
-        if (app) {
-          whereClause = { organizer_id: user_id };
-        } else {
-          whereClause = { organizer_id: -1 };
-        }
+        whereClause = { organizer_id: user_id };
       } else if (role === "admin") {
         whereClause = { organizer_id: null };
       }
@@ -309,7 +316,6 @@ const eventController = {
   getPublishedEvents: async (req, res) => {
     try {
       const { category_id } = req.query;
-
       let options = {
         where: { status: "published" },
         include: [
@@ -339,20 +345,18 @@ const eventController = {
     try {
       const { id } = req.params;
 
-      // 🎯 SEKARANG GET DETAIL TURUT MELAKUKAN JOIN TABLE YANG RELEVAN
+      // 🔥 FIXED: Karena organizer_id mereferensikan user_id, include model diubah langsung ke User
       const event = await Event.findByPk(id, {
         include: [
           { model: EventImage, as: "images" },
           {
-            model: User,
-            as: "Organizer",
-            attributes: ["id", "name", "email", "role"],
+            model: TicketType,
+            as: "ticket_types",
           },
           {
-            model: Category,
-            as: "Categories",
-            attributes: ["id", "name"],
-            through: { attributes: [] },
+            model: User,
+            as: "organizer", // Pastikan alias "organizer" sudah didefinisikan di Event.belongsTo(User, { as: 'organizer' }) kamu gess
+            attributes: ["name", "email"],
           },
         ],
       });
@@ -695,7 +699,6 @@ const eventController = {
           .json({ message: "Event ini sudah pernah diadopsi!" });
       }
 
-      // 🛡️ VALIDASI MODEL USER SAAT ADOPSI API GLOBAL
       const checkUser = await User.findByPk(user_id);
       if (!checkUser) {
         return res
@@ -703,18 +706,11 @@ const eventController = {
           .json({ message: "User pengadopsi tidak ditemukan gess!" });
       }
 
+      // 🔥 FIXED: organizer_id adopsi event juga langsung diisi dengan user_id gess!
       let organizerIdValue = null;
       const eventStatusValue = role === "admin" ? "published" : "draft";
 
       if (role === "organizer") {
-        const app = await OrganizerApplication.findOne({
-          where: { user_id: user_id },
-        });
-        if (!app) {
-          return res.status(400).json({
-            message: "Kamu belum terdaftar atau disetujui sebagai Organizer!",
-          });
-        }
         organizerIdValue = user_id;
       }
 
@@ -733,7 +729,7 @@ const eventController = {
       const customMessage =
         role === "admin"
           ? "Berhasil diadopsi dan LANGSUNG DI-PUBLISH (organizer_id = NULL)!"
-          : "Berhasil disimpan ke Draf (organizer_id = ID Organizer Application)!";
+          : "Berhasil disimpan ke Draf (organizer_id = ID Users terkait)!";
 
       res.status(201).json({ message: customMessage, data: event });
     } catch (error) {
@@ -744,25 +740,20 @@ const eventController = {
     }
   },
 
-  // 🔥 FUNGSI 1: Toggle Save / Unsave Event (Gaya ORM)
   toggleSaveEvent: async (req, res) => {
     try {
       const { user_id, event_id } = req.body;
-
-      // 🔍 Cari tahu apakah data bookmark sudah ada di database gess
       const alreadySaved = await SavedEvent.findOne({
         where: { user_id, event_id },
       });
 
       if (alreadySaved) {
-        // Jika ketemu, langsung hapus (Unsave) gess! Lebih ringkas kan?
         await alreadySaved.destroy();
         return res.json({
           message: "Berhasil membatalkan simpan event!",
           isSaved: false,
         });
       } else {
-        // Jika tidak ada, buat baris data baru (Save) gess!
         await SavedEvent.create({ user_id, event_id });
         return res.json({
           message: "Event berhasil disimpan gess!",
@@ -775,15 +766,13 @@ const eventController = {
     }
   },
 
-  // 🔥 FUNGSI 2: Cek status apakah user sudah save event ini (Gaya ORM)
   checkSaveStatus: async (req, res) => {
     try {
-      const { id } = req.params; // ini event_id
+      const { id } = req.params;
       const { user_id } = req.query;
 
       if (!user_id) return res.json({ isSaved: false });
 
-      // Cukup hitung jumlah datanya, kalau > 0 berarti true gess
       const count = await SavedEvent.count({
         where: { user_id, event_id: id },
       });
@@ -794,26 +783,21 @@ const eventController = {
     }
   },
 
-  // 🔥 FUNGSI 3: Tarik semua event yang disimpan user dengan teknik JOIN ORM (Include)
   getSavedEventsList: async (req, res) => {
     try {
       const { user_id } = req.query;
-
-      // Ambil data langsung dari tabel SavedEvent, lalu JOIN otomatis ke tabel Event
       const savedList = await SavedEvent.findAll({
         where: { user_id },
         include: [
           {
             model: Event,
-            as: "Event", // Pastikan alias ini sama dengan yang kamu set di file asosiasi models/savedevent.js
-            required: true, // bertindak sebagai INNER JOIN gess
+            as: "event",
+            required: true,
           },
         ],
       });
 
-      // Map hasilnya biar frontend dapet data array object event murni langsung gess
-      const eventsOnly = savedList.map((item) => item.Event);
-
+      const eventsOnly = savedList.map((item) => item.event);
       res.json(eventsOnly);
     } catch (error) {
       console.error(error);
@@ -1076,6 +1060,218 @@ const eventController = {
         "Gagal reject cancellation request",
         error.message
       );
+    }
+  },
+
+  getUserPoints: async (req, res) => {
+    try {
+      const { user_id } = req.query;
+      if (!user_id)
+        return res.status(400).json({ message: "User ID dibutuhkan gess!" });
+
+      const user = await User.findByPk(user_id, {
+        attributes: ["id", "name", "points"],
+      });
+      if (!user)
+        return res.status(404).json({ message: "User tidak ditemukan." });
+
+      const currentPoints =
+        user.points !== undefined && user.points !== null ? user.points : 0;
+
+      res.json({ points: currentPoints });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Gagal mengambil poin user." });
+    }
+  },
+
+  getAllVouchers: async (req, res) => {
+    try {
+      const vouchers = await Voucher.findAll({
+        where: { is_active: true },
+      });
+
+      const formattedVouchers = vouchers.map((v) => {
+        const plainVoucher = v.get({ plain: true });
+        return {
+          ...plainVoucher,
+          point_cost: plainVoucher.points_required,
+        };
+      });
+
+      return res.json(formattedVouchers);
+    } catch (error) {
+      console.error("🔥 ERROR SELEKSI VOUCHER:", error);
+      return res.status(500).json({
+        message: "Gagal memuat daftar toko voucher gess.",
+        error: error.message,
+      });
+    }
+  },
+
+  claimVoucher: async (req, res) => {
+    try {
+      const { user_id, voucher_id } = req.body;
+
+      const user = await User.findByPk(user_id);
+      const voucher = await Voucher.findByPk(voucher_id);
+
+      if (!user) return res.status(404).json({ message: "User tidak valid!" });
+      if (!voucher)
+        return res.status(404).json({ message: "Voucher tidak ditemukan!" });
+
+      const userPoints =
+        user.points !== undefined && user.points !== null ? user.points : 0;
+
+      if (userPoints < voucher.points_required) {
+        return res.status(400).json({
+          message: `Poin kamu tidak cukup gess! Butuh ${voucher.points_required} poin, poin kamu saat ini hanya ${userPoints}.`,
+        });
+      }
+
+      if (voucher.stock !== null && voucher.stock <= 0) {
+        return res
+          .status(400)
+          .json({ message: "Aduh, kuota voucher ini sudah habis gess!" });
+      }
+
+      const newPointsBalance = userPoints - voucher.points_required;
+      await User.update(
+        { points: newPointsBalance },
+        { where: { id: user_id } },
+      );
+
+      if (voucher.stock !== null) {
+        await Voucher.update(
+          { stock: voucher.stock - 1 },
+          { where: { id: voucher_id } },
+        );
+      }
+
+      await UserVoucher.create({
+        user_id,
+        voucher_id,
+        is_used: false,
+      });
+
+      res.json({
+        message: `Sukses menukarkan ${voucher.points_required} poin dengan voucher ${voucher.name}!`,
+        remainingPoints: newPointsBalance,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Gagal memproses penukaran voucher." });
+    }
+  },
+
+  getMyVouchers: async (req, res) => {
+    try {
+      const { user_id } = req.query;
+      if (!user_id)
+        return res.status(400).json({ message: "User ID diperlukan." });
+
+      const myVouchers = await UserVoucher.findAll({
+        where: { user_id, is_used: false },
+        include: [{ model: Voucher, as: "voucher" }],
+      });
+
+      res.json(myVouchers);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Gagal memuat voucher milik user." });
+    }
+  },
+
+  // ==========================================
+  // 🔥 INTEGRASI SISTEM MIDTRANS SNAP GATEWAY & PEMBELIAN TIKET
+  // ==========================================
+
+  createTicketCheckout: async (req, res) => {
+    try {
+      const { user_id, ticket_type_id, quantity, user_voucher_id } = req.body;
+
+      if (!user_id || !ticket_type_id || !quantity) {
+        return res
+          .status(400)
+          .json({ message: "Data kualifikasi pembelian kurang lengkap gess!" });
+      }
+
+      const result = await transactionService.processCheckout({
+        user_id,
+        ticket_type_id,
+        quantity,
+        user_voucher_id,
+      });
+
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("🔥 CHECKOUT ERROR VIA SERVICE:", error);
+      return res.status(500).json({
+        message:
+          error.message || "Gagal memproses checkout pembayaran Midtrans gess.",
+      });
+    }
+  },
+
+  handleMidtransCallback: async (req, res) => {
+    try {
+      const {
+        order_id,
+        transaction_status,
+        fraud_status,
+        payment_type = "Simulated Payment",
+      } = req.body;
+
+      console.log(
+        `⚡ Callback Masuk untuk Order ID: ${order_id} | Status: ${transaction_status} (Via Service Layer)`,
+      );
+
+      const callbackResult = await transactionService.processMidtransCallback({
+        order_id,
+        transaction_status,
+        fraud_status,
+        payment_type,
+      });
+
+      return res
+        .status(callbackResult.status)
+        .json({ message: callbackResult.message });
+    } catch (error) {
+      console.error("🔥 ERROR MIDTRANS CALLBACK VIA SERVICE:", error);
+      return res
+        .status(500)
+        .json({ message: "Callback internal error server webhook." });
+    }
+  },
+
+  getUserTicketsList: async (req, res) => {
+    try {
+      const { user_id } = req.query;
+      if (!user_id)
+        return res.status(400).json({ message: "User ID diperlukan gess!" });
+
+      const tickets = await UserTicket.findAll({
+        where: { user_id, status: "active" },
+        include: [
+          {
+            model: TicketType,
+            as: "ticket_type",
+            include: [
+              {
+                model: Event,
+                as: "Event",
+              },
+            ],
+          },
+        ],
+        order: [["id", "DESC"]],
+      });
+      return res.json(tickets);
+    } catch (error) {
+      console.error(error);
+      return res
+        .status(500)
+        .json({ message: "Gagal memuat list tiket kepemilikan kamu." });
     }
   },
 };

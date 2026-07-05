@@ -3,6 +3,24 @@ const router = express.Router();
 
 const eventController = require("../controllers/eventController");
 const upload = require("../middlewares/upload");
+
+// ==========================================
+// 🔥 ROUTE BARU KHUSUS TRANSAKSI TIKET & MIDTRANS SNAP GATEWAY
+// ==========================================
+router.post("/tickets/checkout", eventController.createTicketCheckout);
+router.post(
+  "/tickets/midtrans-callback",
+  eventController.handleMidtransCallback,
+);
+router.get("/tickets/my-tickets", eventController.getUserTicketsList);
+
+// ==========================================
+// 🔥 ROUTE BARU KHUSUS VOUCHER & POIN (Ditaruh atas biar ga tabrakan slug /:id)
+// ==========================================
+router.get("/vouchers/user-points", eventController.getUserPoints);
+router.get("/vouchers/shop-list", eventController.getAllVouchers);
+router.post("/vouchers/claim", eventController.claimVoucher);
+router.get("/vouchers/my-vouchers", eventController.getMyVouchers);
 const validate = require("../middlewares/validate");
 const eventValidation = require("../validators/eventValidation");
 

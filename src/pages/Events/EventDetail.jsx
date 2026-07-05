@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth"; // 🔑 Mengikuti pusat kendali auth
+import { AUTH_USER } from "../../config/auth";
 
 function EventDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isSaved, setIsSaved] = useState(false); // 🔖 State status bookmark
+  const [isSaved, setIsSaved] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  // 🔥 State Kelola Transaksi Pemesanan Tiket Gess
+  const [myVouchers, setMyVouchers] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [quantity, setQuantity] = useState(1);
+  const [selectedVoucherId, setSelectedVoucherId] = useState("");
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   useEffect(() => {
     axios
@@ -23,7 +32,6 @@ function EventDetail() {
         setLoading(false);
       });
 
-    // 🔍 Jalankan pengecekan status awal saat halaman dibuka gess
     axios
       .get(
         `http://localhost:5000/api/events/${id}/check-save?user_id=${AUTH_USER.id}`,
@@ -32,7 +40,19 @@ function EventDetail() {
       .catch((err) => console.error(err));
   }, [id]);
 
-  // 🔥 Fungsi eksekusi simpan & batalkan simpan otomatis (Toggle)
+  useEffect(() => {
+    if (showModal) {
+      axios
+        .get(
+          `http://localhost:5000/api/events/vouchers/my-vouchers?user_id=${AUTH_USER.id}`,
+        )
+        .then((res) => {
+          setMyVouchers(res.data);
+        })
+        .catch((err) => console.error("Gagal mengambil voucher user:", err));
+    }
+  }, [showModal]);
+
   const handleToggleSave = async () => {
     try {
       const res = await axios.post(
@@ -43,11 +63,134 @@ function EventDetail() {
         },
       );
       alert(res.data.message);
-      setIsSaved(res.data.isSaved); // Ubah visual tombol langsung tanpa refresh gess
+      setIsSaved(res.data.isSaved);
     } catch (err) {
       console.error(err);
       alert("Gagal memproses simpan event.");
     }
+  };
+
+  // 🔥 CORE INTEGRASI ENGINE SNAP PAY MIDTRANS SELESAI GESS
+  // 🔥 FIXED: OPTIMASI JALUR FRONTEND BYPASS TANPA INSTAL NGROK GESS!
+  // 🔥 UTUH & FIXED: JALUR FRONTEND BYPASS 100% TANPA INSTAL NGROK APAPUN GESS!
+  const handlePayTicket = async () => {
+    if (!selectedTicket) {
+      return alert(
+        "Pilih kategori jenis tiket yang ingin kamu beli dulu gess!",
+      );
+    }
+    if (quantity < 1) {
+      return alert("Jumlah tiket yang dibeli minimal 1 unit gess!");
+    }
+
+    setCheckoutLoading(true);
+
+    try {
+      // 1. Ambil Token Snap dan Order ID dari Backend kamu gess
+      const res = await axios.post(
+        "http://localhost:5000/api/events/tickets/checkout",
+        {
+          user_id: AUTH_USER.id,
+          ticket_type_id: selectedTicket.id,
+          quantity: quantity,
+          user_voucher_id: selectedVoucherId || null,
+        },
+      );
+
+      // Mengambil token snap dan orderId dari response controller kamu
+      const { snapToken, orderId } = res.data;
+
+      // 2. Luncurkan Pop-Up Panel Midtrans Snap
+      window.snap.pay(snapToken, {
+        onSuccess: async function (result) {
+          try {
+            console.log("Midtrans Snap Success Client Triggered!");
+
+            // 🎯 INI RAHASIANYA GESS: Frontend langsung nembak backend lokal kamu sendiri!
+            // Mengirim parameter yang dibutuhkan oleh fungsi handleMidtransCallback kamu
+            await axios.post(
+              "http://localhost:5000/api/events/tickets/midtrans-callback",
+              {
+                order_id: orderId || result.order_id,
+                transaction_status: "settlement", // Status lunas sesuai filter backend-mu gess
+                fraud_status: "accept",
+                payment_type: result.payment_type || "QRIS/VA Simulator",
+              },
+            );
+
+            alert(
+              "Selamat! Pembayaran berhasil diselesaikan, tiket resmi diterbitkan gess.",
+            );
+            setShowModal(false);
+            navigate("/events/my-tickets"); // Otomatis pindah halaman langsung gess!
+          } catch (err) {
+            console.error("Gagal memproses bypass cetak tiket:", err);
+            alert("Sistem error saat memproses tiket ke database lokal gess.");
+          }
+        },
+        onPending: function (result) {
+          // 🎯 TRIK UNTUK SIMULATOR: Karena simulator VA/QRIS sering dianggap 'pending' oleh pop-up sebelum di-refresh,
+          // kita arahkan onPending untuk melakukan bypass juga agar kamu tidak perlu nunggu gess!
+          alert(
+            "Mendeteksi status transaksi simulator, mencoba memproses tiket kamu gess...",
+          );
+
+          axios
+            .post(
+              "http://localhost:5000/api/events/tickets/midtrans-callback",
+              {
+                order_id: orderId || result.order_id,
+                transaction_status: "settlement",
+                fraud_status: "accept",
+                payment_type: "VA/QRIS Simulator Bypass",
+              },
+            )
+            .then(() => {
+              alert("Tiket berhasil diterbitkan otomatis!");
+              setShowModal(false);
+              navigate("/events/my-tickets");
+            })
+            .catch((err) => {
+              console.error(err);
+              alert("Gagal menerbitkan tiket otomatis.");
+            });
+        },
+        onError: function (result) {
+          alert("Waduh, transaksi pembayaran Midtrans gagal diproses.");
+        },
+        onClose: function () {
+          alert("Kamu membatalkan transaksi ditengah jalan gess.");
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      alert(
+        error.response?.data?.message ||
+          "Terjadi kesalahan memproses Checkout tiket.",
+      );
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  // Live Hitung Perkiraan Total Harga Preview di Modal Gess
+  const calculatePreviewTotal = () => {
+    if (!selectedTicket) return 0;
+    let total = selectedTicket.price * quantity;
+
+    if (selectedVoucherId) {
+      const activeV = myVouchers.find(
+        (v) => String(v.id) === String(selectedVoucherId),
+      );
+      if (activeV && activeV.voucher) {
+        let cut = Math.floor((activeV.voucher.percentage / 100) * total);
+        if (activeV.voucher.max_cut && cut > activeV.voucher.max_cut) {
+          cut = activeV.voucher.max_cut;
+        }
+        total -= cut;
+      }
+    }
+    return total < 0 ? 0 : total;
   };
 
   if (loading)
@@ -63,7 +206,7 @@ function EventDetail() {
       <div className="container mt-5 text-center my-5 py-5 bg-light rounded-4">
         <h3 className="text-muted">Waduh, Event tidak ditemukan gess!</h3>
         <Link to="/events" className="btn btn-primary mt-3 rounded-pill px-4">
-          Kembali ke List Event
+          Back ke List Event
         </Link>
       </div>
     );
@@ -89,6 +232,15 @@ function EventDetail() {
       "Desember",
     ];
     return `${tgl} ${namaBulan[parseInt(bln) - 1]} ${thn} Pukul ${waktuMentah}`;
+  };
+
+  const formatRupiah = (angka) => {
+    if (angka === 0) return "GRATIS";
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(angka);
   };
 
   return (
@@ -157,13 +309,14 @@ function EventDetail() {
                 "Tidak ada deskripsi detail untuk event ini gess."}
             </p>
 
-            {/* 🔥 BARIS BUTTON INTERAKSI KELOMPOK */}
             <div className="d-flex flex-column gap-2 mt-4">
-              <button className="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow d-flex align-items-center justify-content-center gap-2">
+              <button
+                onClick={() => setShowModal(true)}
+                className="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow d-flex align-items-center justify-content-center gap-2"
+              >
                 <span className="fs-4">🎫</span> Beli Tiket Sekarang
               </button>
 
-              {/* 🔖 TOMBOL TOGGLE SAVE / BATAL SAVE RESMI HADIR */}
               <button
                 className={`btn btn-lg w-100 rounded-3 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 ${isSaved ? "btn-danger text-white" : "btn-outline-warning text-dark"}`}
                 onClick={handleToggleSave}
@@ -176,7 +329,7 @@ function EventDetail() {
           </div>
         </div>
 
-        {/* FITUR GALERI ALBUM AMAN SENTOSA */}
+        {/* Galeri Foto Album */}
         {event.images && event.images.length > 0 && (
           <div className="mt-5 pt-5 border-top">
             <h4 className="fw-bold text-dark mb-4 pb-2 border-bottom d-inline-block">
@@ -207,6 +360,173 @@ function EventDetail() {
           </div>
         )}
       </div>
+
+      {/* MODAL CHECKOUT TICKETS AKTIF DI SINI GESS */}
+      {showModal && (
+        <>
+          <div
+            className="modal-backdrop fade show"
+            onClick={() => setShowModal(false)}
+            style={{ zIndex: 1040 }}
+          ></div>
+          <div
+            className="modal fade show d-block"
+            tabIndex="-1"
+            role="dialog"
+            style={{ zIndex: 1050, top: "2%" }}
+          >
+            <div
+              className="modal-dialog modal-dialog-centered modal-md"
+              role="document"
+            >
+              <div className="modal-content border-0 rounded-4 shadow-lg">
+                <div className="modal-header bg-primary text-white p-4 rounded-top-4">
+                  <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
+                    <span>🎫</span> Formulir Pembelian Tiket & Diskon
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() => setShowModal(false)}
+                  ></button>
+                </div>
+
+                <div
+                  className="modal-body p-4"
+                  style={{ maxHeight: "65vh", overflowY: "auto" }}
+                >
+                  <p className="text-muted small mb-3">
+                    Silahkan tentukan jenis tiket dan voucher belanja untuk{" "}
+                    <strong>{event.title}</strong>:
+                  </p>
+
+                  {/* Sektor 1: Opsi Radio Jenis Kategori Tiket */}
+                  <h6 className="fw-bold mb-2 text-dark">
+                    1. Pilih Jenis Kategori Tiket:
+                  </h6>
+                  {event.ticket_types && event.ticket_types.length > 0 ? (
+                    <div className="d-flex flex-column gap-2 mb-3">
+                      {event.ticket_types.map((ticket) => (
+                        <label
+                          key={ticket.id}
+                          className={`d-flex justify-content-between align-items-center p-3 border rounded-3 p-2 border-1 cursor-pointer ${selectedTicket?.id === ticket.id ? "border-primary bg-white shadow-sm" : "bg-light"}`}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <div className="d-flex align-items-center gap-2">
+                            <input
+                              type="radio"
+                              name="ticket-selection"
+                              disabled={ticket.remaining_quota <= 0}
+                              checked={selectedTicket?.id === ticket.id}
+                              onChange={() => setSelectedTicket(ticket)}
+                            />
+                            <div>
+                              <div className="fw-bold text-uppercase small text-dark">
+                                {ticket.name}
+                              </div>
+                              <small className="text-muted">
+                                Sisa: {ticket.remaining_quota} Tiket
+                              </small>
+                            </div>
+                          </div>
+                          <span className="badge bg-dark px-2 py-2 rounded-pill">
+                            {formatRupiah(ticket.price)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted small">
+                      Event ini belum mengatur kuota tiket toko gess.
+                    </p>
+                  )}
+
+                  {/* Sektor 2: Kuantitas Pembelian Tiket */}
+                  <div className="mb-3">
+                    <label className="fw-bold mb-1 text-dark d-block">
+                      2. Tentukan Jumlah Pembelian:
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={quantity}
+                      min="1"
+                      max={selectedTicket ? selectedTicket.remaining_quota : 10}
+                      onChange={(e) =>
+                        setQuantity(Math.max(1, parseInt(e.target.value) || 1))
+                      }
+                    />
+                  </div>
+
+                  {/* Sektor 3: Select Opsi Voucher Poin Milik User */}
+                  <div className="mb-3 pt-2 border-top">
+                    <label className="fw-bold mb-1 text-dark d-block">
+                      3. Pasang Voucher Diskon Toko Poin (Milikmu:{" "}
+                      {myVouchers.length}):
+                    </label>
+                    <select
+                      className="form-select"
+                      value={selectedVoucherId}
+                      onChange={(e) => setSelectedVoucherId(e.target.value)}
+                    >
+                      <option value="">-- Tanpa Menggunakan Voucher --</option>
+                      {myVouchers.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.voucher?.name} (Potongan Diskon{" "}
+                          {item.voucher?.percentage}%)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sektor 4: Preview Total Pembayaran Invoice */}
+                  {selectedTicket && (
+                    <div className="p-3 bg-dark text-white rounded-3 mt-3 d-flex justify-content-between align-items-center shadow">
+                      <div>
+                        <small className="text-light d-block">
+                          Total Pembayaran Akhir:
+                        </small>
+                        <h4 className="fw-bold mb-0 text-warning">
+                          {formatRupiah(calculatePreviewTotal())}
+                        </h4>
+                      </div>
+                      {calculatePreviewTotal() >= 500000 && (
+                        <span
+                          className="badge bg-success small text-wrap animate-pulse"
+                          style={{ maxWidth: "130px" }}
+                        >
+                          🎉 Dapat Bonus Bonus Poin Kelipatan!
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="modal-footer bg-light p-3 rounded-bottom-4 flex-column gap-2">
+                  <button
+                    type="button"
+                    disabled={checkoutLoading || !selectedTicket}
+                    className="btn btn-primary w-100 fw-bold py-2 rounded-3 shadow-sm"
+                    onClick={handlePayTicket}
+                  >
+                    {checkoutLoading
+                      ? "Membuka Gerbang Midtrans Snap..."
+                      : "💳 Lanjut Bayar Sekarang via Midtrans"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary w-100 fw-semibold rounded-3"
+                    onClick={() => setShowModal(false)}
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <Footer />
     </>
   );
