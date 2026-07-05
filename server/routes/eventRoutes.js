@@ -1,136 +1,173 @@
 const express = require("express");
 const router = express.Router();
 
-const communityController = require("../controllers/community");
+const eventController = require("../controllers/eventController");
 const upload = require("../middlewares/upload");
+const validate = require("../middlewares/validate");
+const eventValidation = require("../validators/eventValidation");
 
-// =========================
-// STATIC / GLOBAL ROUTES
-// =========================
-router.get("/categories", communityController.getCategories);
-router.get("/unread-counts", communityController.getUnreadCounts);
+// =====================================================
+// GET EVENTS
+// =====================================================
 
-// =========================
-// CHAT ROOM / GROUP ROOT
-// =========================
+// Ambil event published + filter kategori
+router.get(
+  "/published",
+  validate({ query: eventValidation.getPublishedEventsQuerySchema }),
+  eventController.getPublishedEvents
+);
+
+// Ambil event milik organizer/admin
+router.get(
+  "/my-events",
+  validate({ query: eventValidation.getMyEventsQuerySchema }),
+  eventController.getMyEvents
+);
+
+// Ambil saved event milik user
+router.get(
+  "/saved-list",
+  validate({ query: eventValidation.savedEventsQuerySchema }),
+  eventController.getSavedEventsList
+);
+
+// Ambil categories
+router.get("/categories", eventController.getCategories);
+
+// =====================================================
+// CREATE EVENT
+// =====================================================
+
 router.post(
   "/",
-  upload.single("profile_image"),
-  communityController.createChatRoom
+  upload.fields([
+    { name: "main_image", maxCount: 1 },
+    { name: "album", maxCount: 10 },
+  ]),
+  validate({ body: eventValidation.createEventBodySchema }),
+  eventController.createEvent
 );
 
-router.get("/", communityController.getAllChatRooms);
+// =====================================================
+// EXTERNAL EVENT
+// Taruh sebelum /:id agar route lebih aman dan rapi
+// =====================================================
 
-// =========================
-// MEMBERSHIP GLOBAL ROUTES
-// =========================
-router.post("/join", communityController.joinChatRoom);
-router.post("/leave", communityController.leaveChatRoom);
-router.get("/check-membership", communityController.checkMembership);
+router.post(
+  "/follow-external",
+  validate({ body: eventValidation.followExternalEventBodySchema }),
+  eventController.followExternalEvent
+);
 
-// =========================
-// MESSAGE GLOBAL ROUTES
-// =========================
-router.delete("/messages/:message_id", communityController.deleteMessage);
+// =====================================================
+// SAVED EVENT
+// Taruh sebelum /:id agar route lebih aman dan rapi
+// =====================================================
 
-router.post("/messages/:message_id/pin", communityController.pinMessage);
-router.delete("/messages/:message_id/pin", communityController.unpinMessage);
+router.post(
+  "/toggle-save",
+  validate({ body: eventValidation.toggleSaveEventBodySchema }),
+  eventController.toggleSaveEvent
+);
 
-// =========================
-// CHAT ROOM / GROUP DYNAMIC ROUTES
-// =========================
+router.get(
+  "/:id/check-save",
+  validate({
+    params: eventValidation.eventIdParamsSchema,
+    query: eventValidation.checkSaveStatusQuerySchema,
+  }),
+  eventController.checkSaveStatus
+);
+
+// =====================================================
+// EVENT UPDATE / STATUS
+// =====================================================
+
 router.put(
-  "/:chat_room_id",
-  upload.single("profile_image"),
-  communityController.updateChatRoom
+  "/:id",
+  upload.fields([
+    { name: "main_image", maxCount: 1 },
+    { name: "album", maxCount: 10 },
+  ]),
+  validate({
+    params: eventValidation.eventIdParamsSchema,
+    body: eventValidation.updateEventBodySchema,
+  }),
+  eventController.updateEvent
 );
 
-router.delete("/:chat_room_id", communityController.deleteChatRoom);
-
-router.get(
-  "/:chat_room_id/member-count",
-  communityController.getChatRoomMemberCount
+router.patch(
+  "/:id/status",
+  validate({
+    params: eventValidation.eventIdParamsSchema,
+    body: eventValidation.updateStatusBodySchema,
+  }),
+  eventController.updateStatus
 );
 
-router.get(
-  "/:chat_room_id/members",
-  communityController.getChatRoomMembers
-);
+// =====================================================
+// CANCEL EVENT / REFUND FLOW
+// Jangan aktifkan dulu kalau function controller-nya belum dibuat.
+// Nanti setelah kita rewrite eventController, bagian ini bisa dibuka.
+// =====================================================
 
-router.put(
-  "/:chat_room_id/members/:user_id/role",
-  communityController.updateMemberRole
-);
-
-router.delete(
-  "/:chat_room_id/members/:user_id",
-  communityController.kickMember
-);
-
-// =========================
-// CHAT ROOM MESSAGES
-// =========================
-router.post(
-  "/:chat_room_id/messages",
-  communityController.sendMessage
-);
-
-router.post(
-  "/:chat_room_id/messages/media",
-  upload.single("media"),
-  communityController.sendMediaMessage
+router.patch(
+  "/:id/cancel",
+  validate({
+    params: eventValidation.eventIdParamsSchema,
+    body: eventValidation.cancelEventBodySchema,
+  }),
+  eventController.cancelEvent
 );
 
 router.post(
-  "/:chat_room_id/messages/share-event",
-  communityController.shareEventToChat
+  "/:id/refund-request",
+  validate({
+    params: eventValidation.eventIdParamsSchema,
+    body: eventValidation.requestRefundBodySchema,
+  }),
+  eventController.requestRefundAfterEventChanged
 );
+
+// =====================================================
+// ADMIN CANCELLATION REQUEST ROUTES
+// =====================================================
 
 router.get(
-  "/:chat_room_id/messages/search",
-  communityController.searchMessages
+  "/cancellation-requests",
+  validate({
+    query: eventValidation.getCancellationRequestsQuerySchema,
+  }),
+  eventController.getCancellationRequests
 );
+
+router.patch(
+  "/cancellation-requests/:request_id/approve",
+  validate({
+    params: eventValidation.cancellationRequestIdParamsSchema,
+    body: eventValidation.approveCancellationRequestBodySchema,
+  }),
+  eventController.approveCancellationRequest
+);
+
+router.patch(
+  "/cancellation-requests/:request_id/reject",
+  validate({
+    params: eventValidation.cancellationRequestIdParamsSchema,
+    body: eventValidation.rejectCancellationRequestBodySchema,
+  }),
+  eventController.rejectCancellationRequest
+);
+
+// =====================================================
+// DETAIL EVENT
+// Harus di bawah route spesifik
+// =====================================================
 
 router.get(
-  "/:chat_room_id/messages/latest",
-  communityController.getLatestMessages
+  "/:id",
+  validate({ params: eventValidation.eventIdParamsSchema }),
+  eventController.getEventById
 );
-
-router.get(
-  "/:chat_room_id/messages",
-  communityController.getMessages
-);
-
-// =========================
-// PINNED MESSAGES
-// =========================
-router.get(
-  "/:chat_room_id/pinned-messages",
-  communityController.getPinnedMessages
-);
-
-// =========================
-// MESSAGE READS / UNREAD
-// =========================
-router.post(
-  "/:chat_room_id/messages/read",
-  communityController.markMessagesAsRead
-);
-
-router.post(
-  "/:chat_room_id/read-all",
-  communityController.markAllMessagesAsRead
-);
-
-router.get(
-  "/:chat_room_id/unread-count",
-  communityController.getUnreadCountByRoom
-);
-
-// =========================
-// CHAT ROOM DETAIL
-// Harus paling bawah
-// =========================
-router.get("/:chat_room_id", communityController.getChatRoomById);
 
 module.exports = router;

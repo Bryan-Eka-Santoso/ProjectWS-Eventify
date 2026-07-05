@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 
-const communityController = require("../controllers/community");
+const communityController = require("../controllers/communityController");
 const upload = require("../middlewares/upload");
 
 const validate = require("../middlewares/validate");
-const communityValidation = require("../validations/communityValidation");
+const communityValidation = require("../validators/communityValidation");
 
 // =========================
 // STATIC / GLOBAL ROUTES

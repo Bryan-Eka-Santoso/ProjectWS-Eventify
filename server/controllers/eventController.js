@@ -7,6 +7,183 @@ const User = db.User;
 const SavedEvent = db.SavedEvent; // 🎯 Sekarang ini dijamin 100% aman dan terbaca karena sudah didaftarkan di index.js!
 const OrganizerApplication = db.OrganizerApplication;
 
+const { Op } = require("sequelize");
+
+const EventChange = db.EventChange;
+const EventCancellationRequest = db.EventCancellationRequest;
+const Transaction = db.Transaction;
+const TransactionDetail = db.TransactionDetail;
+const TicketType = db.TicketType;
+const notificationService = require("../services/notificationService");
+const refundService = require("../services/refundService");
+const emailService = require("../services/emailService");
+
+const MAJOR_CHANGE_LIMIT_DAYS = 4;
+const REFUND_WINDOW_HOURS = 72;
+
+const sendError = (res, statusCode, message, error = null) => {
+  return res.status(statusCode).json({
+    success: false,
+    message,
+    ...(error && { error }),
+  });
+};
+
+const sendSuccess = (res, statusCode, message, data = null) => {
+  return res.status(statusCode).json({
+    success: true,
+    message,
+    ...(data !== null && { data }),
+  });
+};
+
+const addHours = (date, hours) => {
+  const result = new Date(date);
+  result.setHours(result.getHours() + hours);
+  return result;
+};
+
+const getDaysBeforeEvent = (startDate) => {
+  const now = new Date();
+  const eventStart = new Date(startDate);
+  const diffMs = eventStart - now;
+
+  return diffMs / (1000 * 60 * 60 * 24);
+};
+
+const isBeforeMajorChangeLimit = (event) => {
+  const daysBeforeEvent = getDaysBeforeEvent(event.start_date);
+  return daysBeforeEvent < MAJOR_CHANGE_LIMIT_DAYS;
+};
+
+const getOrganizerApplicationByUser = async (user_id) => {
+  return await OrganizerApplication.findOne({
+    where: { user_id },
+  });
+};
+
+const canManageEvent = async ({ event, user_id, role }) => {
+  if (role === "admin") {
+    return {
+      allowed: true,
+      organizerApplication: null,
+    };
+  }
+
+  if (role !== "organizer") {
+    return {
+      allowed: false,
+      message: "Only admin or organizer can manage event",
+    };
+  }
+
+  const organizerApplication = await getOrganizerApplicationByUser(user_id);
+
+  if (!organizerApplication) {
+    return {
+      allowed: false,
+      message: "Organizer application not found",
+    };
+  }
+
+  // Catatan:
+  // Project kamu sekarang ada kemungkinan organizer_id menyimpan id organizer_applications.
+  // Tapi migration awal biasanya organizer_id mengarah ke users.id.
+  // Jadi pengecekan dibuat fleksibel agar tidak langsung error.
+  const isOwnerByApplicationId =
+    parseInt(event.organizer_id) === parseInt(organizerApplication.id);
+
+  const isOwnerByUserId = parseInt(event.organizer_id) === parseInt(user_id);
+
+  if (!isOwnerByApplicationId && !isOwnerByUserId) {
+    return {
+      allowed: false,
+      message: "You are not allowed to manage this event",
+    };
+  }
+
+  return {
+    allowed: true,
+    organizerApplication,
+  };
+};
+
+const getChangeType = ({
+  isScheduleChanged,
+  isLocationChanged,
+}) => {
+  if (isScheduleChanged && isLocationChanged) return "schedule_location";
+  if (isScheduleChanged) return "schedule";
+  if (isLocationChanged) return "location";
+  return "minor";
+};
+
+const getEventBuyers = async (event_id) => {
+  const transactions = await Transaction.findAll({
+    where: {
+      payment_status: "paid",
+    },
+    include: [
+      {
+        model: TransactionDetail,
+        as: "Details",
+        required: true,
+        include: [
+          {
+            model: TicketType,
+            as: "TicketType",
+            required: true,
+            where: { event_id },
+          },
+        ],
+      },
+    ],
+  });
+
+  const userIds = [
+    ...new Set(transactions.map((transaction) => transaction.user_id)),
+  ];
+
+  if (userIds.length === 0) return [];
+
+  return await User.findAll({
+    where: {
+      id: {
+        [Op.in]: userIds,
+      },
+    },
+  });
+};
+
+const sendEventChangedEmails = async ({ users, event, eventChange }) => {
+  for (const user of users) {
+    try {
+      await emailService.sendEventChangedEmail({
+        to: user.email,
+        name: user.name,
+        event,
+        eventChange,
+      });
+    } catch (error) {
+      console.error("Failed to send event changed email:", error.message);
+    }
+  }
+};
+
+const sendEventCanceledEmails = async ({ users, event }) => {
+  for (const user of users) {
+    try {
+      await emailService.sendEventCanceledEmail({
+        to: user.email,
+        name: user.name,
+        event,
+      });
+    } catch (error) {
+      console.error("Failed to send event canceled email:", error.message);
+    }
+  }
+};
+
 const eventController = {
   createEvent: async (req, res) => {
     try {
@@ -51,7 +228,7 @@ const eventController = {
             message: "Kamu belum terdaftar atau disetujui sebagai Organizer!",
           });
         }
-        organizerIdValue = app.id;
+        organizerIdValue = app.user_id;
       }
 
       const newEvent = await Event.create({
@@ -102,7 +279,7 @@ const eventController = {
           where: { user_id: user_id },
         });
         if (app) {
-          whereClause = { organizer_id: app.id };
+          whereClause = { organizer_id: user_id };
         } else {
           whereClause = { organizer_id: -1 };
         }
@@ -138,7 +315,7 @@ const eventController = {
         include: [
           {
             model: Category,
-            as: "categories",
+            as: "Categories",
             attributes: ["id", "name"],
             through: { attributes: [] },
           },
@@ -167,10 +344,15 @@ const eventController = {
         include: [
           { model: EventImage, as: "images" },
           {
-            model: OrganizerApplication,
-            as: "organizer",
-            // Meng-include User di dalam aplikasi organizer untuk menarik nama asli user
-            include: [{ model: User, attributes: ["name", "email"] }],
+            model: User,
+            as: "Organizer",
+            attributes: ["id", "name", "email", "role"],
+          },
+          {
+            model: Category,
+            as: "Categories",
+            attributes: ["id", "name"],
+            through: { attributes: [] },
           },
         ],
       });
@@ -188,10 +370,305 @@ const eventController = {
   updateEvent: async (req, res) => {
     try {
       const { id } = req.params;
-      await Event.update(req.body, { where: { id } });
-      res.json({ message: "Event updated successfully" });
+
+      const {
+        user_id,
+        role,
+        title,
+        description,
+        location,
+        start_date,
+        end_date,
+        category_ids,
+        change_reason,
+      } = req.body;
+
+      const event = await Event.findByPk(id);
+
+      if (!event) {
+        return sendError(res, 404, "Event tidak ditemukan");
+      }
+
+      if (event.status === "canceled") {
+        return sendError(
+          res,
+          400,
+          "Event yang sudah dibatalkan tidak bisa diedit"
+        );
+      }
+
+      const permission = await canManageEvent({
+        event,
+        user_id,
+        role,
+      });
+
+      if (!permission.allowed) {
+        return sendError(res, 403, permission.message);
+      }
+
+      const oldStartDate = event.start_date ? new Date(event.start_date) : null;
+      const oldEndDate = event.end_date ? new Date(event.end_date) : null;
+      const oldLocation = event.location;
+
+      const newStartDate = start_date ? new Date(start_date) : oldStartDate;
+      const newEndDate = end_date ? new Date(end_date) : oldEndDate;
+      const newLocation = location !== undefined ? location : oldLocation;
+
+      const isStartChanged =
+        start_date &&
+        oldStartDate &&
+        oldStartDate.getTime() !== newStartDate.getTime();
+
+      const isEndChanged =
+        end_date &&
+        oldEndDate &&
+        oldEndDate.getTime() !== newEndDate.getTime();
+
+      const isScheduleChanged = Boolean(isStartChanged || isEndChanged);
+
+      const isLocationChanged =
+        location !== undefined &&
+        String(oldLocation).trim() !== String(newLocation).trim();
+
+      const isMajorChange = isScheduleChanged || isLocationChanged;
+
+      if (isMajorChange && isBeforeMajorChangeLimit(event)) {
+        return sendError(
+          res,
+          400,
+          "Perubahan jadwal/lokasi hanya bisa dilakukan maksimal H-4 sebelum event dimulai"
+        );
+      }
+
+      const updateData = {};
+
+      if (title !== undefined) updateData.title = title;
+      if (description !== undefined) updateData.description = description;
+      if (location !== undefined) updateData.location = location;
+      if (start_date !== undefined) updateData.start_date = newStartDate;
+      if (end_date !== undefined) updateData.end_date = newEndDate;
+
+      if (req.files && req.files.main_image) {
+        updateData.main_image_url = req.files.main_image[0].filename;
+      }
+
+      await event.update(updateData);
+
+      if (category_ids) {
+        const ids = category_ids.split(",").map(Number);
+        await event.setCategories(ids);
+      }
+
+      if (req.files && req.files.album) {
+        const albumImages = req.files.album.map((file) => ({
+          event_id: event.id,
+          image_url: file.filename,
+        }));
+
+        await EventImage.bulkCreate(albumImages);
+      }
+
+      let eventChange = null;
+      let notifiedUsers = [];
+
+      if (isMajorChange) {
+        const refundDeadline = addHours(new Date(), REFUND_WINDOW_HOURS);
+
+        eventChange = await EventChange.create({
+          event_id: event.id,
+          changed_by: user_id,
+          change_type: getChangeType({
+            isScheduleChanged,
+            isLocationChanged,
+          }),
+          old_start_date: isScheduleChanged ? oldStartDate : null,
+          new_start_date: isScheduleChanged ? newStartDate : null,
+          old_end_date: isScheduleChanged ? oldEndDate : null,
+          new_end_date: isScheduleChanged ? newEndDate : null,
+          old_location: isLocationChanged ? oldLocation : null,
+          new_location: isLocationChanged ? newLocation : null,
+          change_reason: change_reason || null,
+          refund_deadline: refundDeadline,
+          status: "active",
+        });
+
+        notifiedUsers = await getEventBuyers(event.id);
+
+        if (notifiedUsers.length > 0) {
+          await notificationService.notifyEventChanged({
+            users: notifiedUsers,
+            actor_id: user_id,
+            event,
+            eventChange,
+          });
+
+          await sendEventChangedEmails({
+            users: notifiedUsers,
+            event,
+            eventChange,
+          });
+        }
+      }
+
+      return sendSuccess(res, 200, "Event berhasil diperbarui", {
+        event,
+        is_major_change: isMajorChange,
+        event_change: eventChange,
+        notified_users_count: notifiedUsers.length,
+      });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      console.error("Error updateEvent:", error);
+      return sendError(res, 500, "Gagal memperbarui event", error.message);
+    }
+  },
+
+  cancelEvent: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { user_id, role, cancellation_reason } = req.body;
+
+      const event = await Event.findByPk(id);
+
+      if (!event) {
+        return sendError(res, 404, "Event tidak ditemukan");
+      }
+
+      if (event.status === "canceled") {
+        return sendError(res, 400, "Event sudah dibatalkan sebelumnya");
+      }
+
+      const permission = await canManageEvent({
+        event,
+        user_id,
+        role,
+      });
+
+      if (!permission.allowed) {
+        return sendError(res, 403, permission.message);
+      }
+
+      const isLessThanH4 = isBeforeMajorChangeLimit(event);
+
+      if (role === "organizer" && isLessThanH4) {
+        const existingPendingRequest = await EventCancellationRequest.findOne({
+          where: {
+            event_id: event.id,
+            status: "pending",
+          },
+        });
+
+        if (existingPendingRequest) {
+          return sendError(
+            res,
+            400,
+            "Request pembatalan event ini masih menunggu approval admin"
+          );
+        }
+
+        const cancelRequest = await EventCancellationRequest.create({
+          event_id: event.id,
+          requested_by: user_id,
+          reason: cancellation_reason,
+          status: "pending",
+          requested_at: new Date(),
+        });
+
+        const admins = await User.findAll({
+          where: {
+            role: "admin",
+          },
+        });
+
+        if (admins.length > 0) {
+          await notificationService.createBulkNotifications(
+            admins.map((admin) => ({
+              recipient_id: admin.id,
+              actor_id: user_id,
+              type: "event_cancellation_requested",
+              title: "Request pembatalan event",
+              body: `Organizer mengajukan pembatalan event "${event.title}" karena sudah kurang dari H-4.`,
+              target_type: "event_cancellation_request",
+              target_id: cancelRequest.id,
+              data: {
+                event_id: event.id,
+                event_title: event.title,
+                cancellation_request_id: cancelRequest.id,
+                reason: cancellation_reason,
+              },
+            }))
+          );
+        }
+
+        return sendSuccess(
+          res,
+          202,
+          "Event sudah kurang dari H-4, request pembatalan dikirim ke admin",
+          cancelRequest
+        );
+      }
+
+      await event.update({
+        status: "canceled",
+        cancellation_reason,
+        canceled_at: new Date(),
+        canceled_by: user_id,
+      });
+
+      const buyers = await getEventBuyers(event.id);
+
+      if (buyers.length > 0) {
+        await notificationService.notifyEventCanceled({
+          users: buyers,
+          actor_id: user_id,
+          event,
+        });
+
+        await sendEventCanceledEmails({
+          users: buyers,
+          event,
+        });
+      }
+
+      const refundResult = await refundService.createAutoRefundForCanceledEvent({
+        event,
+        actor_id: user_id,
+        refund_method: "original_payment",
+      });
+
+      return sendSuccess(res, 200, "Event berhasil dibatalkan dan refund diproses", {
+        event,
+        notified_users_count: buyers.length,
+        refund: refundResult,
+      });
+    } catch (error) {
+      console.error("Error cancelEvent:", error);
+      return sendError(res, 500, "Gagal membatalkan event", error.message);
+    }
+  },
+
+  requestRefundAfterEventChanged: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { user_id, transaction_id, event_change_id, reason } = req.body;
+
+      const refund = await refundService.requestRefundAfterEventChanged({
+        user_id,
+        transaction_id,
+        event_id: id,
+        event_change_id,
+        reason,
+      });
+
+      return sendSuccess(res, 201, "Pengajuan refund berhasil dibuat", refund);
+    } catch (error) {
+      console.error("Error requestRefundAfterEventChanged:", error);
+
+      return sendError(
+        res,
+        error.statusCode || 500,
+        error.message || "Gagal mengajukan refund"
+      );
     }
   },
 
@@ -238,7 +715,7 @@ const eventController = {
             message: "Kamu belum terdaftar atau disetujui sebagai Organizer!",
           });
         }
-        organizerIdValue = app.id;
+        organizerIdValue = user_id;
       }
 
       event = await Event.create({
@@ -328,19 +805,277 @@ const eventController = {
         include: [
           {
             model: Event,
-            as: "event", // Pastikan alias ini sama dengan yang kamu set di file asosiasi models/savedevent.js
+            as: "Event", // Pastikan alias ini sama dengan yang kamu set di file asosiasi models/savedevent.js
             required: true, // bertindak sebagai INNER JOIN gess
           },
         ],
       });
 
       // Map hasilnya biar frontend dapet data array object event murni langsung gess
-      const eventsOnly = savedList.map((item) => item.event);
+      const eventsOnly = savedList.map((item) => item.Event);
 
       res.json(eventsOnly);
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Gagal memuat daftar simpanan event." });
+    }
+  },
+  getCancellationRequests: async (req, res) => {
+    try {
+      const { user_id, role, status, page = 1, limit = 10 } = req.query;
+
+      if (role !== "admin") {
+        return sendError(res, 403, "Only admin can view cancellation requests");
+      }
+
+      const admin = await User.findByPk(user_id);
+
+      if (!admin || admin.role !== "admin") {
+        return sendError(res, 403, "Admin user not found or invalid role");
+      }
+
+      const whereClause = {};
+
+      if (status) {
+        whereClause.status = status;
+      }
+
+      const parsedPage = parseInt(page);
+      const parsedLimit = parseInt(limit);
+      const offset = (parsedPage - 1) * parsedLimit;
+
+      const requests = await EventCancellationRequest.findAll({
+        where: whereClause,
+        include: [
+          {
+            model: Event,
+            as: "Event",
+          },
+          {
+            model: User,
+            as: "Requester",
+            attributes: ["id", "name", "email", "role"],
+          },
+          {
+            model: User,
+            as: "Reviewer",
+            attributes: ["id", "name", "email", "role"],
+          },
+        ],
+        order: [["requested_at", "DESC"]],
+        limit: parsedLimit,
+        offset,
+      });
+
+      const total = await EventCancellationRequest.count({
+        where: whereClause,
+      });
+
+      return sendSuccess(res, 200, "Cancellation requests retrieved successfully", {
+        requests,
+        pagination: {
+          total,
+          page: parsedPage,
+          limit: parsedLimit,
+          pages: Math.ceil(total / parsedLimit),
+        },
+      });
+    } catch (error) {
+      console.error("Error getCancellationRequests:", error);
+      return sendError(
+        res,
+        500,
+        "Gagal mengambil cancellation requests",
+        error.message
+      );
+    }
+  },
+  approveCancellationRequest: async (req, res) => {
+    try {
+      const { request_id } = req.params;
+      const { user_id, role, admin_note } = req.body;
+
+      if (role !== "admin") {
+        return sendError(res, 403, "Only admin can approve cancellation request");
+      }
+
+      const admin = await User.findByPk(user_id);
+
+      if (!admin || admin.role !== "admin") {
+        return sendError(res, 403, "Admin user not found or invalid role");
+      }
+
+      const cancelRequest = await EventCancellationRequest.findByPk(request_id);
+
+      if (!cancelRequest) {
+        return sendError(res, 404, "Cancellation request tidak ditemukan");
+      }
+
+      if (cancelRequest.status !== "pending") {
+        return sendError(
+          res,
+          400,
+          "Cancellation request ini sudah diproses sebelumnya"
+        );
+      }
+
+      const event = await Event.findByPk(cancelRequest.event_id);
+
+      if (!event) {
+        return sendError(res, 404, "Event tidak ditemukan");
+      }
+
+      if (event.status === "canceled") {
+        return sendError(res, 400, "Event sudah dibatalkan sebelumnya");
+      }
+
+      await cancelRequest.update({
+        status: "approved",
+        reviewed_by: user_id,
+        admin_note: admin_note || null,
+        reviewed_at: new Date(),
+      });
+
+      await event.update({
+        status: "canceled",
+        cancellation_reason: cancelRequest.reason,
+        canceled_at: new Date(),
+        canceled_by: user_id,
+      });
+
+      const buyers = await getEventBuyers(event.id);
+
+      if (buyers.length > 0) {
+        await notificationService.notifyEventCanceled({
+          users: buyers,
+          actor_id: user_id,
+          event,
+        });
+
+        await sendEventCanceledEmails({
+          users: buyers,
+          event,
+        });
+      }
+
+      await notificationService.createNotification({
+        recipient_id: cancelRequest.requested_by,
+        actor_id: user_id,
+        type: "event_cancellation_approved",
+        title: "Pembatalan event disetujui",
+        body: `Request pembatalan event "${event.title}" telah disetujui admin.`,
+        target_type: "event",
+        target_id: event.id,
+        data: {
+          event_id: event.id,
+          event_title: event.title,
+          cancellation_request_id: cancelRequest.id,
+          admin_note: admin_note || null,
+        },
+      });
+
+      const refundResult = await refundService.createAutoRefundForCanceledEvent({
+        event,
+        actor_id: user_id,
+        refund_method: "original_payment",
+      });
+
+      return sendSuccess(
+        res,
+        200,
+        "Cancellation request approved, event canceled, and refund processed",
+        {
+          cancellation_request: cancelRequest,
+          event,
+          notified_users_count: buyers.length,
+          refund: refundResult,
+        }
+      );
+    } catch (error) {
+      console.error("Error approveCancellationRequest:", error);
+      return sendError(
+        res,
+        500,
+        "Gagal approve cancellation request",
+        error.message
+      );
+    }
+  },
+  rejectCancellationRequest: async (req, res) => {
+    try {
+      const { request_id } = req.params;
+      const { user_id, role, admin_note } = req.body;
+
+      if (role !== "admin") {
+        return sendError(res, 403, "Only admin can reject cancellation request");
+      }
+
+      const admin = await User.findByPk(user_id);
+
+      if (!admin || admin.role !== "admin") {
+        return sendError(res, 403, "Admin user not found or invalid role");
+      }
+
+      const cancelRequest = await EventCancellationRequest.findByPk(request_id);
+
+      if (!cancelRequest) {
+        return sendError(res, 404, "Cancellation request tidak ditemukan");
+      }
+
+      if (cancelRequest.status !== "pending") {
+        return sendError(
+          res,
+          400,
+          "Cancellation request ini sudah diproses sebelumnya"
+        );
+      }
+
+      const event = await Event.findByPk(cancelRequest.event_id);
+
+      if (!event) {
+        return sendError(res, 404, "Event tidak ditemukan");
+      }
+
+      await cancelRequest.update({
+        status: "rejected",
+        reviewed_by: user_id,
+        admin_note,
+        reviewed_at: new Date(),
+      });
+
+      await notificationService.createNotification({
+        recipient_id: cancelRequest.requested_by,
+        actor_id: user_id,
+        type: "event_cancellation_rejected",
+        title: "Pembatalan event ditolak",
+        body: `Request pembatalan event "${event.title}" ditolak admin.`,
+        target_type: "event_cancellation_request",
+        target_id: cancelRequest.id,
+        data: {
+          event_id: event.id,
+          event_title: event.title,
+          cancellation_request_id: cancelRequest.id,
+          admin_note,
+        },
+      });
+
+      return sendSuccess(
+        res,
+        200,
+        "Cancellation request rejected successfully",
+        {
+          cancellation_request: cancelRequest,
+          event,
+        }
+      );
+    } catch (error) {
+      console.error("Error rejectCancellationRequest:", error);
+      return sendError(
+        res,
+        500,
+        "Gagal reject cancellation request",
+        error.message
+      );
     }
   },
 };

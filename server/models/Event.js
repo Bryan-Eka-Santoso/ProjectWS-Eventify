@@ -21,6 +21,25 @@ module.exports = (sequelize, DataTypes) => {
         ),
         defaultValue: "draft",
       },
+            rejection_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+
+      cancellation_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+
+      canceled_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+
+      canceled_by: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       external_id: {
         type: DataTypes.STRING, // atau DataTypes.INTEGER, sesuaikan dengan database kamu
         allowNull: true, // Di-set true karena event lokal nilainya bakal NULL
