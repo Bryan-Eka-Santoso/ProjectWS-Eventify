@@ -1,10 +1,6 @@
-"use strict";
-const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
-  class Pengguna extends Model {
-    static associate(models) {}
-  }
-  Pengguna.init(
+  const User = sequelize.define(
+    "User",
     {
       id: {
         type: DataTypes.INTEGER,
@@ -40,6 +36,14 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: 0,
       },
+      api_key: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      refresh_token: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
     },
     {
       sequelize,
@@ -52,5 +56,5 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
   );
-  return Pengguna;
+  return User;
 };

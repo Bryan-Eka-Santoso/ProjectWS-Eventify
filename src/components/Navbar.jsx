@@ -1,7 +1,35 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 
 function Navbar() {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:3005/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      localStorage.removeItem("token");
+
+      await Swal.fire({
+        icon: "success",
+        text: "Logout successful",
+      });
+
+      navigate("/login");
+    } catch (error) {
+      console.error(error);
+
+      Swal.fire({
+        icon: "error",
+        text: "Logout failed. Please try again.",
+      });
+    }
+  };
+
   return (
     <nav className="navbar navbar-expand-lg bg-primary navbar-dark">
       <div className="container">
@@ -29,7 +57,7 @@ function Navbar() {
           <ul className="navbar-nav mx-auto mb-2 mb-lg-0 gap-2 position-lg-absolute start-lg-50 translate-middle-lg-x">
             <li className="nav-item">
               <NavLink
-                to="/"
+                to="/admin/home"
                 className={({ isActive }) =>
                   `nav-link ${isActive ? "active" : ""}`
                 }
@@ -77,7 +105,7 @@ function Navbar() {
               {/* Dropdown ke kiri */}
               <ul className="dropdown-menu dropdown-menu-end">
                 <li>
-                  <a className="dropdown-item" href="#">
+                  <a className="dropdown-item" href="/profile">
                     <i className="bi bi-person"></i> My Profile
                   </a>
                 </li>
@@ -99,9 +127,13 @@ function Navbar() {
                 </li>
 
                 <li>
-                  <a className="dropdown-item text-danger" href="/login">
+                  <button
+                    className="dropdown-item text-danger"
+                    type="button"
+                    onClick={handleLogout}
+                  >
                     <i className="bi bi-box-arrow-right"></i> Logout
-                  </a>
+                  </button>
                 </li>
               </ul>
             </li>
