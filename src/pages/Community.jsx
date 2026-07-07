@@ -7,7 +7,7 @@ import { AUTH_USER } from "../config/auth";
 
 const SERVER_URL = "http://localhost:5000";
 const API_URL = `${SERVER_URL}/api/community`;
-const EVENT_API_URL = `${SERVER_URL}/api/events`;
+const EVENT_API_URL = `${SERVER_URL}/api/events/published`;
 
 const initialCreateForm = {
   name: "",
@@ -140,9 +140,20 @@ function Community() {
   }, []);
 
   const getEventImage = useCallback((event) => {
-    const url = event?.image_url || event?.poster_url || event?.poster || event?.image || event?.thumbnail;
-    return imageSrc(url);
-  }, [imageSrc]);
+    const url =
+      event?.main_image_url ||
+      event?.image_url ||
+      event?.poster_url ||
+      event?.poster ||
+      event?.image ||
+      event?.thumbnail;
+
+    if (!url) return "https://via.placeholder.com/600x400?text=No+Poster";
+    if (url.startsWith("http")) return url;
+    if (url.startsWith("/uploads/")) return `${SERVER_URL}${url}`;
+
+    return `${SERVER_URL}/uploads/${url}`;
+  }, []);
 
   const roomCategories = useCallback((room) => {
     return room?.Categories || room?.categories || [];
@@ -217,11 +228,11 @@ function Community() {
   const fetchEvents = useCallback(async () => {
     try {
       setLoadingEvents(true);
-      const response = await axios.get(EVENT_API_URL, {
-        params: { page: 1, limit: 100 },
-      });
+
+      const response = await axios.get(EVENT_API_URL);
 
       const payload = response.data;
+
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload?.data?.data)
@@ -1296,7 +1307,7 @@ function Community() {
               <div className="community-empty-small">Loading events...</div>
             ) : events.length === 0 ? (
               <div className="community-empty-small">
-                Event belum tersedia atau endpoint <b>/api/events</b> belum mengembalikan data.
+                Event belum tersedia atau endpoint
               </div>
             ) : (
               <div className="community-event-grid">
