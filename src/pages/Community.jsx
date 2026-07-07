@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -23,6 +24,7 @@ const initialMediaForm = {
 };
 
 function Community() {
+  const navigate = useNavigate();
   const currentUser = AUTH_USER;
 
   const [chatRooms, setChatRooms] = useState([]);
@@ -495,6 +497,20 @@ function Community() {
     setShowMediaModal(true);
   };
 
+  const openEventPage = (eventOrId) => {
+    const eventId =
+      typeof eventOrId === "object"
+        ? getEventId(eventOrId)
+        : eventOrId;
+
+    if (!eventId) {
+      showToast("Event ID tidak ditemukan");
+      return;
+    }
+
+    navigate(`/events/${eventId}`);
+  };
+
   const openEventDetail = (event) => {
     setSelectedEvent(event);
     setShowEventDetailModal(true);
@@ -815,12 +831,12 @@ function Community() {
           <div className="community-event-card-mini">
             <strong>{event?.title || event?.name || `Event #${message.recommended_event_id}`}</strong>
             <span>{event?.location || "Detail event mengikuti data backend event."}</span>
-            <button
+           <button
               type="button"
               className="community-btn community-btn-primary community-btn-small"
               onClick={() => {
-                if (event) openEventDetail(event);
-                else showToast(`Buka detail Event ID ${message.recommended_event_id}`);
+                const eventId = event ? getEventId(event) : message.recommended_event_id;
+                openEventPage(eventId);
               }}
             >
               View Event
@@ -1212,9 +1228,20 @@ function Community() {
                   <h3>Shared Events</h3>
                   {sharedEvents.length > 0 ? (
                     sharedEvents.slice(-3).map((message) => (
-                      <div className="community-shared-event" key={message.id || `${message.recommended_event_id}-${message.created_at}`}>
+                      <button
+                        type="button"
+                        className="community-shared-event"
+                        key={message.id || `${message.recommended_event_id}-${message.created_at}`}
+                        onClick={() => openEventPage(message.recommended_event_id)}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          border: "1px solid #ddd6fe",
+                          cursor: "pointer",
+                        }}
+                      >
                         Event #{message.recommended_event_id}
-                      </div>
+                      </button>
                     ))
                   ) : (
                     <p className="community-muted">Belum ada event yang dibagikan.</p>
