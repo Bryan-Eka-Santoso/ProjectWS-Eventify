@@ -43,6 +43,9 @@ const ChatRoomCategory = require("./ChatRoomCategory")(sequelize, DataTypes);
 const Message = require("./Message")(sequelize, DataTypes);
 const MessageRead = require("./MessageRead")(sequelize, DataTypes);
 
+const ApiLog = require("./ApiLog")(sequelize, DataTypes);
+
+
 // =====================================================
 // EVENT CHANGE RELATIONSHIPS
 // =====================================================
@@ -539,11 +542,21 @@ User.hasMany(MessageRead, {
   foreignKey: "user_id",
   as: "MessageReads",
 });
-
 MessageRead.belongsTo(User, {
   foreignKey: "user_id",
   as: "User",
 });
+
+ApiLog.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "User",
+});
+
+User.hasMany(ApiLog, {
+  foreignKey: "user_id",
+  as: "ApiLogs",
+});
+
 
 // =====================================================
 // DB EXPORT
@@ -585,6 +598,8 @@ const db = {
   EventChange,
   EventCancellationRequest,
   RefundRequest,
+
+  ApiLog,
 };
 
 module.exports = db;

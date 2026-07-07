@@ -4,6 +4,7 @@ const path = require("path");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
+const cookieParser = require("cookie-parser");
 
 // 🎯 FIXED: Path disesuaikan karena .env sudah masuk ke dalam folder server gess!
 dotenv.config({ path: path.resolve(__dirname, "./.env") });
@@ -30,6 +31,15 @@ const notificationSocket = require("./sockets/notification");
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  }),
+);
 
 // Static file uploads
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
@@ -37,6 +47,7 @@ app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 // =====================================================
 // API ROUTES
 // =====================================================
+app.use("/api/auth", require("./routes/auth.cjs"));
 app.use("/api/events", eventRoutes);
 app.use("/api/community", communityRoutes);
 app.use("/api/notifications", notificationRoutes);
