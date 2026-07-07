@@ -39,22 +39,30 @@ class SocketService {
     }
   }
 
-  // Join chat room
+  // =====================================================
+  // CHAT ROOM SOCKET
+  // =====================================================
+
   joinRoom(chat_room_id, user_id, username) {
     if (this.socket) {
       this.socket.emit("join_room", { chat_room_id, user_id, username });
     }
   }
 
-  // Leave chat room
   leaveRoom(chat_room_id, username) {
     if (this.socket) {
       this.socket.emit("leave_room", { chat_room_id, username });
     }
   }
 
-  // Send message
-  sendMessage(chat_room_id, sender_id, message_type = "text", body = null, media_url = null, recommended_event_id = null) {
+  sendMessage(
+    chat_room_id,
+    sender_id,
+    message_type = "text",
+    body = null,
+    media_url = null,
+    recommended_event_id = null
+  ) {
     if (this.socket) {
       this.socket.emit("send_message", {
         chat_room_id,
@@ -67,66 +75,119 @@ class SocketService {
     }
   }
 
-  // Typing indicator
   userTyping(chat_room_id, username) {
     if (this.socket) {
       this.socket.emit("user_typing", { chat_room_id, username });
     }
   }
 
-  // Stop typing
   userStopTyping(chat_room_id, username) {
     if (this.socket) {
       this.socket.emit("user_stop_typing", { chat_room_id, username });
     }
   }
 
-  // Listen to new message
   onNewMessage(callback) {
     if (this.socket) {
       this.socket.on("new_message", callback);
     }
   }
 
-  // Listen to user joined
   onUserJoined(callback) {
     if (this.socket) {
       this.socket.on("user_joined", callback);
     }
   }
 
-  // Listen to user left
   onUserLeft(callback) {
     if (this.socket) {
       this.socket.on("user_left", callback);
     }
   }
 
-  // Listen to user typing
   onUserTyping(callback) {
     if (this.socket) {
       this.socket.on("user_typing", callback);
     }
   }
 
-  // Listen to user stop typing
   onUserStopTyping(callback) {
     if (this.socket) {
       this.socket.on("user_stop_typing", callback);
     }
   }
 
-  // Listen to socket errors
+  // =====================================================
+  // NOTIFICATION SOCKET
+  // =====================================================
+
+  joinNotification(user_id) {
+    if (this.socket) {
+      this.socket.emit("join_notification", { user_id });
+    }
+  }
+
+  leaveNotification(user_id) {
+    if (this.socket) {
+      this.socket.emit("leave_notification", { user_id });
+    }
+  }
+
+  onNotificationJoined(callback) {
+    if (this.socket) {
+      this.socket.on("notification:joined", callback);
+    }
+  }
+
+  onNotificationLeft(callback) {
+    if (this.socket) {
+      this.socket.on("notification:left", callback);
+    }
+  }
+
+  onNotificationNew(callback) {
+    if (this.socket) {
+      this.socket.on("notification:new", callback);
+    }
+  }
+
+  onNotificationError(callback) {
+    if (this.socket) {
+      this.socket.on("notification:error", callback);
+    }
+  }
+
+  // =====================================================
+  // GENERAL SOCKET HELPER
+  // =====================================================
+
+  onConnect(callback) {
+    if (this.socket) {
+      this.socket.on("connect", callback);
+    }
+  }
+
+  onDisconnect(callback) {
+    if (this.socket) {
+      this.socket.on("disconnect", callback);
+    }
+  }
+
   onError(callback) {
     if (this.socket) {
       this.socket.on("error", callback);
     }
   }
 
-  // Remove listener
-  removeListener(event,callback) {
+  removeListener(event, callback) {
     if (this.socket) {
       this.socket.off(event, callback);
+    }
+  }
+
+  removeAllListeners(event) {
+    if (this.socket) {
+      this.socket.off(event);
     }
   }
 }

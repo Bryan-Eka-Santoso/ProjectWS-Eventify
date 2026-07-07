@@ -177,6 +177,19 @@ router.patch(
   eventController.rejectCancellationRequest
 );
 
+//pakai ticket
+router.patch(
+  "/:id/tickets/validate",
+  validate({
+    params: eventValidation.eventIdParamsSchema,
+    body: eventValidation.validateTicketBodySchema,
+  }),
+  eventController.validateTicketCode
+);
+router.get(
+  "/:id/changes/:event_change_id/refund-info",
+  eventController.getEventChangeRefundInfo
+);
 // =====================================================
 // DETAIL EVENT
 // Harus di bawah route spesifik
@@ -187,5 +200,6 @@ router.get(
   validate({ params: eventValidation.eventIdParamsSchema }),
   eventController.getEventById
 );
+
 
 module.exports = router;

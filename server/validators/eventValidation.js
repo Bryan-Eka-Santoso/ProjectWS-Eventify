@@ -66,9 +66,42 @@ const createEventBodySchema = Joi.object({
     "number.base": "user_id must be a number",
   }),
 
-  role: Joi.string().valid("admin", "organizer", "user").required().messages({
+  role: Joi.string().valid("admin", "organizer").required().messages({
     "any.only": "role must be admin, organizer, or user",
     "any.required": "role is required",
+  }),
+  tickets: Joi.string()
+  .custom((value, helpers) => {
+    try {
+      const parsed = JSON.parse(value);
+
+      if (!Array.isArray(parsed)) {
+        return helpers.error("any.invalid");
+      }
+
+      const isValid = parsed.every((ticket) => {
+        return (
+          ticket.name &&
+          Number.isInteger(Number(ticket.price)) &&
+          Number(ticket.price) >= 0 &&
+          Number.isInteger(Number(ticket.quota)) &&
+          Number(ticket.quota) > 0
+        );
+      });
+
+      if (!isValid) {
+        return helpers.error("any.invalid");
+      }
+
+      return value;
+    } catch (error) {
+      return helpers.error("any.invalid");
+    }
+  }, "tickets validation")
+  .optional()
+  .messages({
+    "any.invalid":
+      "tickets must be a valid JSON array with name, price, and quota",
   }),
 });
 
@@ -275,6 +308,25 @@ const rejectCancellationRequestBodySchema = Joi.object({
   }),
 });
 
+const validateTicketBodySchema = Joi.object({
+  user_id: id.messages({
+    "any.required": "user_id is required",
+    "number.base": "user_id must be a number",
+  }),
+
+  role: Joi.string().valid("admin", "organizer").required().messages({
+    "any.only": "role must be admin or organizer",
+    "any.required": "role is required",
+  }),
+
+  ticket_code: Joi.string().trim().min(5).max(255).required().messages({
+    "string.empty": "ticket_code cannot be empty",
+    "string.min": "ticket_code must be at least 5 characters",
+    "string.max": "ticket_code cannot exceed 255 characters",
+    "any.required": "ticket_code is required",
+  }),
+});
+
 module.exports = {
   eventIdParamsSchema,
   createEventBodySchema,
@@ -292,4 +344,5 @@ module.exports = {
   getCancellationRequestsQuerySchema,
   approveCancellationRequestBodySchema,
   rejectCancellationRequestBodySchema,
+  validateTicketBodySchema,
 };

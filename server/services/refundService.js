@@ -8,8 +8,9 @@ const {
   UserTicket,
   RefundRequest,
   EventChange,
+  User,
+  Event,
 } = db;
-
 const throwError = (message, statusCode = 400) => {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -212,6 +213,23 @@ const requestRefundAfterEventChanged = async ({
     refund,
   });
 
+  const admins = await User.findAll({
+    where: {
+      role: "admin",
+    },
+  });
+
+  const event = await Event.findByPk(event_id);
+
+  if (admins.length > 0) {
+    await notificationService.notifyRefundRequestToAdmins({
+      admins,
+      actor_id: user_id,
+      refund,
+      event,
+    });
+  }
+
   return refund;
 };
 
@@ -264,6 +282,72 @@ const markRefundAsSuccess = async ({ refund_id, actor_id = null }) => {
   }
 
   await notificationService.notifyRefundSuccess({
+    user_id: refund.user_id,
+    actor_id,
+    refund,
+  });
+
+  return refund;
+};
+
+const approveRefundRequest = async ({ refund_id, actor_id = null }) => {
+  const refund = await RefundRequest.findByPk(refund_id);
+
+  if (!refund) {
+    throwError("Refund request tidak ditemukan", 404);
+  }
+
+  if (refund.refund_type !== "event_changed") {
+    throwError("Refund ini bukan refund manual dari perubahan event", 400);
+  }
+
+  if (refund.status !== "requested") {
+    throwError(
+      `Refund tidak bisa di-approve karena status saat ini: ${refund.status}`,
+      400
+    );
+  }
+
+  const transaction = await Transaction.findByPk(refund.transaction_id, {
+    include: [
+      {
+        model: TransactionDetail,
+        as: "Details",
+      },
+    ],
+  });
+
+  if (!transaction) {
+    throwError("Transaction tidak ditemukan", 404);
+  }
+
+  await refund.update({
+    status: "refunded",
+    processed_at: new Date(),
+    refunded_at: new Date(),
+    rejection_reason: null,
+  });
+
+  await transaction.update({
+    refund_status: "refunded",
+  });
+
+  const transactionDetailIds = transaction.Details.map((detail) => detail.id);
+
+  if (transactionDetailIds.length > 0) {
+    await UserTicket.update(
+      {
+        status: "refunded",
+      },
+      {
+        where: {
+          transaction_detail_id: transactionDetailIds,
+        },
+      }
+    );
+  }
+
+  await notificationService.notifyRefundApproved({
     user_id: refund.user_id,
     actor_id,
     refund,

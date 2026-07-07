@@ -1,32 +1,45 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth"; // 🔑 Membaca data privasi login
+import { AUTH_USER } from "../../config/auth";
+import EventStatusBadge from "../../components/EventStatusBadge";
+import CancelEventModal from "../../components/CancelEventModal";
 
 function MyEvents() {
   const [myEvents, setMyEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCancelEvent, setSelectedCancelEvent] = useState(null);
+
+  const fetchMyEvents = async () => {
+    try {
+      setLoading(true);
+
+      const res = await axios.get("http://localhost:5000/api/events/my-events", {
+        params: {
+          user_id: AUTH_USER.id,
+          role: AUTH_USER.role,
+        },
+      });
+
+      setMyEvents(res.data);
+    } catch (error) {
+      console.error("Gagal memuat event saya:", error);
+      alert(error.response?.data?.message || "Gagal memuat event saya.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    axios
-      .get(
-        `http://localhost:5000/api/events/my-events?user_id=${AUTH_USER.id}&role=${AUTH_USER.role}`,
-      )
-      .then((res) => {
-        setMyEvents(res.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Gagal memuat event saya:", err);
-        setLoading(false);
-      });
+    fetchMyEvents();
   }, []);
 
   return (
     <>
       <Navbar />
+
       <div className="container mt-5 mb-5" style={{ minHeight: "80vh" }}>
         <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
           <div>
@@ -37,23 +50,37 @@ function MyEvents() {
               {AUTH_USER.role.toUpperCase()})
             </p>
           </div>
-          <Link
-            to="/events"
-            className="btn btn-outline-secondary fw-bold rounded-3"
-          >
-            ⬅️ Beranda Event
-          </Link>
+
+          <div className="d-flex gap-2">
+            <Link
+              to="/events"
+              className="btn btn-outline-secondary fw-bold rounded-3"
+            >
+              ⬅️ Beranda Event
+            </Link>
+
+            {AUTH_USER.role !== "user" && (
+              <Link
+                to="/events/create"
+                className="btn btn-primary fw-bold rounded-3"
+              >
+                + Buat Event
+              </Link>
+            )}
+          </div>
         </div>
 
         {loading ? (
           <div className="text-center py-5">
             <div className="spinner-border text-primary" role="status"></div>
+            <p className="text-muted mt-2">Memuat event...</p>
           </div>
         ) : myEvents.length === 0 ? (
           <div className="text-center py-5 bg-light rounded-4 border border-dashed">
             <h5 className="text-muted fw-normal">
               Kamu belum membuat / mengadopsi event apapun.
             </h5>
+
             {AUTH_USER.role !== "user" && (
               <Link
                 to="/events/create"
@@ -73,28 +100,65 @@ function MyEvents() {
                   </th>
                   <th scope="col">Lokasi</th>
                   <th scope="col">Tanggal Mulai</th>
-                  <th scope="col" className="pe-3">
-                    Status DB
+                  <th scope="col">Status</th>
+                  <th scope="col" className="text-end pe-3">
+                    Action
                   </th>
                 </tr>
               </thead>
+
               <tbody>
-                {myEvents.map((e) => (
-                  <tr key={e.id}>
-                    <td className="fw-bold text-dark ps-3">{e.title}</td>
-                    <td>📍 {e.location}</td>
+                {myEvents.map((event) => (
+                  <tr key={event.id}>
+                    <td className="fw-bold text-dark ps-3">{event.title}</td>
+
+                    <td>📍 {event.location}</td>
+
                     <td>
                       📅{" "}
-                      {new Date(e.start_date).toLocaleDateString("id-ID", {
+                      {new Date(event.start_date).toLocaleDateString("id-ID", {
                         dateStyle: "medium",
                       })}
                     </td>
-                    <td className="pe-3">
-                      <span
-                        className={`badge px-3 py-2 rounded-pill ${e.status === "published" ? "bg-success" : "bg-warning text-dark"}`}
-                      >
-                        {e.status.toUpperCase()}
-                      </span>
+
+                    <td>
+                      <EventStatusBadge status={event.status} />
+                    </td>
+
+                    <td className="text-end pe-3">
+                      <div className="d-flex justify-content-end gap-2">
+                        <Link
+                          to={`/events/${event.id}`}
+                          className="btn btn-sm btn-outline-primary rounded-3"
+                        >
+                          Detail
+                        </Link>
+
+                        {event.status !== "canceled" && (
+                          <>
+                            <Link
+                              to={`/events/${event.id}/validate-ticket`}
+                              className="btn btn-sm btn-success rounded-3 fw-semibold"
+                            >
+                              Validate Ticket
+                            </Link>
+                            <Link
+                              to={`/events/${event.id}/edit`}
+                              className="btn btn-sm btn-warning rounded-3 fw-semibold"
+                            >
+                              Edit
+                            </Link>
+
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-danger rounded-3 fw-semibold"
+                              onClick={() => setSelectedCancelEvent(event)}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -103,6 +167,15 @@ function MyEvents() {
           </div>
         )}
       </div>
+
+      {selectedCancelEvent && (
+        <CancelEventModal
+          event={selectedCancelEvent}
+          onClose={() => setSelectedCancelEvent(null)}
+          onSuccess={fetchMyEvents}
+        />
+      )}
+
       <Footer />
     </>
   );

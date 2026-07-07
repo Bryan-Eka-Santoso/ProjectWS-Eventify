@@ -30,7 +30,7 @@ const transactionService = {
   }) => {
     // Ambil data kategori tiket beserta Event-nya
     const ticketType = await TicketType.findByPk(ticket_type_id, {
-      include: [{ model: Event }],
+      include: [{ model: Event, as: "Event" }],
     });
     if (!ticketType) {
       throw new Error("Tipe kategori tiket tidak ditemukan gess.");
@@ -54,18 +54,18 @@ const transactionService = {
     if (user_voucher_id) {
       const checkVoucher = await UserVoucher.findOne({
         where: { id: user_voucher_id, user_id, is_used: false },
-        include: [{ model: Voucher, as: "voucher" }],
+        include: [{ model: Voucher, as: "Voucher" }],
       });
 
-      if (checkVoucher && checkVoucher.voucher) {
+      if (checkVoucher && checkVoucher.Voucher) {
         discountAmount = Math.floor(
-          (checkVoucher.voucher.percentage / 100) * totalAmount,
+          (checkVoucher.Voucher.percentage / 100) * totalAmount,
         );
         if (
-          checkVoucher.voucher.max_cut &&
-          discountAmount > checkVoucher.voucher.max_cut
+          checkVoucher.Voucher.max_cut &&
+          discountAmount > checkVoucher.Voucher.max_cut
         ) {
-          discountAmount = checkVoucher.voucher.max_cut;
+          discountAmount = checkVoucher.Voucher.max_cut;
         }
       }
     }
@@ -138,7 +138,7 @@ const transactionService = {
     const transactionId = parseInt(partId);
 
     const tx = await Transaction.findByPk(transactionId, {
-      include: [{ model: TransactionDetail, as: "details" }],
+      include: [{ model: TransactionDetail, as: "Details" }],
     });
 
     if (!tx) {
@@ -153,7 +153,7 @@ const transactionService = {
       transaction_status === "settlement" ||
       (transaction_status === "capture" && fraud_status === "accept")
     ) {
-      const detail = tx.details[0];
+      const detail = tx.Details[0];
 
       // 1. Potong kuota tiket
       const ticketType = await TicketType.findByPk(detail.ticket_type_id);

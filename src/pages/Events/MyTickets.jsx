@@ -81,17 +81,17 @@ function MyTickets() {
                   <div className="card-body p-4">
                     <h5 className="fw-bold text-dark mb-1">
                       {/* 🎯 FIXED: Diganti dari .event jadi .Event (E Kapital) sesuai skema database */}
-                      {t.ticket_type?.Event?.title || "Judul Event"}
+                      {t.TicketType?.Event?.title || "Judul Event"}
                     </h5>
                     <p className="text-muted small mb-3">
                       {/* 🎯 FIXED: Diganti dari .event jadi .Event (E Kapital) sesuai skema database */}
-                      📍 {t.ticket_type?.Event?.location || "Lokasi Event"}
+                      📍 {t.TicketType?.Event?.location || "Lokasi Event"}
                     </p>
 
                     <div className="p-2 bg-light rounded-3 border mb-3">
                       <div className="small text-muted">Kategori Tiket:</div>
                       <div className="fw-bold text-uppercase text-dark">
-                        {t.ticket_type?.name || "REGULAR"}
+                        {t.TicketType?.name || "REGULAR"}
                       </div>
                     </div>
 

@@ -182,10 +182,10 @@ function EventDetail() {
       const activeV = myVouchers.find(
         (v) => String(v.id) === String(selectedVoucherId),
       );
-      if (activeV && activeV.voucher) {
-        let cut = Math.floor((activeV.voucher.percentage / 100) * total);
-        if (activeV.voucher.max_cut && cut > activeV.voucher.max_cut) {
-          cut = activeV.voucher.max_cut;
+      if (activeV && activeV.Voucher) {
+        let cut = Math.floor((activeV.Voucher.percentage / 100) * total);
+        if (activeV.Voucher.max_cut && cut > activeV.Voucher.max_cut) {
+          cut = activeV.Voucher.max_cut;
         }
         total -= cut;
       }
@@ -404,9 +404,9 @@ function EventDetail() {
                   <h6 className="fw-bold mb-2 text-dark">
                     1. Pilih Jenis Kategori Tiket:
                   </h6>
-                  {event.ticket_types && event.ticket_types.length > 0 ? (
+                  {event.TicketTypes && event.TicketTypes.length > 0 ? (
                     <div className="d-flex flex-column gap-2 mb-3">
-                      {event.ticket_types.map((ticket) => (
+                      {event.TicketTypes.map((ticket) => (
                         <label
                           key={ticket.id}
                           className={`d-flex justify-content-between align-items-center p-3 border rounded-3 p-2 border-1 cursor-pointer ${selectedTicket?.id === ticket.id ? "border-primary bg-white shadow-sm" : "bg-light"}`}
@@ -472,8 +472,8 @@ function EventDetail() {
                       <option value="">-- Tanpa Menggunakan Voucher --</option>
                       {myVouchers.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {item.voucher?.name} (Potongan Diskon{" "}
-                          {item.voucher?.percentage}%)
+                          {item.Voucher?.name} (Potongan Diskon{" "}
+                          {item.Voucher?.percentage}%)
                         </option>
                       ))}
                     </select>

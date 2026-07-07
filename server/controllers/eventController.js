@@ -9,6 +9,7 @@ const SavedEvent = db.SavedEvent;
 const TicketType = db.TicketType;
 const Voucher = db.Voucher;
 const UserVoucher = db.UserVoucher;
+const RefundRequest = db.RefundRequest;
 
 // Ambil model relasi transaksi baru dari database gess
 const Transaction = db.Transaction;
@@ -62,11 +63,6 @@ const isBeforeMajorChangeLimit = (event) => {
   return daysBeforeEvent < MAJOR_CHANGE_LIMIT_DAYS;
 };
 
-const getOrganizerApplicationByUser = async (user_id) => {
-  return await OrganizerApplication.findOne({
-    where: { user_id },
-  });
-};
 
 const canManageEvent = async ({ event, user_id, role }) => {
   if (role === "admin") {
@@ -83,25 +79,10 @@ const canManageEvent = async ({ event, user_id, role }) => {
     };
   }
 
-  const organizerApplication = await getOrganizerApplicationByUser(user_id);
-
-  if (!organizerApplication) {
-    return {
-      allowed: false,
-      message: "Organizer application not found",
-    };
-  }
-
-  // Catatan:
-  // Project kamu sekarang ada kemungkinan organizer_id menyimpan id organizer_applications.
-  // Tapi migration awal biasanya organizer_id mengarah ke users.id.
-  // Jadi pengecekan dibuat fleksibel agar tidak langsung error.
-  const isOwnerByApplicationId =
-    parseInt(event.organizer_id) === parseInt(organizerApplication.id);
 
   const isOwnerByUserId = parseInt(event.organizer_id) === parseInt(user_id);
 
-  if (!isOwnerByApplicationId && !isOwnerByUserId) {
+  if (!isOwnerByUserId) {
     return {
       allowed: false,
       message: "You are not allowed to manage this event",
@@ -110,7 +91,6 @@ const canManageEvent = async ({ event, user_id, role }) => {
 
   return {
     allowed: true,
-    organizerApplication,
   };
 };
 
@@ -351,11 +331,11 @@ const eventController = {
           { model: EventImage, as: "images" },
           {
             model: TicketType,
-            as: "ticket_types",
+            as: "TicketTypes",
           },
           {
             model: User,
-            as: "organizer", // Pastikan alias "organizer" sudah didefinisikan di Event.belongsTo(User, { as: 'organizer' }) kamu gess
+            as: "Organizer", // Pastikan alias "organizer" sudah didefinisikan di Event.belongsTo(User, { as: 'organizer' }) kamu gess
             attributes: ["name", "email"],
           },
         ],
@@ -651,6 +631,122 @@ const eventController = {
     }
   },
 
+  getEventChangeRefundInfo: async (req, res) => {
+    try {
+      const { id, event_change_id } = req.params;
+      const { user_id } = req.query;
+
+      const eventChange = await EventChange.findOne({
+        where: {
+          id: event_change_id,
+          event_id: id,
+          status: "active",
+        },
+        include: [
+          {
+            model: Event,
+            as: "Event",
+          },
+        ],
+      });
+
+      if (!eventChange) {
+        return sendError(
+          res,
+          404,
+          "Data perubahan event tidak ditemukan atau sudah tidak aktif"
+        );
+      }
+
+      const event = eventChange.Event || (await Event.findByPk(id));
+
+      const transactions = await Transaction.findAll({
+        where: {
+          user_id,
+          payment_status: "paid",
+        },
+        include: [
+          {
+            model: TransactionDetail,
+            as: "Details",
+            required: true,
+            include: [
+              {
+                model: TicketType,
+                as: "TicketType",
+                required: true,
+                where: {
+                  event_id: id,
+                },
+              },
+            ],
+          },
+        ],
+        order: [["id", "DESC"]],
+      });
+
+      const refundRequests = await RefundRequest.findAll({
+        where: {
+          user_id,
+          event_id: id,
+          event_change_id,
+          refund_type: "event_changed",
+        },
+      });
+
+      const refundByTransactionId = new Map(
+        refundRequests.map((refund) => [
+          String(refund.transaction_id),
+          refund.get({ plain: true }),
+        ])
+      );
+
+      const refundDeadlineExpired =
+        eventChange.refund_deadline &&
+        new Date() > new Date(eventChange.refund_deadline);
+
+      const formattedTransactions = transactions.map((transaction) => {
+        const plainTransaction = transaction.get({ plain: true });
+        const existingRefund = refundByTransactionId.get(
+          String(plainTransaction.id)
+        );
+
+        return {
+          id: plainTransaction.id,
+          total_amount: plainTransaction.total_amount,
+          discount_amount: plainTransaction.discount_amount,
+          final_amount: plainTransaction.final_amount,
+          payment_status: plainTransaction.payment_status,
+          refund_status: plainTransaction.refund_status,
+          existing_refund: existingRefund || null,
+          can_request_refund: !refundDeadlineExpired && !existingRefund,
+          details: plainTransaction.Details.map((detail) => ({
+            id: detail.id,
+            ticket_type_id: detail.ticket_type_id,
+            ticket_name: detail.TicketType?.name || "-",
+            quantity: detail.quantity,
+            subtotal: detail.subtotal,
+          })),
+        };
+      });
+
+      return sendSuccess(res, 200, "Detail perubahan event berhasil diambil", {
+        event,
+        event_change: eventChange,
+        refund_deadline_expired: Boolean(refundDeadlineExpired),
+        transactions: formattedTransactions,
+      });
+    } catch (error) {
+      console.error("Error getEventChangeRefundInfo:", error);
+      return sendError(
+        res,
+        500,
+        "Gagal mengambil detail perubahan event",
+        error.message
+      );
+    }
+  },
+
   requestRefundAfterEventChanged: async (req, res) => {
     try {
       const { id } = req.params;
@@ -791,13 +887,13 @@ const eventController = {
         include: [
           {
             model: Event,
-            as: "event",
+            as: "Event",
             required: true,
           },
         ],
       });
 
-      const eventsOnly = savedList.map((item) => item.event);
+      const eventsOnly = savedList.map((item) => item.Event);
       res.json(eventsOnly);
     } catch (error) {
       console.error(error);
@@ -948,8 +1044,8 @@ const eventController = {
         type: "event_cancellation_approved",
         title: "Pembatalan event disetujui",
         body: `Request pembatalan event "${event.title}" telah disetujui admin.`,
-        target_type: "event",
-        target_id: event.id,
+        target_type: null,
+        target_id: null,
         data: {
           event_id: event.id,
           event_title: event.title,
@@ -1033,8 +1129,8 @@ const eventController = {
         type: "event_cancellation_rejected",
         title: "Pembatalan event ditolak",
         body: `Request pembatalan event "${event.title}" ditolak admin.`,
-        target_type: "event_cancellation_request",
-        target_id: cancelRequest.id,
+        target_type: null,
+        target_id: null,
         data: {
           event_id: event.id,
           event_title: event.title,
@@ -1172,7 +1268,7 @@ const eventController = {
 
       const myVouchers = await UserVoucher.findAll({
         where: { user_id, is_used: false },
-        include: [{ model: Voucher, as: "voucher" }],
+        include: [{ model: Voucher, as: "Voucher" }],
       });
 
       res.json(myVouchers);
@@ -1255,7 +1351,7 @@ const eventController = {
         include: [
           {
             model: TicketType,
-            as: "ticket_type",
+            as: "TicketType",
             include: [
               {
                 model: Event,
@@ -1274,6 +1370,102 @@ const eventController = {
         .json({ message: "Gagal memuat list tiket kepemilikan kamu." });
     }
   },
+  validateTicketCode: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { user_id, role, ticket_code } = req.body;
+
+      const event = await Event.findByPk(id);
+
+      if (!event) {
+        return sendError(res, 404, "Event tidak ditemukan");
+      }
+
+      const permission = await canManageEvent({
+        event,
+        user_id,
+        role,
+      });
+
+      if (!permission.allowed) {
+        return sendError(res, 403, permission.message);
+      }
+
+      const ticket = await UserTicket.findOne({
+        where: {
+          ticket_code: String(ticket_code).trim(),
+        },
+        include: [
+          {
+            model: TicketType,
+            as: "TicketType",
+            required: true,
+            where: {
+              event_id: id,
+            },
+            include: [
+              {
+                model: Event,
+                as: "Event",
+                attributes: ["id", "title", "location", "start_date", "end_date"],
+              },
+            ],
+          },
+          {
+            model: User,
+            as: "User",
+            attributes: ["id", "name", "email"],
+          },
+        ],
+      });
+
+      if (!ticket) {
+        return sendError(
+          res,
+          404,
+          "Kode tiket tidak ditemukan atau tidak sesuai dengan event ini"
+        );
+      }
+
+      if (ticket.status === "used") {
+        return sendError(res, 400, "Tiket ini sudah pernah digunakan");
+      }
+
+      if (ticket.status === "refunded") {
+        return sendError(res, 400, "Tiket ini sudah direfund dan tidak valid");
+      }
+
+      if (ticket.status !== "active") {
+        return sendError(res, 400, "Status tiket tidak valid untuk digunakan");
+      }
+
+      await ticket.update({
+        status: "used",
+      });
+
+      return sendSuccess(res, 200, "Tiket berhasil divalidasi dan ditandai used", {
+        ticket_id: ticket.id,
+        ticket_code: ticket.ticket_code,
+        status: "used",
+        buyer: ticket.User,
+        ticket_type: {
+          id: ticket.TicketType.id,
+          name: ticket.TicketType.name,
+          price: ticket.TicketType.price,
+        },
+        event: ticket.TicketType.Event,
+        validated_by: {
+          user_id,
+          role,
+        },
+      });
+    } catch (error) {
+      console.error("Error validateTicketCode:", error);
+      return sendError(res, 500, "Gagal validasi tiket", error.message);
+    }
+  },
 };
+
+
 
 module.exports = eventController;

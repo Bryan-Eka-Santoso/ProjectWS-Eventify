@@ -69,8 +69,8 @@ const notifyEventCanceled = async ({ users = [], actor_id = null, event }) => {
     type: "event_canceled",
     title: "Event dibatalkan",
     body: `Event "${event.title}" telah dibatalkan. Refund akan diproses secara otomatis.`,
-    target_type: "event",
-    target_id: event.id,
+    target_type: null,
+    target_id: null,
     data: {
       event_id: event.id,
       event_title: event.title,
@@ -123,8 +123,8 @@ const notifyRefundRequested = async ({ user_id, actor_id = null, refund }) => {
     type: "refund_requested",
     title: "Pengajuan refund diterima",
     body: "Pengajuan refund kamu sudah diterima dan menunggu proses berikutnya.",
-    target_type: "refund",
-    target_id: refund.id,
+    target_type: null,
+    target_id: null,
     data: {
       refund_id: refund.id,
       event_id: refund.event_id,
@@ -142,8 +142,8 @@ const notifyRefundProcessing = async ({ user_id, actor_id = null, refund }) => {
     type: "refund_processing",
     title: "Refund sedang diproses",
     body: "Refund kamu sedang diproses oleh sistem.",
-    target_type: "refund",
-    target_id: refund.id,
+    target_type: null,
+    target_id: null,
     data: {
       refund_id: refund.id,
       event_id: refund.event_id,
@@ -161,8 +161,8 @@ const notifyRefundSuccess = async ({ user_id, actor_id = null, refund }) => {
     type: "refund_success",
     title: "Refund berhasil",
     body: "Dana refund kamu telah berhasil diproses.",
-    target_type: "refund",
-    target_id: refund.id,
+    target_type: null,
+    target_id: null,
     data: {
       refund_id: refund.id,
       event_id: refund.event_id,
@@ -173,6 +173,77 @@ const notifyRefundSuccess = async ({ user_id, actor_id = null, refund }) => {
   });
 };
 
+const notifyRefundApproved = async ({ user_id, actor_id = null, refund }) => {
+  return await createNotification({
+    recipient_id: user_id,
+    actor_id,
+    type: "refund_approved",
+    title: "Refund disetujui",
+    body: "Pengajuan refund kamu telah disetujui dan dana telah berhasil dikembalikan.",
+    target_type: null,
+    target_id: null,
+    data: {
+      refund_id: refund.id,
+      event_id: refund.event_id,
+      transaction_id: refund.transaction_id,
+      amount: refund.amount,
+      status: "refunded",
+    },
+  });
+};
+
+const notifyRefundRejected = async ({
+  user_id,
+  actor_id = null,
+  refund,
+  admin_note = null,
+}) => {
+  return await createNotification({
+    recipient_id: user_id,
+    actor_id,
+    type: "refund_rejected",
+    title: "Refund ditolak",
+    body: "Pengajuan refund kamu ditolak oleh admin.",
+    target_type: null,
+    target_id: null,
+    data: {
+      refund_id: refund.id,
+      event_id: refund.event_id,
+      transaction_id: refund.transaction_id,
+      amount: refund.amount,
+      status: refund.status,
+      admin_note,
+    },
+  });
+};
+
+const notifyRefundRequestToAdmins = async ({
+  admins = [],
+  actor_id = null,
+  refund,
+  event = null,
+}) => {
+  const notifications = admins.map((admin) => ({
+    recipient_id: admin.id,
+    actor_id,
+    type: "refund_request_created",
+    title: "Pengajuan refund baru",
+    body: `Pembeli mengajukan refund untuk event "${event?.title || "Event"}".`,
+    target_type: "refund_request",
+    target_id: refund.id,
+    data: {
+      refund_id: refund.id,
+      event_id: refund.event_id,
+      event_title: event?.title || null,
+      transaction_id: refund.transaction_id,
+      amount: refund.amount,
+      status: refund.status,
+    },
+  }));
+
+  return await createBulkNotifications(notifications);
+};
+
 module.exports = {
   createNotification,
   createBulkNotifications,
@@ -181,4 +252,7 @@ module.exports = {
   notifyRefundRequested,
   notifyRefundProcessing,
   notifyRefundSuccess,
+  notifyRefundApproved,
+  notifyRefundRejected,
+  notifyRefundRequestToAdmins,
 };
