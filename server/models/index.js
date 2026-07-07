@@ -10,6 +10,10 @@ const ChatRoomMember = require("./ChatRoomMember")(sequelize, DataTypes);
 const ChatRoomCategory = require("./ChatRoomCategory")(sequelize, DataTypes);
 const Message = require("./Message")(sequelize, DataTypes);
 const MessageRead = require("./MessageRead")(sequelize, DataTypes);
+const OrganizerApplication = require("./OrganizerApplication")(
+  sequelize,
+  DataTypes,
+);
 const ApiLog = require("./ApiLog")(sequelize, DataTypes);
 
 // === RELATIONSHIPS ===
@@ -108,6 +112,7 @@ const db = {
   ChatRoomCategory,
   Message,
   MessageRead,
+  OrganizerApplication,
   ApiLog,
 };
 

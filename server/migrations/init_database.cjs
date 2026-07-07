@@ -15,6 +15,8 @@ module.exports = {
       avatar: { type: Sequelize.STRING(255), allowNull: true },
       bio: { type: Sequelize.TEXT, allowNull: true },
       points: { type: Sequelize.INTEGER, defaultValue: 0 },
+      api_key: { type: Sequelize.STRING(255), unique: true, allowNull: false },
+      refresh_token: { type: Sequelize.STRING(255), allowNull: true },
       created_at: {
         type: Sequelize.DATE,
         defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
@@ -390,7 +392,7 @@ module.exports = {
       },
     });
 
-   // === 4. COMMUNITY & CHAT ROOMS (REAL-TIME) ===
+    // === 4. COMMUNITY & CHAT ROOMS (REAL-TIME) ===
     await queryInterface.createTable("chat_rooms", {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
       name: { type: Sequelize.STRING(255), allowNull: false },
@@ -535,7 +537,7 @@ module.exports = {
     await queryInterface.addConstraint("message_reads", {
       fields: ["message_id", "user_id"],
       type: "unique",
-      name: "unique_message_read_per_user", 
+      name: "unique_message_read_per_user",
     });
 
     await queryInterface.addIndex("messages", ["chat_room_id"]);
@@ -547,7 +549,7 @@ module.exports = {
 
   down: async (queryInterface, Sequelize) => {
     // Drop tabel dilakukan dengan urutan terbalik untuk menghindari error Foreign Key
-   await queryInterface.dropTable("message_reads");
+    await queryInterface.dropTable("message_reads");
     await queryInterface.dropTable("messages");
     await queryInterface.dropTable("chat_room_members");
     await queryInterface.dropTable("chat_room_categories");
