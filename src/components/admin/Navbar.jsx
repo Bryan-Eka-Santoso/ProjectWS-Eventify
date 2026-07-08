@@ -54,7 +54,7 @@ function Navbar() {
           id="navbarSupportedContent"
         >
           {/* Menu Tengah */}
-          <ul className="navbar-nav mx-auto mb-2 mb-lg-0 gap-2 position-lg-absolute start-lg-50 translate-middle-lg-x">
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0 gap-2 position-lg-absolute start-lg-50 translate-middle-lg-x">
             <li className="nav-item">
               <NavLink
                 to="/admin/home"

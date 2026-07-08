@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 
-function UserRoute() {
+function ProtectedRoute() {
   const token = localStorage.getItem("token");
 
   if (!token) {
@@ -9,17 +9,12 @@ function UserRoute() {
   }
 
   try {
-    const decoded = jwtDecode(token);
-
-    if (decoded.role !== "user") {
-      return <Navigate to="/" replace />;
-    }
-
+    jwtDecode(token);
     return <Outlet />;
-  } catch (err) {
+  } catch (error) {
     localStorage.removeItem("token");
     return <Navigate to="/login" replace />;
   }
 }
 
-export default UserRoute;
+export default ProtectedRoute;

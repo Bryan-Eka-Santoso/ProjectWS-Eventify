@@ -11,6 +11,16 @@ function MyProfile() {
     name: "",
     email: "",
     biography: "",
+
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+
+    organizer_name: "",
+    ktp_number: "",
+    ktp_image_url: null,
+    phone_number: "",
+    address: "",
   });
 
   const [avatar, setAvatar] = useState(null);
@@ -30,22 +40,23 @@ function MyProfile() {
         },
       });
 
-      console.log(localStorage.getItem("token"));
-      console.log("Status:", response.status);
+      if (response.status === 404 || response.status === 401) {
+        localStorage.removeItem("token");
+
+        await Swal.fire({
+          icon: "info",
+          text: "Your account is no longer available. Please login again.",
+        });
+
+        window.location.replace("/login");
+        return;
+      }
 
       const data = await response.json();
 
-      console.log(data);
-
       setUser(data.data);
-
-      setFormData({
-        name: data.data.name || "",
-        email: data.data.email || "",
-        biography: data.data.bio || "",
-      });
-    } catch (err) {
-      console.log(err);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -61,6 +72,7 @@ function MyProfile() {
     try {
       const response = await fetch("http://localhost:3005/api/auth/update", {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -69,6 +81,9 @@ function MyProfile() {
           name: formData.name,
           email: formData.email,
           biography: formData.biography,
+          organizer_name: formData.organizer_name,
+          phone_number: formData.phone_number,
+          address: formData.address,
         }),
       });
 
@@ -84,6 +99,9 @@ function MyProfile() {
           name: "",
           email: "",
           biography: "",
+          organizer_name: "",
+          phone_number: "",
+          address: "",
         });
 
         window.location.href = "/profile";
@@ -115,6 +133,7 @@ function MyProfile() {
         "http://localhost:3005/api/auth/change-password",
         {
           method: "PUT",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -123,6 +142,7 @@ function MyProfile() {
             oldPassword: formData.oldPassword,
             newPassword: formData.newPassword,
           }),
+          credentials: "include",
         },
       );
 
@@ -181,6 +201,7 @@ function MyProfile() {
         "http://localhost:3005/api/auth/change-avatar",
         {
           method: "PUT",
+          credentials: "include",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -219,17 +240,17 @@ function MyProfile() {
     try {
       const form = new FormData();
 
-      form.append("organizerName", formData.organizerName);
-      form.append("ktpNumber", formData.ktpNumber);
-      form.append("ktpImage", formData.ktpImage);
-      form.append("phoneNumber", formData.phoneNumber);
+      form.append("organizer_name", formData.organizer_name);
+      form.append("ktp_number", formData.ktp_number);
+      form.append("ktp_image_url", formData.ktp_image_url);
+      form.append("phone_number", formData.phone_number);
       form.append("address", formData.address);
-      form.append("socialMedia", formData.socialMedia);
 
       const response = await fetch(
         "http://localhost:3005/api/auth/register-organizer",
         {
           method: "POST",
+          credentials: "include",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -246,12 +267,11 @@ function MyProfile() {
         });
 
         setFormData({
-          organizerName: "",
-          ktpNumber: "",
-          ktpImage: null,
-          phoneNumber: "",
+          organizer_name: "",
+          ktp_number: "",
+          ktp_image_url: null,
+          phone_number: "",
           address: "",
-          socialMedia: "",
         });
 
         window.location.href = "/profile";
@@ -271,19 +291,106 @@ function MyProfile() {
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      const response = await fetch("http://localhost:3005/api/auth/profile", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        credentials: "include",
+      });
+
+      console.log("Status:", response.status);
+
+      const text = await response.text();
+      console.log("Response:", text);
+
+      const data = JSON.parse(text);
+
+      if (response.ok) {
+        await Swal.fire({
+          icon: "success",
+          text: data.message,
+        });
+
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      } else {
+        Swal.fire({
+          icon: "warning",
+          text: data.message,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+
+      Swal.fire({
+        icon: "error",
+        text: error.message,
+      });
+    }
+  };
+
   return (
     <>
       <Navbar />
 
       <div className="container py-5">
         <div className="row justify-content-center">
-          <div className="col-lg-9">
+          {user?.role === "organizer" &&
+            user?.OrganizerApplications?.length > 0 && (
+              <div className="col-lg-10 mb-4">
+                <div className="card h-100 border rounded-4">
+                  <div className="card-body">
+                    <h5 className="fw-semibold mb-4">
+                      <i className="bi bi-building me-2"></i>
+                      Organizer Information
+                    </h5>
+
+                    <table className="table">
+                      <tbody>
+                        <tr>
+                          <td width="220">
+                            <b>Organizer Name</b>
+                          </td>
+                          <td>
+                            {user.OrganizerApplications[0].organizer_name}
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td>
+                            <b>Phone Number</b>
+                          </td>
+                          <td>{user.OrganizerApplications[0].phone_number}</td>
+                        </tr>
+
+                        <tr>
+                          <td>
+                            <b>Address</b>
+                          </td>
+                          <td>{user.OrganizerApplications[0].address}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          <div className="col-lg-10">
             <div className="card border-0 shadow rounded-4 overflow-hidden">
               <div className="card-header bg-primary text-white">
                 <div className="text-center">
                   {user && (
                     <img
-                      src={`../../server/public${user.avatar}`}
+                      src={
+                        user.avatar
+                          ? user.google_id !== null
+                            ? user.avatar
+                            : `http://localhost:3005${user.avatar}`
+                          : defaultAvatar
+                      }
                       alt={user.name}
                       className="rounded-circle my-4 shadow"
                       style={{
@@ -296,16 +403,18 @@ function MyProfile() {
                 </div>
                 <div className="text-center mb-3">
                   {user ? (
-                    <>
-                      <button
-                        className="btn btn-outline-light rounded-pill px-4"
-                        data-bs-toggle="modal"
-                        data-bs-target="#changeAvatar"
-                      >
-                        <i class="bi bi-image me-2"></i>
-                        Change Avatar
-                      </button>
-                    </>
+                    !user.google_id && (
+                      <>
+                        <button
+                          className="btn btn-outline-light rounded-pill px-4"
+                          data-bs-toggle="modal"
+                          data-bs-target="#changeAvatar"
+                        >
+                          <i class="bi bi-image me-2"></i>
+                          Change Avatar
+                        </button>
+                      </>
+                    )
                   ) : (
                     <span></span>
                   )}
@@ -367,29 +476,41 @@ function MyProfile() {
                     </div>
 
                     <div className="d-flex justify-content-end mt-4 gap-3">
+                      {user?.role === "user" && (
+                        <button
+                          className="btn btn-outline-primary px-4"
+                          data-bs-toggle="modal"
+                          data-bs-target="#registerOrganizerModal"
+                        >
+                          <i className="bi bi-building me-2"></i>
+                          Register as Organizer
+                        </button>
+                      )}
+                      {!user?.google_id && (
+                        <button
+                          className="btn btn-outline-primary px-4"
+                          data-bs-toggle="modal"
+                          data-bs-target="#changePasswordModal"
+                        >
+                          <i className="bi bi-key me-2"></i>
+                          Change Password
+                        </button>
+                      )}
                       <button
-                        className="btn btn-outline-primary rounded-pill px-4"
-                        data-bs-toggle="modal"
-                        data-bs-target="#registerOrganizerModal"
-                      >
-                        <i class="bi bi-file-earmark-text me-2"></i>
-                        Register as Organizer
-                      </button>
-                      <button
-                        className="btn btn-outline-primary rounded-pill px-4"
-                        data-bs-toggle="modal"
-                        data-bs-target="#changePasswordModal"
-                      >
-                        <i className="bi bi-key me-2"></i>
-                        Change Password
-                      </button>
-                      <button
-                        className="btn btn-outline-primary rounded-pill px-4"
+                        className="btn btn-outline-primary px-4"
                         data-bs-toggle="modal"
                         data-bs-target="#editProfileModal"
                       >
                         <i className="bi bi-pencil-square me-2"></i>
                         Edit Profile
+                      </button>
+                      <button
+                        className="btn btn-outline-danger px-4"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteAccountModal"
+                      >
+                        <i className="bi bi-trash me-2"></i>
+                        Delete Account
                       </button>
                     </div>
                   </>
@@ -466,27 +587,27 @@ function MyProfile() {
         </div>
       </div>
       {/* Modal Register as Organizer */}
-      <div
-        className="modal fade"
-        id="registerOrganizerModal"
-        tabIndex="-1"
-        aria-hidden="true"
-      >
-        <div className="modal-dialog modal-lg">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h1 className="modal-title fs-5 fw-semibold">
-                Register as Organizer
-              </h1>
-              <button
-                type="button"
-                className="btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-              ></button>
-            </div>
+      <form onSubmit={handleSubmitOrganizer}>
+        <div
+          className="modal fade"
+          id="registerOrganizerModal"
+          tabIndex="-1"
+          aria-hidden="true"
+        >
+          <div className="modal-dialog modal-lg modal-dialog-scrollable">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h1 className="modal-title fs-5 fw-semibold">
+                  Register as Organizer
+                </h1>
+                <button
+                  type="button"
+                  className="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"
+                ></button>
+              </div>
 
-            <form onSubmit={handleSubmitOrganizer}>
               <div className="modal-body">
                 <label className="form-label fw-semibold">Organizer Name</label>
                 <br />
@@ -494,8 +615,8 @@ function MyProfile() {
                   type="text"
                   className="form-control mb-3"
                   placeholder="Enter your organizer name"
-                  name="organizerName"
-                  value={formData.organizerName}
+                  name="organizer_name"
+                  value={formData.organizer_name}
                   onChange={handleChange}
                   required
                 />
@@ -506,8 +627,8 @@ function MyProfile() {
                   type="text"
                   className="form-control mb-3"
                   placeholder="Enter your KTP number"
-                  name="ktpNumber"
-                  value={formData.ktpNumber}
+                  name="ktp_number"
+                  value={formData.ktp_number}
                   onChange={handleChange}
                   required
                 />
@@ -517,11 +638,11 @@ function MyProfile() {
                 <input
                   type="file"
                   className="form-control mb-3"
-                  name="ktpImage"
+                  name="ktp_image_url"
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      ktpImage: e.target.files[0],
+                      ktp_image_url: e.target.files[0],
                     })
                   }
                   required
@@ -533,8 +654,8 @@ function MyProfile() {
                   type="text"
                   className="form-control mb-3"
                   placeholder="Enter your phone number"
-                  name="phoneNumber"
-                  value={formData.phoneNumber}
+                  name="phone_number"
+                  value={formData.phone_number}
                   onChange={handleChange}
                   required
                 />
@@ -550,18 +671,6 @@ function MyProfile() {
                   onChange={handleChange}
                   required
                 />
-
-                <label className="form-label fw-semibold">Social Media</label>
-                <br />
-                <textarea
-                  type="text"
-                  className="form-control mb-3"
-                  placeholder="Enter your social media links"
-                  name="socialMedia"
-                  value={formData.socialMedia}
-                  onChange={handleChange}
-                  required
-                />
               </div>
 
               <div className="modal-footer">
@@ -569,30 +678,30 @@ function MyProfile() {
                   Save Changes
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
-      </div>
+      </form>
       {/* Modal Edit Profile */}
-      <div
-        className="modal fade"
-        id="editProfileModal"
-        tabIndex="-1"
-        aria-hidden="true"
-      >
-        <div className="modal-dialog modal-lg">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h1 className="modal-title fs-5 fw-semibold">Edit Profile</h1>
-              <button
-                type="button"
-                className="btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-              ></button>
-            </div>
+      <form onSubmit={handleSubmit}>
+        <div
+          className="modal fade"
+          id="editProfileModal"
+          tabIndex="-1"
+          aria-hidden="true"
+        >
+          <div className="modal-dialog modal-lg modal-dialog-scrollable">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h1 className="modal-title fs-5 fw-semibold">Edit Profile</h1>
+                <button
+                  type="button"
+                  className="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"
+                ></button>
+              </div>
 
-            <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <label className="form-label fw-semibold">Name</label>
                 <br />
@@ -630,6 +739,53 @@ function MyProfile() {
                   required
                 ></textarea>
 
+                {user?.role === "organizer" &&
+                user?.OrganizerApplications?.length > 0 ? (
+                  <>
+                    <label className="form-label fw-semibold">
+                      Organizer Name
+                    </label>
+                    <br />
+                    <input
+                      type="text"
+                      className="form-control mb-3"
+                      placeholder="Enter your organizer name"
+                      name="organizer_name"
+                      value={formData.organizer_name}
+                      onChange={handleChange}
+                      required
+                    />
+                    <label className="form-label fw-semibold">
+                      Phone Number
+                    </label>
+                    <br />
+                    <input
+                      type="text"
+                      className="form-control mb-3"
+                      rows="4"
+                      placeholder="Enter your phone number"
+                      name="phone_number"
+                      value={formData.phone_number}
+                      onChange={handleChange}
+                      required
+                    />
+                    <label className="form-label fw-semibold">Address</label>
+                    <br />
+                    <textarea
+                      type="text"
+                      className="form-control mb-3"
+                      rows="4"
+                      placeholder="Enter your address"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleChange}
+                      required
+                    />
+                  </>
+                ) : (
+                  <span></span>
+                )}
+
                 {/* <label className="form-label fw-semibold">Avatar</label>
               <br />
               <input type="file" className="form-control mb-3" /> */}
@@ -648,30 +804,32 @@ function MyProfile() {
                   Save Changes
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
-      </div>
+      </form>
       {/* Modal Change Password*/}
-      <div
-        className="modal fade"
-        id="changePasswordModal"
-        tabIndex="-1"
-        aria-hidden="true"
-      >
-        <div className="modal-dialog modal-lg">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h1 className="modal-title fs-5 fw-semibold">Change Password</h1>
-              <button
-                type="button"
-                className="btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-              ></button>
-            </div>
+      <form onSubmit={changePW}>
+        <div
+          className="modal fade"
+          id="changePasswordModal"
+          tabIndex="-1"
+          aria-hidden="true"
+        >
+          <div className="modal-dialog modal-lg modal-dialog-scrollable">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h1 className="modal-title fs-5 fw-semibold">
+                  Change Password
+                </h1>
+                <button
+                  type="button"
+                  className="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"
+                ></button>
+              </div>
 
-            <form onSubmit={changePW}>
               <div className="modal-body">
                 <label className="form-label fw-semibold">Old Password</label>
                 <br />
@@ -714,10 +872,54 @@ function MyProfile() {
                   Save Changes
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
-      </div>
+      </form>
+      {/* Modal Delete Account */}
+      <form onSubmit={deleteAccount}>
+        <div
+          className="modal fade"
+          id="deleteAccountModal"
+          tabIndex="-1"
+          aria-hidden="true"
+        >
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h1 className="modal-title fs-5 fw-semibold">Delete Account</h1>
+                <button
+                  type="button"
+                  className="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"
+                ></button>
+              </div>
+
+              <div className="modal-body">
+                <p>
+                  Are you sure you want to delete your account? This action is
+                  irreversible and will permanently remove all your data from
+                  our system.
+                </p>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  data-bs-dismiss="modal"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-danger">
+                  Delete Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
     </>
   );
 }

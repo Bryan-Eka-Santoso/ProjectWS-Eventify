@@ -1,8 +1,12 @@
-const checkRoles = (...allowedRoles) => {
+exports.checkRoles = (...allowedRoles) => {
   return (req, res, next) => {
-    const roleUsernya = req.yanglogin.roles;
+    const roleUsernya = req.yanglogin.roles.split(",");
 
-    const bolehMasuk = allowedRoles.includes(roleUsernya);
+    const bolehMasuk = roleUsernya.some((role) => {
+      return allowedRoles.includes(role);
+    });
+
+    console.log(bolehMasuk);
 
     if (!bolehMasuk) {
       return res.status(403).json({
@@ -14,5 +18,3 @@ const checkRoles = (...allowedRoles) => {
     next();
   };
 };
-
-module.exports = checkRoles;
