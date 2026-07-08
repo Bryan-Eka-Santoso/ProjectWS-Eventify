@@ -200,11 +200,10 @@ module.exports = {
       updated_at: {
         type: Sequelize.DATE,
         defaultValue: Sequelize.literal(
-          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
         ),
       },
     });
-
 
     // === 2. EVENT MANAGEMENT ===
     await queryInterface.createTable("categories", {
@@ -302,7 +301,12 @@ module.exports = {
       },
 
       change_type: {
-        type: Sequelize.ENUM("minor", "schedule", "location", "schedule_location"),
+        type: Sequelize.ENUM(
+          "minor",
+          "schedule",
+          "location",
+          "schedule_location",
+        ),
         allowNull: false,
         defaultValue: "minor",
       },
@@ -345,7 +349,8 @@ module.exports = {
       refund_deadline: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "Batas user boleh ajukan refund, contoh 3x24 jam setelah perubahan",
+        comment:
+          "Batas user boleh ajukan refund, contoh 3x24 jam setelah perubahan",
       },
 
       status: {
@@ -567,7 +572,13 @@ module.exports = {
       },
       payment_method: { type: Sequelize.STRING(100), allowNull: true },
       refund_status: {
-        type: Sequelize.ENUM("none", "requested", "processing", "refunded", "rejected"),
+        type: Sequelize.ENUM(
+          "none",
+          "requested",
+          "processing",
+          "refunded",
+          "rejected",
+        ),
         defaultValue: "none",
       },
       created_at: {
@@ -640,7 +651,13 @@ module.exports = {
       },
 
       status: {
-        type: Sequelize.ENUM("requested", "processing", "refunded", "rejected", "expired"),
+        type: Sequelize.ENUM(
+          "requested",
+          "processing",
+          "refunded",
+          "rejected",
+          "expired",
+        ),
         allowNull: false,
         defaultValue: "requested",
       },
@@ -917,9 +934,13 @@ module.exports = {
       name: "idx_notifications_recipient_id",
     });
 
-    await queryInterface.addIndex("notifications", ["recipient_id", "is_read"], {
-      name: "idx_notifications_recipient_read",
-    });
+    await queryInterface.addIndex(
+      "notifications",
+      ["recipient_id", "is_read"],
+      {
+        name: "idx_notifications_recipient_read",
+      },
+    );
 
     // Community
     await queryInterface.addIndex("chat_room_members", ["chat_room_id"], {
@@ -937,7 +958,7 @@ module.exports = {
     await queryInterface.addIndex("message_reads", ["user_id"], {
       name: "idx_message_reads_user_id",
     });
-        // Event change
+    // Event change
     await queryInterface.addIndex("event_changes", ["event_id"], {
       name: "idx_event_changes_event_id",
     });

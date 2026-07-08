@@ -6,27 +6,58 @@ import Footer from "../../components/Footer";
 import { AUTH_USER } from "../../config/auth";
 import EventStatusBadge from "../../components/EventStatusBadge";
 import CancelEventModal from "../../components/CancelEventModal";
+import AppModal from "../../components/AppModal";
 
 function MyEvents() {
   const [myEvents, setMyEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCancelEvent, setSelectedCancelEvent] = useState(null);
 
+  const [modal, setModal] = useState({
+    show: false,
+    title: "",
+    message: "",
+    type: "info",
+  });
+
+  const showInfoModal = (title, message, type = "info") => {
+    setModal({
+      show: true,
+      title,
+      message,
+      type,
+    });
+  };
+
+  const closeModal = () => {
+    setModal((prev) => ({
+      ...prev,
+      show: false,
+    }));
+  };
+
   const fetchMyEvents = async () => {
     try {
       setLoading(true);
 
-      const res = await axios.get("http://localhost:5000/api/events/my-events", {
-        params: {
-          user_id: AUTH_USER.id,
-          role: AUTH_USER.role,
+      const res = await axios.get(
+        "http://localhost:5000/api/events/my-events",
+        {
+          params: {
+            user_id: AUTH_USER.id,
+            role: AUTH_USER.role,
+          },
         },
-      });
+      );
 
       setMyEvents(res.data);
     } catch (error) {
       console.error("Gagal memuat event saya:", error);
-      alert(error.response?.data?.message || "Gagal memuat event saya.");
+      showInfoModal(
+        "Gagal Memuat Event",
+        error.response?.data?.message || "Gagal memuat event saya.",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -175,6 +206,14 @@ function MyEvents() {
           onSuccess={fetchMyEvents}
         />
       )}
+
+      <AppModal
+        show={modal.show}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        onClose={closeModal}
+      />
 
       <Footer />
     </>

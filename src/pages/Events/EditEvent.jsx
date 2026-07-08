@@ -4,6 +4,7 @@ import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { AUTH_USER } from "../../config/auth";
+import AppModal from "../../components/AppModal";
 
 function EditEvent() {
   const { id } = useParams();
@@ -23,6 +24,62 @@ function EditEvent() {
   const [oldEvent, setOldEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [isLocationSelected, setIsLocationSelected] = useState(false);
+
+  const [modal, setModal] = useState({
+    show: false,
+    title: "",
+    message: "",
+    type: "info",
+    showCancel: false,
+    confirmText: "OK",
+    cancelText: "Batal",
+    onConfirm: null,
+  });
+
+  const showInfoModal = (title, message, type = "info", onConfirm = null) => {
+    setModal({
+      show: true,
+      title,
+      message,
+      type,
+      showCancel: false,
+      confirmText: "OK",
+      cancelText: "Batal",
+      onConfirm,
+    });
+  };
+
+  const showConfirmModal = ({
+    title,
+    message,
+    type = "confirm",
+    confirmText = "Ya",
+    cancelText = "Batal",
+    onConfirm,
+  }) => {
+    setModal({
+      show: true,
+      title,
+      message,
+      type,
+      showCancel: true,
+      confirmText,
+      cancelText,
+      onConfirm,
+    });
+  };
+
+  const closeModal = () => {
+    setModal((prev) => ({
+      ...prev,
+      show: false,
+    }));
+  };
 
   const formatDateForInput = (dateValue) => {
     if (!dateValue) return "";
@@ -52,9 +109,15 @@ function EditEvent() {
           end_date: formatDateForInput(event.end_date),
           change_reason: "",
         });
+
+        setIsLocationSelected(true);
       } catch (error) {
         console.error("Gagal memuat detail event:", error);
-        alert(error.response?.data?.message || "Gagal memuat detail event.");
+        showInfoModal(
+          "Gagal Memuat Detail Event",
+          error.response?.data?.message || "Gagal memuat detail event.",
+          "error",
+        );
       } finally {
         setLoading(false);
       }
@@ -63,6 +126,50 @@ function EditEvent() {
     fetchEvent();
   }, [id]);
 
+  useEffect(() => {
+    const searchLocation = async () => {
+      const keyword = formData.location.trim();
+
+      if (isLocationSelected) {
+        return;
+      }
+
+      if (keyword.length < 3) {
+        setLocationSuggestions([]);
+        setShowLocationSuggestions(false);
+        return;
+      }
+
+      try {
+        setIsSearchingLocation(true);
+
+        const response = await axios.get(
+          "http://localhost:5000/api/events/locations/autocomplete",
+          {
+            params: {
+              text: keyword,
+            },
+          },
+        );
+
+        setLocationSuggestions(response.data.data || []);
+        setShowLocationSuggestions(true);
+      } catch (error) {
+        console.error("Gagal mencari lokasi dari backend Geoapify:", error);
+        setLocationSuggestions([]);
+        setShowLocationSuggestions(false);
+      } finally {
+        setIsSearchingLocation(false);
+      }
+    };
+
+    const delaySearch = setTimeout(() => {
+      searchLocation();
+    }, 500);
+
+    return () => clearTimeout(delaySearch);
+  }, [formData.location, isLocationSelected]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -70,6 +177,30 @@ function EditEvent() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleLocationChange = (e) => {
+    const value = e.target.value;
+
+    setIsLocationSelected(false);
+
+    setFormData((prev) => ({
+      ...prev,
+      location: value,
+    }));
+  };
+
+  const handleSelectLocation = (place) => {
+    const selectedAddress = place.address || place.name || "";
+
+    setFormData((prev) => ({
+      ...prev,
+      location: selectedAddress,
+    }));
+
+    setIsLocationSelected(true);
+    setLocationSuggestions([]);
+    setShowLocationSuggestions(false);
   };
 
   const isScheduleOrLocationChanged = () => {
@@ -86,37 +217,7 @@ function EditEvent() {
     );
   };
 
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-
-    if (!formData.title.trim()) {
-      alert("Judul event tidak boleh kosong.");
-      return;
-    }
-
-    if (!formData.location.trim()) {
-      alert("Lokasi event tidak boleh kosong.");
-      return;
-    }
-
-    if (!formData.start_date || !formData.end_date) {
-      alert("Tanggal mulai dan tanggal selesai wajib diisi.");
-      return;
-    }
-
-    if (new Date(formData.end_date) < new Date(formData.start_date)) {
-      alert("Tanggal selesai tidak boleh lebih awal dari tanggal mulai.");
-      return;
-    }
-
-    if (isScheduleOrLocationChanged() && !formData.change_reason.trim()) {
-      const confirmWithoutReason = window.confirm(
-        "Jadwal atau lokasi berubah, tapi alasan perubahan masih kosong. Tetap lanjut?"
-      );
-
-      if (!confirmWithoutReason) return;
-    }
-
+  const processUpdateEvent = async () => {
     try {
       setSubmitting(true);
 
@@ -149,20 +250,32 @@ function EditEvent() {
           headers: {
             "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
 
       const responseData = res.data?.data;
 
       if (responseData?.is_major_change) {
-        alert(
-          "Event berhasil diperbarui. Karena jadwal/lokasi berubah, buyer akan mendapat notification dan bisa mengajukan refund."
+        showInfoModal(
+          "Event Berhasil Diperbarui",
+          "Event berhasil diperbarui. Karena jadwal/lokasi berubah, buyer akan mendapat notification dan bisa mengajukan refund.",
+          "success",
+          () => {
+            closeModal();
+            navigate("/events/my-events");
+          },
         );
       } else {
-        alert("Event berhasil diperbarui.");
+        showInfoModal(
+          "Event Berhasil Diperbarui",
+          "Event berhasil diperbarui.",
+          "success",
+          () => {
+            closeModal();
+            navigate("/events/my-events");
+          },
+        );
       }
-
-      navigate("/events/my-events");
     } catch (error) {
       console.error("Gagal update event:", error);
       console.log("ERROR RESPONSE:", error.response?.data);
@@ -173,24 +286,101 @@ function EditEvent() {
         error.response?.data?.message ||
         "Gagal update event.";
 
-      alert(
+      showInfoModal(
+        "Gagal Update Event",
         typeof detailMessage === "string"
           ? detailMessage
-          : JSON.stringify(detailMessage, null, 2)
+          : JSON.stringify(detailMessage, null, 2),
+        "error",
       );
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+
+    if (!formData.title.trim()) {
+      showInfoModal(
+        "Judul Kosong",
+        "Judul event tidak boleh kosong.",
+        "warning",
+      );
+      return;
+    }
+
+    if (!formData.location.trim()) {
+      showInfoModal(
+        "Lokasi Kosong",
+        "Lokasi event tidak boleh kosong.",
+        "warning",
+      );
+      return;
+    }
+
+    if (!formData.start_date || !formData.end_date) {
+      showInfoModal(
+        "Tanggal Belum Lengkap",
+        "Tanggal mulai dan tanggal selesai wajib diisi.",
+        "warning",
+      );
+      return;
+    }
+
+    if (new Date(formData.end_date) < new Date(formData.start_date)) {
+      showInfoModal(
+        "Tanggal Tidak Valid",
+        "Tanggal selesai tidak boleh lebih awal dari tanggal mulai.",
+        "warning",
+      );
+      return;
+    }
+
+    if (isScheduleOrLocationChanged() && !formData.change_reason.trim()) {
+      showConfirmModal({
+        title: "Konfirmasi Perubahan Event",
+        message:
+          "Jadwal atau lokasi berubah, tapi alasan perubahan masih kosong. Tetap lanjut?",
+        type: "warning",
+        confirmText: "Tetap Lanjut",
+        cancelText: "Batal",
+        onConfirm: () => {
+          closeModal();
+          processUpdateEvent();
+        },
+      });
+
+      return;
+    }
+
+    processUpdateEvent();
+  };
+
   if (loading) {
     return (
       <>
         <Navbar />
-        <div className="container py-5 text-center" style={{ minHeight: "75vh" }}>
+        <div
+          className="container py-5 text-center"
+          style={{ minHeight: "75vh" }}
+        >
           <div className="spinner-border text-primary" role="status"></div>
           <p className="text-muted mt-2">Memuat data event...</p>
         </div>
+
+        <AppModal
+          show={modal.show}
+          title={modal.title}
+          message={modal.message}
+          type={modal.type}
+          showCancel={modal.showCancel}
+          confirmText={modal.confirmText}
+          cancelText={modal.cancelText}
+          onConfirm={modal.onConfirm}
+          onClose={closeModal}
+        />
+
         <Footer />
       </>
     );
@@ -248,16 +438,72 @@ function EditEvent() {
                 ></textarea>
               </div>
 
-              <div className="mb-3">
+              <div className="mb-3 position-relative">
                 <label className="form-label fw-semibold">Lokasi</label>
                 <input
                   type="text"
                   name="location"
                   className="form-control"
                   value={formData.location}
-                  onChange={handleChange}
-                  placeholder="Masukkan lokasi event"
+                  onChange={handleLocationChange}
+                  placeholder="Ketik nama gedung, mall, kampus, atau alamat event..."
+                  onFocus={() => {
+                    if (locationSuggestions.length > 0) {
+                      setShowLocationSuggestions(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setShowLocationSuggestions(false);
+                    }, 200);
+                  }}
                 />
+
+                {isSearchingLocation && (
+                  <div className="form-text text-primary">
+                    Mencari rekomendasi lokasi...
+                  </div>
+                )}
+
+                {showLocationSuggestions && locationSuggestions.length > 0 && (
+                  <div
+                    className="list-group position-absolute w-100 shadow-sm"
+                    style={{
+                      zIndex: 1000,
+                      maxHeight: "240px",
+                      overflowY: "auto",
+                    }}
+                  >
+                    {locationSuggestions.map((place, index) => (
+                      <button
+                        type="button"
+                        key={
+                          place.place_id ||
+                          `${place.address || place.name}-${index}`
+                        }
+                        className="list-group-item list-group-item-action"
+                        onMouseDown={() => handleSelectLocation(place)}
+                      >
+                        <div className="fw-semibold">
+                          {place.name || "Lokasi tanpa nama"}
+                        </div>
+                        <small className="text-muted">
+                          {place.address || "-"}
+                        </small>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {formData.location.trim().length >= 3 &&
+                  !isSearchingLocation &&
+                  showLocationSuggestions &&
+                  locationSuggestions.length === 0 &&
+                  !isLocationSelected && (
+                    <div className="form-text text-muted">
+                      Tidak ada rekomendasi lokasi ditemukan.
+                    </div>
+                  )}
               </div>
 
               <div className="row">
@@ -359,6 +605,18 @@ function EditEvent() {
           </div>
         </div>
       </div>
+
+      <AppModal
+        show={modal.show}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        showCancel={modal.showCancel}
+        confirmText={modal.confirmText}
+        cancelText={modal.cancelText}
+        onConfirm={modal.onConfirm}
+        onClose={closeModal}
+      />
 
       <Footer />
     </>

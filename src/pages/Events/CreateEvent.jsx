@@ -4,6 +4,7 @@ import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { AUTH_USER } from "../../config/auth";
+import AppModal from "../../components/AppModal";
 
 function CreateEvent() {
   const navigate = useNavigate();
@@ -21,8 +22,43 @@ function CreateEvent() {
   const [categories, setCategories] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
 
-  // 🔥 1. State Awal Jenis Tiket (Default 1 Opsi Kosong Sesuai Permintaanmu)
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [isLocationSelected, setIsLocationSelected] = useState(false);
+
   const [tickets, setTickets] = useState([{ name: "", price: "", quota: "" }]);
+
+  const [modal, setModal] = useState({
+    show: false,
+    title: "",
+    message: "",
+    type: "info",
+    showCancel: false,
+    confirmText: "OK",
+    cancelText: "Batal",
+    onConfirm: null,
+  });
+
+  const showInfoModal = (title, message, type = "info", onConfirm = null) => {
+    setModal({
+      show: true,
+      title,
+      message,
+      type,
+      showCancel: false,
+      confirmText: "OK",
+      cancelText: "Batal",
+      onConfirm,
+    });
+  };
+
+  const closeModal = () => {
+    setModal((prev) => ({
+      ...prev,
+      show: false,
+    }));
+  };
 
   useEffect(() => {
     axios
@@ -30,6 +66,50 @@ function CreateEvent() {
       .then((res) => setCategories(res.data))
       .catch((err) => console.error("Gagal mengambil kategori:", err));
   }, []);
+
+  useEffect(() => {
+    const searchLocation = async () => {
+      const keyword = formData.location.trim();
+
+      if (isLocationSelected) {
+        return;
+      }
+
+      if (keyword.length < 3) {
+        setLocationSuggestions([]);
+        setShowLocationSuggestions(false);
+        return;
+      }
+
+      try {
+        setIsSearchingLocation(true);
+
+        const response = await axios.get(
+          "http://localhost:5000/api/events/locations/autocomplete",
+          {
+            params: {
+              text: keyword,
+            },
+          },
+        );
+
+        setLocationSuggestions(response.data.data || []);
+        setShowLocationSuggestions(true);
+      } catch (error) {
+        console.error("Gagal mencari lokasi dari backend Geoapify:", error);
+        setLocationSuggestions([]);
+        setShowLocationSuggestions(false);
+      } finally {
+        setIsSearchingLocation(false);
+      }
+    };
+
+    const delaySearch = setTimeout(() => {
+      searchLocation();
+    }, 500);
+
+    return () => clearTimeout(delaySearch);
+  }, [formData.location, isLocationSelected]);
 
   const handleCategoryChange = (id) => {
     setSelectedCategories((prevSelected) => {
@@ -45,41 +125,83 @@ function CreateEvent() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 🔥 2. Fungsi Mengubah Data Inputan Di Salah Satu Opsi Tiket
+  const handleLocationChange = (e) => {
+    const value = e.target.value;
+
+    setIsLocationSelected(false);
+
+    setFormData({
+      ...formData,
+      location: value,
+    });
+  };
+
+  const handleSelectLocation = (place) => {
+    const selectedAddress = place.address || place.name || "";
+
+    setFormData({
+      ...formData,
+      location: selectedAddress,
+    });
+
+    setIsLocationSelected(true);
+    setLocationSuggestions([]);
+    setShowLocationSuggestions(false);
+  };
+
   const handleTicketChange = (index, e) => {
     const updatedTickets = [...tickets];
     updatedTickets[index][e.target.name] = e.target.value;
     setTickets(updatedTickets);
   };
 
-  // 🔥 3. Tombol (+) Menambah Opsi Jenis Tiket Baru
   const addTicketRow = () => {
     setTickets([...tickets, { name: "", price: "", quota: "" }]);
   };
 
-  // 🔥 4. Tombol Hapus Opsi Jenis Tiket Tertentu
   const removeTicketRow = (index) => {
-    // Sisakan minimal 1 baris input jenis tiket agar tidak kosong melompong gess
     if (tickets.length === 1) {
-      alert("Minimal harus menyediakan 1 jenis tiket gess!");
+      showInfoModal(
+        "Jenis Tiket Tidak Bisa Dihapus",
+        "Minimal harus menyediakan 1 jenis tiket gess!",
+        "warning",
+      );
       return;
     }
+
     const filteredTickets = tickets.filter((_, i) => i !== index);
     setTickets(filteredTickets);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!mainImage) return alert("Harap unggah gambar utama event!");
-    if (selectedCategories.length === 0)
-      return alert("Harap pilih minimal 1 kategori!");
 
-    // Validasi singkat agar user tidak mengirim tiket kosong
+    if (!mainImage) {
+      showInfoModal(
+        "Banner Utama Wajib Diunggah",
+        "Harap unggah gambar utama event!",
+        "warning",
+      );
+      return;
+    }
+
+    if (selectedCategories.length === 0) {
+      showInfoModal(
+        "Kategori Belum Dipilih",
+        "Harap pilih minimal 1 kategori!",
+        "warning",
+      );
+      return;
+    }
+
     for (let i = 0; i < tickets.length; i++) {
       if (!tickets[i].name || !tickets[i].quota) {
-        return alert(
+        showInfoModal(
+          "Data Tiket Belum Lengkap",
           `Harap lengkapi Nama Tiket dan Quota pada baris ke-${i + 1}!`,
+          "warning",
         );
+        return;
       }
     }
 
@@ -96,8 +218,6 @@ function CreateEvent() {
 
     data.append("user_id", AUTH_USER.id);
     data.append("role", AUTH_USER.role);
-
-    // 🔥 5. Append array jenis tiket yang dikonversi ke JSON String
     data.append("tickets", JSON.stringify(tickets));
 
     try {
@@ -108,16 +228,28 @@ function CreateEvent() {
           headers: { "Content-Type": "multipart/form-data" },
         },
       );
-      alert(response.data.message);
 
-      if (AUTH_USER.role === "admin") {
-        navigate("/events");
-      } else {
-        navigate("/events/my-events");
-      }
+      showInfoModal(
+        "Event Berhasil Dibuat",
+        response.data.message,
+        "success",
+        () => {
+          closeModal();
+
+          if (AUTH_USER.role === "admin") {
+            navigate("/events");
+          } else {
+            navigate("/events/my-events");
+          }
+        },
+      );
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Gagal membuat event.");
+      showInfoModal(
+        "Gagal Membuat Event",
+        err.response?.data?.message || "Gagal membuat event.",
+        "error",
+      );
     }
   };
 
@@ -129,7 +261,9 @@ function CreateEvent() {
           <div className="col-md-8">
             <div className="card shadow-lg border-0 rounded-4">
               <div
-                className={`card-header text-white p-4 ${AUTH_USER.role === "admin" ? "bg-success" : "bg-primary"}`}
+                className={`card-header text-white p-4 ${
+                  AUTH_USER.role === "admin" ? "bg-success" : "bg-primary"
+                }`}
               >
                 <h4 className="mb-0 fw-bold">
                   🚀 Buat Event Baru ({AUTH_USER.role.toUpperCase()})
@@ -142,6 +276,7 @@ function CreateEvent() {
                     <h6 className="text-primary fw-bold border-bottom pb-2 mb-3">
                       Informasi Umum
                     </h6>
+
                     <div className="mb-3">
                       <label className="form-label fw-semibold">
                         Judul Event *
@@ -193,6 +328,7 @@ function CreateEvent() {
                           onChange={handleChange}
                         />
                       </div>
+
                       <div className="col-md-6 mb-3">
                         <label className="form-label fw-semibold">
                           Selesai *
@@ -207,15 +343,74 @@ function CreateEvent() {
                       </div>
                     </div>
 
-                    <div className="mb-3">
+                    <div className="mb-3 position-relative">
                       <label className="form-label fw-semibold">Lokasi *</label>
                       <input
                         type="text"
                         name="location"
                         className="form-control border-2"
+                        placeholder="Ketik nama gedung, mall, kampus, atau alamat event..."
                         required
-                        onChange={handleChange}
+                        value={formData.location}
+                        onChange={handleLocationChange}
+                        onFocus={() => {
+                          if (locationSuggestions.length > 0) {
+                            setShowLocationSuggestions(true);
+                          }
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            setShowLocationSuggestions(false);
+                          }, 200);
+                        }}
                       />
+
+                      {isSearchingLocation && (
+                        <div className="form-text text-primary">
+                          Mencari rekomendasi lokasi...
+                        </div>
+                      )}
+
+                      {showLocationSuggestions &&
+                        locationSuggestions.length > 0 && (
+                          <div
+                            className="list-group position-absolute w-100 shadow-sm"
+                            style={{
+                              zIndex: 1000,
+                              maxHeight: "240px",
+                              overflowY: "auto",
+                            }}
+                          >
+                            {locationSuggestions.map((place, index) => (
+                              <button
+                                type="button"
+                                key={
+                                  place.place_id ||
+                                  `${place.address || place.name}-${index}`
+                                }
+                                className="list-group-item list-group-item-action"
+                                onMouseDown={() => handleSelectLocation(place)}
+                              >
+                                <div className="fw-semibold">
+                                  {place.name || "Lokasi tanpa nama"}
+                                </div>
+                                <small className="text-muted">
+                                  {place.address || "-"}
+                                </small>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                      {formData.location.trim().length >= 3 &&
+                        !isSearchingLocation &&
+                        showLocationSuggestions &&
+                        locationSuggestions.length === 0 &&
+                        !isLocationSelected && (
+                          <div className="form-text text-muted">
+                            Tidak ada rekomendasi lokasi ditemukan.
+                          </div>
+                        )}
                     </div>
 
                     <div className="mb-3">
@@ -231,7 +426,6 @@ function CreateEvent() {
                     </div>
                   </div>
 
-                  {/* 🔥 BLOK BARU: INPUT DINAMIS JENIS TIKET */}
                   <div className="mb-4">
                     <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                       <h6 className="text-primary fw-bold mb-0">
@@ -265,6 +459,7 @@ function CreateEvent() {
                             onChange={(e) => handleTicketChange(index, e)}
                           />
                         </div>
+
                         <div className="col-md-4">
                           <label className="form-label small fw-bold">
                             Harga Tiket (IDR) *
@@ -280,6 +475,7 @@ function CreateEvent() {
                             onChange={(e) => handleTicketChange(index, e)}
                           />
                         </div>
+
                         <div className="col-md-2">
                           <label className="form-label small fw-bold">
                             Quota *
@@ -295,6 +491,7 @@ function CreateEvent() {
                             onChange={(e) => handleTicketChange(index, e)}
                           />
                         </div>
+
                         <div className="col-md-1 text-center">
                           <button
                             type="button"
@@ -313,6 +510,7 @@ function CreateEvent() {
                     <h6 className="text-primary fw-bold border-bottom pb-2 mb-3">
                       Media Visual
                     </h6>
+
                     <div className="mb-3">
                       <label className="form-label fw-semibold">
                         Banner Utama *
@@ -325,6 +523,7 @@ function CreateEvent() {
                         onChange={(e) => setMainImage(e.target.files[0])}
                       />
                     </div>
+
                     <div className="mb-3">
                       <label className="form-label fw-semibold">
                         Album Galeri Tambahan
@@ -342,12 +541,17 @@ function CreateEvent() {
                   <div className="d-grid gap-2 d-md-flex pt-3 border-top">
                     <button
                       type="submit"
-                      className={`btn btn-lg px-5 fw-bold text-white ${AUTH_USER.role === "admin" ? "btn-success" : "btn-primary"}`}
+                      className={`btn btn-lg px-5 fw-bold text-white ${
+                        AUTH_USER.role === "admin"
+                          ? "btn-success"
+                          : "btn-primary"
+                      }`}
                     >
                       {AUTH_USER.role === "admin"
                         ? "🚀 Publish Event Langsung"
                         : "📥 Simpan sebagai Draft"}
                     </button>
+
                     <Link
                       to="/events"
                       className="btn btn-light btn-lg px-4 border"
@@ -361,6 +565,19 @@ function CreateEvent() {
           </div>
         </div>
       </div>
+
+      <AppModal
+        show={modal.show}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        showCancel={modal.showCancel}
+        confirmText={modal.confirmText}
+        cancelText={modal.cancelText}
+        onConfirm={modal.onConfirm}
+        onClose={closeModal}
+      />
+
       <Footer />
     </>
   );

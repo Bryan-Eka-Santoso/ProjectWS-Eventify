@@ -21,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
         ),
         defaultValue: "draft",
       },
-            rejection_reason: {
+      rejection_reason: {
         type: DataTypes.TEXT,
         allowNull: true,
       },

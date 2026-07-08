@@ -32,25 +32,32 @@ const eventValidation = require("../validators/eventValidation");
 router.get(
   "/published",
   validate({ query: eventValidation.getPublishedEventsQuerySchema }),
-  eventController.getPublishedEvents
+  eventController.getPublishedEvents,
 );
 
 // Ambil event milik organizer/admin
 router.get(
   "/my-events",
   validate({ query: eventValidation.getMyEventsQuerySchema }),
-  eventController.getMyEvents
+  eventController.getMyEvents,
 );
 
 // Ambil saved event milik user
 router.get(
   "/saved-list",
   validate({ query: eventValidation.savedEventsQuerySchema }),
-  eventController.getSavedEventsList
+  eventController.getSavedEventsList,
 );
 
 // Ambil categories
 router.get("/categories", eventController.getCategories);
+
+// =====================================================
+// 🔥 GEOAPIFY LOCATION AUTOCOMPLETE
+// Route ini dipanggil frontend saat user mengetik lokasi event.
+// Harus ditaruh sebelum route /:id agar tidak dianggap sebagai ID event.
+// =====================================================
+router.get("/locations/autocomplete", eventController.searchLocationGeoapify);
 
 // =====================================================
 // CREATE EVENT
@@ -63,7 +70,7 @@ router.post(
     { name: "album", maxCount: 10 },
   ]),
   validate({ body: eventValidation.createEventBodySchema }),
-  eventController.createEvent
+  eventController.createEvent,
 );
 
 // =====================================================
@@ -74,7 +81,7 @@ router.post(
 router.post(
   "/follow-external",
   validate({ body: eventValidation.followExternalEventBodySchema }),
-  eventController.followExternalEvent
+  eventController.followExternalEvent,
 );
 
 // =====================================================
@@ -85,7 +92,7 @@ router.post(
 router.post(
   "/toggle-save",
   validate({ body: eventValidation.toggleSaveEventBodySchema }),
-  eventController.toggleSaveEvent
+  eventController.toggleSaveEvent,
 );
 
 router.get(
@@ -94,7 +101,7 @@ router.get(
     params: eventValidation.eventIdParamsSchema,
     query: eventValidation.checkSaveStatusQuerySchema,
   }),
-  eventController.checkSaveStatus
+  eventController.checkSaveStatus,
 );
 
 // =====================================================
@@ -111,7 +118,7 @@ router.put(
     params: eventValidation.eventIdParamsSchema,
     body: eventValidation.updateEventBodySchema,
   }),
-  eventController.updateEvent
+  eventController.updateEvent,
 );
 
 router.patch(
@@ -120,7 +127,7 @@ router.patch(
     params: eventValidation.eventIdParamsSchema,
     body: eventValidation.updateStatusBodySchema,
   }),
-  eventController.updateStatus
+  eventController.updateStatus,
 );
 
 // =====================================================
@@ -135,7 +142,7 @@ router.patch(
     params: eventValidation.eventIdParamsSchema,
     body: eventValidation.cancelEventBodySchema,
   }),
-  eventController.cancelEvent
+  eventController.cancelEvent,
 );
 
 router.post(
@@ -144,7 +151,7 @@ router.post(
     params: eventValidation.eventIdParamsSchema,
     body: eventValidation.requestRefundBodySchema,
   }),
-  eventController.requestRefundAfterEventChanged
+  eventController.requestRefundAfterEventChanged,
 );
 
 // =====================================================
@@ -156,7 +163,7 @@ router.get(
   validate({
     query: eventValidation.getCancellationRequestsQuerySchema,
   }),
-  eventController.getCancellationRequests
+  eventController.getCancellationRequests,
 );
 
 router.patch(
@@ -165,7 +172,7 @@ router.patch(
     params: eventValidation.cancellationRequestIdParamsSchema,
     body: eventValidation.approveCancellationRequestBodySchema,
   }),
-  eventController.approveCancellationRequest
+  eventController.approveCancellationRequest,
 );
 
 router.patch(
@@ -174,7 +181,7 @@ router.patch(
     params: eventValidation.cancellationRequestIdParamsSchema,
     body: eventValidation.rejectCancellationRequestBodySchema,
   }),
-  eventController.rejectCancellationRequest
+  eventController.rejectCancellationRequest,
 );
 
 //pakai ticket
@@ -184,11 +191,11 @@ router.patch(
     params: eventValidation.eventIdParamsSchema,
     body: eventValidation.validateTicketBodySchema,
   }),
-  eventController.validateTicketCode
+  eventController.validateTicketCode,
 );
 router.get(
   "/:id/changes/:event_change_id/refund-info",
-  eventController.getEventChangeRefundInfo
+  eventController.getEventChangeRefundInfo,
 );
 // =====================================================
 // DETAIL EVENT
@@ -198,8 +205,7 @@ router.get(
 router.get(
   "/:id",
   validate({ params: eventValidation.eventIdParamsSchema }),
-  eventController.getEventById
+  eventController.getEventById,
 );
-
 
 module.exports = router;

@@ -59,14 +59,35 @@ const transactionService = {
       });
 
       if (checkVoucher && checkVoucher.Voucher) {
-        discountAmount = Math.floor(
-          (checkVoucher.Voucher.percentage / 100) * totalAmount,
-        );
-        if (
-          checkVoucher.Voucher.max_cut &&
-          discountAmount > checkVoucher.Voucher.max_cut
-        ) {
-          discountAmount = checkVoucher.Voucher.max_cut;
+        const voucher = checkVoucher.Voucher;
+
+        const percentage =
+          voucher.percentage !== null && voucher.percentage !== undefined
+            ? Number(voucher.percentage)
+            : null;
+
+        const maxCut =
+          voucher.max_cut !== null && voucher.max_cut !== undefined
+            ? Number(voucher.max_cut)
+            : null;
+
+        // Jika percentage ada, voucher dianggap diskon persen.
+        if (percentage !== null && percentage > 0) {
+          discountAmount = Math.floor((percentage / 100) * totalAmount);
+
+          if (maxCut !== null && maxCut > 0 && discountAmount > maxCut) {
+            discountAmount = maxCut;
+          }
+        }
+
+        // Jika percentage kosong tapi max_cut ada, voucher dianggap potongan nominal tetap.
+        else if (maxCut !== null && maxCut > 0) {
+          discountAmount = maxCut;
+        }
+
+        // Diskon tidak boleh lebih besar dari total harga.
+        if (discountAmount > totalAmount) {
+          discountAmount = totalAmount;
         }
       }
     }
