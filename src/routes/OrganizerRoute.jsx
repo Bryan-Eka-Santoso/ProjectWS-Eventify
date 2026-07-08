@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 
-function AdminRoute() {
+function OrganizerRoute() {
   const token = localStorage.getItem("token");
 
   if (!token) {
@@ -11,7 +11,7 @@ function AdminRoute() {
   try {
     const decoded = jwtDecode(token);
 
-    if (decoded.role !== "admin") {
+    if (decoded.role !== "organizer") {
       return <Navigate to="/" replace />;
     }
 
@@ -22,4 +22,4 @@ function AdminRoute() {
   }
 }
 
-export default AdminRoute;
+export default OrganizerRoute;

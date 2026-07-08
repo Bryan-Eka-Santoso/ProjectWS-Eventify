@@ -51,12 +51,9 @@ function Navbar() {
           <span className="navbar-toggler-icon"></span>
         </button>
 
-        <div
-          className="collapse navbar-collapse"
-          id="navbarSupportedContent"
-        >
+        <div className="collapse navbar-collapse" id="navbarSupportedContent">
           {/* Menu Tengah */}
-          <ul className="navbar-nav mx-auto mb-2 mb-lg-0 gap-2">
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0 gap-2">
             <li className="nav-item">
               <NavLink
                 to="/"
@@ -109,60 +106,51 @@ function Navbar() {
               {/* Dropdown ke kiri */}
               <ul className="dropdown-menu dropdown-menu-end">
                 <li>
-                  <a className="dropdown-item" href="/profile">
-                    <i className="bi bi-person"></i> My Profile
-                  </a>
+                  <NavLink className="dropdown-item" to="/profile">
+                    <i className="bi bi-person me-2"></i>
+                    My Profile
+                  </NavLink>
                 </li>
 
+                <li>
+                  <NavLink className="dropdown-item" to="/events/my-tickets">
+                    <i className="bi bi-ticket me-2"></i>
+                    My Tickets
+                  </NavLink>
+                </li>
+
+                <li>
+                  <NavLink className="dropdown-item" to="/events/saved">
+                    <i className="bi bi-bookmark me-2"></i>
+                    Saved Events
+                  </NavLink>
+                </li>
+
+                {(AUTH_USER?.role === "organizer" ||
+                  AUTH_USER?.role === "admin") && (
                   <li>
-                    <NavLink className="dropdown-item" to="/profile">
-                      <i className="bi bi-person me-2"></i>
-                      My Profile
+                    <NavLink className="dropdown-item" to="/events/my-events">
+                      <i className="bi bi-calendar-check me-2"></i>
+                      My Events
                     </NavLink>
                   </li>
+                )}
 
+                {AUTH_USER?.role === "admin" && (
                   <li>
-                    <NavLink className="dropdown-item" to="/events/my-tickets">
-                      <i className="bi bi-ticket me-2"></i>
-                      My Tickets
+                    <NavLink
+                      className="dropdown-item"
+                      to="/admin/cancellation-requests"
+                    >
+                      <i className="bi bi-exclamation-triangle me-2"></i>
+                      Cancellation Requests
                     </NavLink>
                   </li>
+                )}
 
-                  <li>
-                    <NavLink className="dropdown-item" to="/events/saved">
-                      <i className="bi bi-bookmark me-2"></i>
-                      Saved Events
-                    </NavLink>
-                  </li>
-
-                  {(AUTH_USER?.role === "organizer" ||
-                    AUTH_USER?.role === "admin") && (
-                    <li>
-                      <NavLink
-                        className="dropdown-item"
-                        to="/events/my-events"
-                      >
-                        <i className="bi bi-calendar-check me-2"></i>
-                        My Events
-                      </NavLink>
-                    </li>
-                  )}
-
-                  {AUTH_USER?.role === "admin" && (
-                    <li>
-                      <NavLink
-                        className="dropdown-item"
-                        to="/admin/cancellation-requests"
-                      >
-                        <i className="bi bi-exclamation-triangle me-2"></i>
-                        Cancellation Requests
-                      </NavLink>
-                    </li>
-                  )}
-
-                  <li>
-                    <hr className="dropdown-divider" />
-                  </li>
+                <li>
+                  <hr className="dropdown-divider" />
+                </li>
 
                 <li>
                   <button

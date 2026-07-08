@@ -6,7 +6,16 @@ const path = require("path");
 
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id);
+    const user = await User.findByPk(req.user.id, {
+      include: [
+        {
+          model: OrganizerApplication,
+          as: "OrganizerApplications",
+          attributes: ["organizer_name", "phone_number", "address"],
+          required: false,
+        },
+      ],
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -40,13 +49,24 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    const { name, email, biography } = req.body;
+    const { name, email, biography, organizer_name, phone_number, address } =
+      req.body;
 
-    user.name = name || user.name;
-    user.email = email || user.email;
-    user.bio = biography || user.bio;
+    name ? (user.name = name) : null;
+    email ? (user.email = email) : null;
+    biography ? (user.biography = biography) : null;
 
     await user.save();
+    await OrganizerApplication.update(
+      {
+        organizer_name: organizer_name || user.organizer_name,
+        phone_number: phone_number || user.phone_number,
+        address: address || user.address,
+      },
+      {
+        where: { user_id: req.user.id },
+      },
+    );
 
     return res.status(200).json({
       status: "success",
@@ -115,17 +135,17 @@ exports.changeAvatar = async (req, res) => {
       });
     }
 
-    if (user.avatar) {
-      const oldAvatarPath = path.join(
-        __dirname,
-        "..",
-        user.avatar.replace(/^\/+/, ""),
-      );
+    // if (user.avatar) {
+    //   const oldAvatarPath = path.join(
+    //     __dirname,
+    //     "..",
+    //     user.avatar.replace(/^\/+/, ""),
+    //   );
 
-      if (fs.existsSync(oldAvatarPath)) {
-        fs.unlinkSync(oldAvatarPath);
-      }
-    }
+    //   if (fs.existsSync(oldAvatarPath)) {
+    //     fs.unlinkSync(oldAvatarPath);
+    //   }
+    // }
 
     const avatar = `/uploads/${req.file.filename}`;
 
@@ -150,8 +170,7 @@ exports.changeAvatar = async (req, res) => {
 
 exports.registerOrganization = async (req, res) => {
   try {
-    const { organizerName, ktpNumber, phoneNumber, address, socialMedia } =
-      req.body;
+    const { organizer_name, ktp_number, phone_number, address } = req.body;
 
     const user = await User.findByPk(req.user.id);
 
@@ -172,11 +191,11 @@ exports.registerOrganization = async (req, res) => {
     const ktpImage = `/uploads/${req.file.filename}`;
 
     const organizerApplication = await OrganizerApplication.create({
-      organizer_name: organizerName,
-      ktp_number: ktpNumber,
-      ktp_image_url: ktpImage,
-      phone_number: phoneNumber,
-      address: address,
+      organizer_name,
+      ktp_number,
+      ktp_image_url,
+      phone_number,
+      address,
       user_id: user.id,
     });
 
@@ -184,6 +203,47 @@ exports.registerOrganization = async (req, res) => {
       success: true,
       message: "Organization registration submitted successfully",
       data: organizerApplication,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.deleteProfile = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+
+    console.log("User to delete:", user);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // if (user.avatar) {
+    //   const avatarPath = path.join(
+    //     __dirname,
+    //     "..",
+    //     user.avatar.replace(/^\/+/, ""),
+    //   );
+
+    //   if (fs.existsSync(avatarPath)) {
+    //     fs.unlinkSync(avatarPath);
+    //   }
+    // }
+
+    await user.destroy();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile deleted successfully",
     });
   } catch (error) {
     console.error(error);

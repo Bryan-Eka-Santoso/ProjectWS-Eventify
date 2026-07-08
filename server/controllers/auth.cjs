@@ -14,33 +14,57 @@ exports.register = async (req, res) => {
       });
     }
 
-    const { name, email, password, confirmPassword } = req.body;
+    const { name, email, password } = req.body;
 
-    const cekEmail = await User.findOne({
+    let user = await User.findOne({
       where: { email },
+      paranoid: false,
     });
 
-    if (cekEmail) {
+    if (!user) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      user = await User.create({
+        name,
+        email,
+        password: hashedPassword,
+        role: "user",
+        api_key: crypto.randomUUID(),
+      });
+
+      return res.status(201).json({
+        status: "success",
+        message: "Registration successful",
+        redirect: "/",
+      });
+    }
+
+    if (user.deletedAt === null) {
       return res.status(409).json({
         status: "error",
         message: "Email is already in use",
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const apikey = await crypto.randomUUID();
+    await user.restore();
 
-    const user = await User.create({
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await user.update({
       name,
-      email,
       password: hashedPassword,
       role: "user",
-      api_key: apikey,
+      api_key: crypto.randomUUID(),
+
+      google_id: null,
+      refresh_token: null,
+      avatar: null,
+      bio: null,
     });
 
-    return res.status(201).json({
+    return res.status(200).json({
       status: "success",
-      message: "Registration successful",
+      message: "Your account has been restored successfully.",
       redirect: "/",
     });
   } catch (error) {
@@ -86,46 +110,43 @@ exports.login = async (req, res) => {
       });
     }
 
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       {
         id: user.id,
+        email: user.email,
         role: user.role,
       },
       process.env.ACCESS_TOKEN_SECRET,
       {
-        expiresIn: "1h",
+        expiresIn: "15m",
       },
     );
 
     const refreshToken = jwt.sign(
       {
         id: user.id,
-        role: user.role,
       },
       process.env.REFRESH_TOKEN_SECRET,
       {
-        expiresIn: "1d",
+        expiresIn: "7d",
       },
     );
 
-    const updateUser = await User.findByPk(user.id);
-    await updateUser.update({
+    await user.update({
       refresh_token: refreshToken,
     });
 
-    await updateUser.save();
-
-    res.cookie("rtsaya", refreshToken, {
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      maxAge: 1000 * 60 * 60 * 24, // hasil ini adalah 1 hari (1000 itu adalah 1000 milisecond)
-      sameSite: "lax", // untuk mengizinkan cookie dikirim ke domain yang berbeda
+      secure: false,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return res.status(200).json({
       status: "success",
       message: "Login successful",
       token,
-      refreshToken,
       redirect: "/",
     });
   } catch (error) {
@@ -186,6 +207,116 @@ exports.logout = async (req, res) => {
     return res.status(500).json({
       status: "error",
       message: "Internal Server Error",
+    });
+  }
+};
+
+const { OAuth2Client } = require("google-auth-library");
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+exports.googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({
+        message: "Google credential is required",
+      });
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    const googleId = payload.sub;
+    const email = payload.email;
+    const name = payload.name;
+    const picture = payload.picture;
+
+    let user = await User.findOne({
+      where: { email },
+      paranoid: false,
+    });
+
+    if (!user) {
+      user = await User.create({
+        name,
+        email,
+        password: null,
+        avatar: picture,
+        role: "user",
+        api_key: crypto.randomUUID(),
+        google_id: googleId,
+      });
+    } else {
+      if (user.deletedAt) {
+        await user.restore();
+      }
+
+      await user.update({
+        google_id: googleId,
+        avatar: picture,
+        name,
+      });
+    }
+
+    const accessToken = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: "15m",
+      },
+    );
+
+    const refreshToken = jwt.sign(
+      {
+        id: user.id,
+      },
+      process.env.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: "7d",
+      },
+    );
+
+    await user.update({
+      refresh_token: refreshToken,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    await user.update({
+      refresh_token: refreshToken,
+    });
+
+    return res.status(200).json({
+      message: "Login with Google successful",
+      token: accessToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Failed to login with Google",
     });
   }
 };

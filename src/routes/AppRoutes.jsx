@@ -1,11 +1,12 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import Login from "../pages/Login";
 import Register from "../pages/Register";
 import Home from "../pages/Home";
 
+import ProtectedRoute from "./ProtectedRoute";
+import OrganizerRoute from "./OrganizerRoute";
 import AdminRoute from "./AdminRoute";
-import UserRoute from "./UserRoute";
 
 import Events from "../pages/Events/Events";
 import CreateEvent from "../pages/Events/CreateEvent";
@@ -22,48 +23,64 @@ import ExploreExternal from "../pages/Events/ExploreExternal";
 import DetailExternal from "../pages/Events/DetailExternal";
 
 import Community from "../pages/Community";
+import MyProfile from "../pages/MyProfile";
 
 import HomeAdmin from "../pages/admin/HomeAdmin";
 import CancellationRequests from "../pages/admin/CancellationRequests";
-import MyProfile from "../pages/MyProfile";
 
 function AppRoutes() {
   return (
     <Routes>
+      {/* PUBLIC */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      <Route element={<UserRoute />}>
+      {/* USER & ORGANIZER */}
+      <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Home />} />
 
         <Route path="/events" element={<Events />} />
-        <Route path="/events/create" element={<CreateEvent />} />
-        <Route path="/events/my-events" element={<MyEvents />} />
-        <Route path="/events/vouchers" element={<VoucherShop />} />
-        <Route path="/events/my-tickets" element={<MyTickets />} />
+
+        <Route path="/events/:id" element={<EventDetail />} />
+
         <Route path="/events/external" element={<ExploreExternal />} />
+
         <Route path="/events/external/:id" element={<DetailExternal />} />
+
         <Route path="/events/saved" element={<SavedEvents />} />
 
-        <Route
-          path="/events/cancellation-requests"
-          element={<Navigate to="/admin/cancellation-requests" replace />}
-        />
+        <Route path="/events/vouchers" element={<VoucherShop />} />
+
+        <Route path="/events/my-tickets" element={<MyTickets />} />
+
+        <Route path="/community" element={<Community />} />
+
+        <Route path="/profile" element={<MyProfile />} />
+      </Route>
+
+      {/* ORGANIZER ONLY */}
+      <Route element={<OrganizerRoute />}>
+        <Route path="/events/create" element={<CreateEvent />} />
+
+        <Route path="/events/my-events" element={<MyEvents />} />
 
         <Route path="/events/:id/edit" element={<EditEvent />} />
-        <Route path="/events/:id/validate-ticket" element={<ValidateTicket />} />
+
+        <Route
+          path="/events/:id/validate-ticket"
+          element={<ValidateTicket />}
+        />
+
         <Route
           path="/events/:id/change/:eventChangeId"
           element={<EventChangeRefund />}
         />
-        <Route path="/events/:id" element={<EventDetail />} />
-
-        <Route path="/community" element={<Community />} />
-        <Route path="/profile" element={<MyProfile />} />
       </Route>
 
+      {/* ADMIN */}
       <Route element={<AdminRoute />}>
         <Route path="/admin/home" element={<HomeAdmin />} />
+
         <Route
           path="/admin/cancellation-requests"
           element={<CancellationRequests />}
