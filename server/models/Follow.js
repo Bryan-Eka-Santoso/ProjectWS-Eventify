@@ -26,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
     {
       tableName: "follows",
       timestamps: false,
-    }
+    },
   );
 
   return Follow;

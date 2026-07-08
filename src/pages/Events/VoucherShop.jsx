@@ -4,11 +4,63 @@ import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { AUTH_USER } from "../../config/auth";
+import AppModal from "../../components/AppModal";
 
 function VoucherShop() {
   const [vouchers, setVouchers] = useState([]);
   const [userPoints, setUserPoints] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  const [modal, setModal] = useState({
+    show: false,
+    title: "",
+    message: "",
+    type: "info",
+    showCancel: false,
+    confirmText: "OK",
+    cancelText: "Batal",
+    onConfirm: null,
+  });
+
+  const showInfoModal = (title, message, type = "info") => {
+    setModal({
+      show: true,
+      title,
+      message,
+      type,
+      showCancel: false,
+      confirmText: "OK",
+      cancelText: "Batal",
+      onConfirm: null,
+    });
+  };
+
+  const showConfirmModal = ({
+    title,
+    message,
+    type = "confirm",
+    confirmText = "Ya",
+    cancelText = "Batal",
+    onConfirm,
+  }) => {
+    setModal({
+      show: true,
+      title,
+      message,
+      type,
+      showCancel: true,
+      confirmText,
+      cancelText,
+      onConfirm,
+    });
+  };
+
+  const closeModal = () => {
+    setModal((prev) => ({
+      ...prev,
+      show: false,
+    }));
+  };
 
   useEffect(() => {
     fetchUserPoints();
@@ -39,23 +91,7 @@ function VoucherShop() {
     }
   };
 
-  const handleClaimVoucher = async (voucherId, pointCost, voucherName) => {
-    // 🔥 PENGECEKAN POIN DI FRONTEND: Takutnya kalau ga cukup gess!
-    if (userPoints < pointCost) {
-      alert(
-        `Waduh gess! Poin kamu tidak cukup untuk menukar ${voucherName}. Butuh ${pointCost} poin, kamu baru punya ${userPoints} poin.`,
-      );
-      return;
-    }
-
-    if (
-      !window.confirm(
-        `Apakah kamu yakin ingin menukarkan ${pointCost} poin untuk ${voucherName}?`,
-      )
-    ) {
-      return;
-    }
-
+  const claimVoucher = async (voucherId) => {
     try {
       const res = await axios.post(
         "http://localhost:5000/api/events/vouchers/claim",
@@ -65,13 +101,42 @@ function VoucherShop() {
         },
       );
 
-      alert(res.data.message);
+      showInfoModal("Voucher Berhasil Diklaim", res.data.message, "success");
+
       // Update sisa poin secara real-time di UI
       setUserPoints(res.data.remainingPoints);
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Gagal mengklaim voucher.");
+      showInfoModal(
+        "Gagal Mengklaim Voucher",
+        err.response?.data?.message || "Gagal mengklaim voucher.",
+        "error",
+      );
     }
+  };
+
+  const handleClaimVoucher = async (voucherId, pointCost, voucherName) => {
+    // 🔥 PENGECEKAN POIN DI FRONTEND: Takutnya kalau ga cukup gess!
+    if (userPoints < pointCost) {
+      showInfoModal(
+        "Poin Tidak Cukup",
+        `Waduh gess! Poin kamu tidak cukup untuk menukar ${voucherName}. Butuh ${pointCost} poin, kamu baru punya ${userPoints} poin.`,
+        "warning",
+      );
+      return;
+    }
+
+    showConfirmModal({
+      title: "Konfirmasi Penukaran Voucher",
+      message: `Apakah kamu yakin ingin menukarkan ${pointCost} poin untuk ${voucherName}?`,
+      type: "confirm",
+      confirmText: "Ya, Tukarkan",
+      cancelText: "Batal",
+      onConfirm: () => {
+        closeModal();
+        claimVoucher(voucherId);
+      },
+    });
   };
 
   return (
@@ -165,6 +230,19 @@ function VoucherShop() {
           </div>
         )}
       </div>
+
+      <AppModal
+        show={modal.show}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        showCancel={modal.showCancel}
+        confirmText={modal.confirmText}
+        cancelText={modal.cancelText}
+        onConfirm={modal.onConfirm}
+        onClose={closeModal}
+      />
+
       <Footer />
     </>
   );

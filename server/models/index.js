@@ -9,7 +9,7 @@ const sequelize = require("../databases/connection");
 const User = require("./User")(sequelize, DataTypes);
 const OrganizerApplication = require("./OrganizerApplication")(
   sequelize,
-  DataTypes
+  DataTypes,
 );
 const Follow = require("./Follow")(sequelize, DataTypes);
 const PointHistory = require("./PointHistory")(sequelize, DataTypes);
@@ -21,7 +21,7 @@ const Event = require("./Event")(sequelize, DataTypes);
 const EventChange = require("./EventChange")(sequelize, DataTypes);
 const EventCancellationRequest = require("./EventCancellationRequest")(
   sequelize,
-  DataTypes
+  DataTypes,
 );
 const EventImage = require("./EventImage")(sequelize, DataTypes);
 const EventCategory = require("./EventCategory")(sequelize, DataTypes);

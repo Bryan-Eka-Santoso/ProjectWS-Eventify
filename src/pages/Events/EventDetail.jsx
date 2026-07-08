@@ -4,6 +4,7 @@ import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { AUTH_USER } from "../../config/auth";
+import AppModal from "../../components/AppModal";
 
 function EventDetail() {
   const { id } = useParams();
@@ -19,6 +20,41 @@ function EventDetail() {
   const [quantity, setQuantity] = useState(1);
   const [selectedVoucherId, setSelectedVoucherId] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  // =====================================================
+  // 🔥 MODAL PENGGANTI ALERT
+  // Modal ini untuk menggantikan semua alert() di halaman EventDetail
+  // =====================================================
+  const [appModal, setAppModal] = useState({
+    show: false,
+    title: "",
+    message: "",
+    type: "info",
+    showCancel: false,
+    confirmText: "OK",
+    cancelText: "Batal",
+    onConfirm: null,
+  });
+
+  const showInfoModal = (title, message, type = "info", onConfirm = null) => {
+    setAppModal({
+      show: true,
+      title,
+      message,
+      type,
+      showCancel: false,
+      confirmText: "OK",
+      cancelText: "Batal",
+      onConfirm,
+    });
+  };
+
+  const closeAppModal = () => {
+    setAppModal((prev) => ({
+      ...prev,
+      show: false,
+    }));
+  };
 
   useEffect(() => {
     axios
@@ -62,11 +98,16 @@ function EventDetail() {
           event_id: id,
         },
       );
-      alert(res.data.message);
+
+      showInfoModal("Informasi Simpan Event", res.data.message, "success");
       setIsSaved(res.data.isSaved);
     } catch (err) {
       console.error(err);
-      alert("Gagal memproses simpan event.");
+      showInfoModal(
+        "Gagal Memproses Simpan Event",
+        "Gagal memproses simpan event.",
+        "error",
+      );
     }
   };
 
@@ -75,12 +116,21 @@ function EventDetail() {
   // 🔥 UTUH & FIXED: JALUR FRONTEND BYPASS 100% TANPA INSTAL NGROK APAPUN GESS!
   const handlePayTicket = async () => {
     if (!selectedTicket) {
-      return alert(
+      showInfoModal(
+        "Kategori Tiket Belum Dipilih",
         "Pilih kategori jenis tiket yang ingin kamu beli dulu gess!",
+        "warning",
       );
+      return;
     }
+
     if (quantity < 1) {
-      return alert("Jumlah tiket yang dibeli minimal 1 unit gess!");
+      showInfoModal(
+        "Jumlah Tiket Tidak Valid",
+        "Jumlah tiket yang dibeli minimal 1 unit gess!",
+        "warning",
+      );
+      return;
     }
 
     setCheckoutLoading(true);
@@ -118,21 +168,34 @@ function EventDetail() {
               },
             );
 
-            alert(
-              "Selamat! Pembayaran berhasil diselesaikan, tiket resmi diterbitkan gess.",
-            );
             setShowModal(false);
-            navigate("/events/my-tickets"); // Otomatis pindah halaman langsung gess!
+
+            showInfoModal(
+              "Pembayaran Berhasil",
+              "Selamat! Pembayaran berhasil diselesaikan, tiket resmi diterbitkan gess.",
+              "success",
+              () => {
+                closeAppModal();
+                navigate("/events/my-tickets");
+              },
+            );
           } catch (err) {
             console.error("Gagal memproses bypass cetak tiket:", err);
-            alert("Sistem error saat memproses tiket ke database lokal gess.");
+            showInfoModal(
+              "Gagal Memproses Tiket",
+              "Sistem error saat memproses tiket ke database lokal gess.",
+              "error",
+            );
           }
         },
+
         onPending: function (result) {
           // 🎯 TRIK UNTUK SIMULATOR: Karena simulator VA/QRIS sering dianggap 'pending' oleh pop-up sebelum di-refresh,
           // kita arahkan onPending untuk melakukan bypass juga agar kamu tidak perlu nunggu gess!
-          alert(
+          showInfoModal(
+            "Transaksi Simulator Terdeteksi",
             "Mendeteksi status transaksi simulator, mencoba memproses tiket kamu gess...",
+            "info",
           );
 
           axios
@@ -146,27 +209,51 @@ function EventDetail() {
               },
             )
             .then(() => {
-              alert("Tiket berhasil diterbitkan otomatis!");
               setShowModal(false);
-              navigate("/events/my-tickets");
+
+              showInfoModal(
+                "Tiket Berhasil Diterbitkan",
+                "Tiket berhasil diterbitkan otomatis!",
+                "success",
+                () => {
+                  closeAppModal();
+                  navigate("/events/my-tickets");
+                },
+              );
             })
             .catch((err) => {
               console.error(err);
-              alert("Gagal menerbitkan tiket otomatis.");
+              showInfoModal(
+                "Gagal Menerbitkan Tiket",
+                "Gagal menerbitkan tiket otomatis.",
+                "error",
+              );
             });
         },
-        onError: function (result) {
-          alert("Waduh, transaksi pembayaran Midtrans gagal diproses.");
+
+        onError: function () {
+          showInfoModal(
+            "Pembayaran Gagal",
+            "Waduh, transaksi pembayaran Midtrans gagal diproses.",
+            "error",
+          );
         },
+
         onClose: function () {
-          alert("Kamu membatalkan transaksi ditengah jalan gess.");
+          showInfoModal(
+            "Transaksi Dibatalkan",
+            "Kamu membatalkan transaksi ditengah jalan gess.",
+            "warning",
+          );
         },
       });
     } catch (error) {
       console.error(error);
-      alert(
+      showInfoModal(
+        "Checkout Gagal",
         error.response?.data?.message ||
           "Terjadi kesalahan memproses Checkout tiket.",
+        "error",
       );
     } finally {
       setCheckoutLoading(false);
@@ -176,39 +263,93 @@ function EventDetail() {
   // Live Hitung Perkiraan Total Harga Preview di Modal Gess
   const calculatePreviewTotal = () => {
     if (!selectedTicket) return 0;
+
     let total = selectedTicket.price * quantity;
+    let discount = 0;
 
     if (selectedVoucherId) {
       const activeV = myVouchers.find(
         (v) => String(v.id) === String(selectedVoucherId),
       );
+
       if (activeV && activeV.Voucher) {
-        let cut = Math.floor((activeV.Voucher.percentage / 100) * total);
-        if (activeV.Voucher.max_cut && cut > activeV.Voucher.max_cut) {
-          cut = activeV.Voucher.max_cut;
+        const voucher = activeV.Voucher;
+
+        const percentage =
+          voucher.percentage !== null && voucher.percentage !== undefined
+            ? Number(voucher.percentage)
+            : null;
+
+        const maxCut =
+          voucher.max_cut !== null && voucher.max_cut !== undefined
+            ? Number(voucher.max_cut)
+            : null;
+
+        if (percentage !== null && percentage > 0) {
+          discount = Math.floor((percentage / 100) * total);
+
+          if (maxCut !== null && maxCut > 0 && discount > maxCut) {
+            discount = maxCut;
+          }
+        } else if (maxCut !== null && maxCut > 0) {
+          discount = maxCut;
         }
-        total -= cut;
+
+        if (discount > total) {
+          discount = total;
+        }
+
+        total -= discount;
       }
     }
+
     return total < 0 ? 0 : total;
   };
 
   if (loading)
     return (
-      <div className="text-center my-5 p-5">
-        <div className="spinner-border text-primary" role="status"></div>
-        <p className="mt-2 text-muted">Memuat detail event...</p>
-      </div>
+      <>
+        <div className="text-center my-5 p-5">
+          <div className="spinner-border text-primary" role="status"></div>
+          <p className="mt-2 text-muted">Memuat detail event...</p>
+        </div>
+
+        <AppModal
+          show={appModal.show}
+          title={appModal.title}
+          message={appModal.message}
+          type={appModal.type}
+          showCancel={appModal.showCancel}
+          confirmText={appModal.confirmText}
+          cancelText={appModal.cancelText}
+          onConfirm={appModal.onConfirm}
+          onClose={closeAppModal}
+        />
+      </>
     );
 
   if (!event)
     return (
-      <div className="container mt-5 text-center my-5 py-5 bg-light rounded-4">
-        <h3 className="text-muted">Waduh, Event tidak ditemukan gess!</h3>
-        <Link to="/events" className="btn btn-primary mt-3 rounded-pill px-4">
-          Back ke List Event
-        </Link>
-      </div>
+      <>
+        <div className="container mt-5 text-center my-5 py-5 bg-light rounded-4">
+          <h3 className="text-muted">Waduh, Event tidak ditemukan gess!</h3>
+          <Link to="/events" className="btn btn-primary mt-3 rounded-pill px-4">
+            Back ke List Event
+          </Link>
+        </div>
+
+        <AppModal
+          show={appModal.show}
+          title={appModal.title}
+          message={appModal.message}
+          type={appModal.type}
+          showCancel={appModal.showCancel}
+          confirmText={appModal.confirmText}
+          cancelText={appModal.cancelText}
+          onConfirm={appModal.onConfirm}
+          onClose={closeAppModal}
+        />
+      </>
     );
 
   const formatDateTime = (dateString) => {
@@ -318,7 +459,11 @@ function EventDetail() {
               </button>
 
               <button
-                className={`btn btn-lg w-100 rounded-3 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 ${isSaved ? "btn-danger text-white" : "btn-outline-warning text-dark"}`}
+                className={`btn btn-lg w-100 rounded-3 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 ${
+                  isSaved
+                    ? "btn-danger text-white"
+                    : "btn-outline-warning text-dark"
+                }`}
                 onClick={handleToggleSave}
               >
                 <span>
@@ -409,7 +554,11 @@ function EventDetail() {
                       {event.TicketTypes.map((ticket) => (
                         <label
                           key={ticket.id}
-                          className={`d-flex justify-content-between align-items-center p-3 border rounded-3 p-2 border-1 cursor-pointer ${selectedTicket?.id === ticket.id ? "border-primary bg-white shadow-sm" : "bg-light"}`}
+                          className={`d-flex justify-content-between align-items-center p-3 border rounded-3 p-2 border-1 cursor-pointer ${
+                            selectedTicket?.id === ticket.id
+                              ? "border-primary bg-white shadow-sm"
+                              : "bg-light"
+                          }`}
                           style={{ cursor: "pointer" }}
                         >
                           <div className="d-flex align-items-center gap-2">
@@ -472,8 +621,7 @@ function EventDetail() {
                       <option value="">-- Tanpa Menggunakan Voucher --</option>
                       {myVouchers.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {item.Voucher?.name} (Potongan Diskon{" "}
-                          {item.Voucher?.percentage}%)
+                          {item.Voucher?.name}
                         </option>
                       ))}
                     </select>
@@ -526,6 +674,18 @@ function EventDetail() {
           </div>
         </>
       )}
+
+      <AppModal
+        show={appModal.show}
+        title={appModal.title}
+        message={appModal.message}
+        type={appModal.type}
+        showCancel={appModal.showCancel}
+        confirmText={appModal.confirmText}
+        cancelText={appModal.cancelText}
+        onConfirm={appModal.onConfirm}
+        onClose={closeAppModal}
+      />
 
       <Footer />
     </>

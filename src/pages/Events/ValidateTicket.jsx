@@ -4,6 +4,7 @@ import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { AUTH_USER } from "../../config/auth";
+import AppModal from "../../components/AppModal";
 
 function ValidateTicket() {
   const { id } = useParams();
@@ -14,6 +15,29 @@ function ValidateTicket() {
   const [validating, setValidating] = useState(false);
   const [result, setResult] = useState(null);
 
+  const [modal, setModal] = useState({
+    show: false,
+    title: "",
+    message: "",
+    type: "info",
+  });
+
+  const showInfoModal = (title, message, type = "info") => {
+    setModal({
+      show: true,
+      title,
+      message,
+      type,
+    });
+  };
+
+  const closeModal = () => {
+    setModal((prev) => ({
+      ...prev,
+      show: false,
+    }));
+  };
+
   const fetchEvent = async () => {
     try {
       setLoadingEvent(true);
@@ -22,7 +46,11 @@ function ValidateTicket() {
       setEvent(res.data);
     } catch (error) {
       console.error("Gagal mengambil detail event:", error);
-      alert(error.response?.data?.message || "Gagal mengambil detail event.");
+      showInfoModal(
+        "Gagal Mengambil Detail Event",
+        error.response?.data?.message || "Gagal mengambil detail event.",
+        "error",
+      );
     } finally {
       setLoadingEvent(false);
     }
@@ -36,7 +64,11 @@ function ValidateTicket() {
     e.preventDefault();
 
     if (!ticketCode.trim()) {
-      alert("Kode tiket wajib diisi.");
+      showInfoModal(
+        "Kode Tiket Wajib Diisi",
+        "Kode tiket wajib diisi.",
+        "warning",
+      );
       return;
     }
 
@@ -50,7 +82,7 @@ function ValidateTicket() {
           user_id: AUTH_USER.id,
           role: AUTH_USER.role,
           ticket_code: ticketCode.trim(),
-        }
+        },
       );
 
       setResult({
@@ -264,6 +296,14 @@ function ValidateTicket() {
           </div>
         </div>
       </div>
+
+      <AppModal
+        show={modal.show}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        onClose={closeModal}
+      />
 
       <Footer />
     </>

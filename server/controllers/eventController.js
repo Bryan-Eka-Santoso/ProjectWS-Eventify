@@ -1,5 +1,6 @@
 const db = require("../models");
 const transactionService = require("../services/transactionService");
+const axios = require("axios");
 
 const Event = db.Event;
 const EventImage = db.EventImage;
@@ -63,7 +64,6 @@ const isBeforeMajorChangeLimit = (event) => {
   return daysBeforeEvent < MAJOR_CHANGE_LIMIT_DAYS;
 };
 
-
 const canManageEvent = async ({ event, user_id, role }) => {
   if (role === "admin") {
     return {
@@ -79,7 +79,6 @@ const canManageEvent = async ({ event, user_id, role }) => {
     };
   }
 
-
   const isOwnerByUserId = parseInt(event.organizer_id) === parseInt(user_id);
 
   if (!isOwnerByUserId) {
@@ -94,10 +93,7 @@ const canManageEvent = async ({ event, user_id, role }) => {
   };
 };
 
-const getChangeType = ({
-  isScheduleChanged,
-  isLocationChanged,
-}) => {
+const getChangeType = ({ isScheduleChanged, isLocationChanged }) => {
   if (isScheduleChanged && isLocationChanged) return "schedule_location";
   if (isScheduleChanged) return "schedule";
   if (isLocationChanged) return "location";
@@ -171,6 +167,77 @@ const sendEventCanceledEmails = async ({ users, event }) => {
 };
 
 const eventController = {
+  // =====================================================
+  // 🔥 GEOAPIFY LOCATION AUTOCOMPLETE
+  // Controller ini dipakai frontend untuk mencari rekomendasi lokasi.
+  // Frontend TIDAK langsung menembak Geoapify, tapi lewat backend ini.
+  // =====================================================
+  searchLocationGeoapify: async (req, res) => {
+    try {
+      const { text } = req.query;
+
+      if (!text || text.trim().length < 3) {
+        return res.status(400).json({
+          message: "Keyword lokasi minimal 3 karakter.",
+          data: [],
+        });
+      }
+
+      const apiKey = process.env.GEOAPIFY_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({
+          message: "GEOAPIFY_API_KEY belum diset di file .env backend.",
+          data: [],
+        });
+      }
+
+      const response = await axios.get(
+        "https://api.geoapify.com/v1/geocode/autocomplete",
+        {
+          params: {
+            text: text.trim(),
+            apiKey,
+            limit: 5,
+            lang: "id",
+            filter: "countrycode:id",
+          },
+        },
+      );
+
+      const suggestions = (response.data.features || []).map((place) => ({
+        place_id: place.properties.place_id,
+        name:
+          place.properties.name ||
+          place.properties.address_line1 ||
+          place.properties.formatted ||
+          "Lokasi tanpa nama",
+        address: place.properties.formatted,
+        city:
+          place.properties.city ||
+          place.properties.county ||
+          place.properties.state ||
+          "",
+        country: place.properties.country || "",
+      }));
+
+      return res.json({
+        message: "Rekomendasi lokasi berhasil diambil.",
+        data: suggestions,
+      });
+    } catch (error) {
+      console.error(
+        "Gagal mengambil rekomendasi lokasi Geoapify:",
+        error.response?.data || error.message,
+      );
+
+      return res.status(500).json({
+        message: "Gagal mengambil rekomendasi lokasi dari Geoapify.",
+        data: [],
+      });
+    }
+  },
+
   createEvent: async (req, res) => {
     try {
       const {
@@ -377,7 +444,7 @@ const eventController = {
         return sendError(
           res,
           400,
-          "Event yang sudah dibatalkan tidak bisa diedit"
+          "Event yang sudah dibatalkan tidak bisa diedit",
         );
       }
 
@@ -405,9 +472,7 @@ const eventController = {
         oldStartDate.getTime() !== newStartDate.getTime();
 
       const isEndChanged =
-        end_date &&
-        oldEndDate &&
-        oldEndDate.getTime() !== newEndDate.getTime();
+        end_date && oldEndDate && oldEndDate.getTime() !== newEndDate.getTime();
 
       const isScheduleChanged = Boolean(isStartChanged || isEndChanged);
 
@@ -421,7 +486,7 @@ const eventController = {
         return sendError(
           res,
           400,
-          "Perubahan jadwal/lokasi hanya bisa dilakukan maksimal H-4 sebelum event dimulai"
+          "Perubahan jadwal/lokasi hanya bisa dilakukan maksimal H-4 sebelum event dimulai",
         );
       }
 
@@ -546,7 +611,7 @@ const eventController = {
           return sendError(
             res,
             400,
-            "Request pembatalan event ini masih menunggu approval admin"
+            "Request pembatalan event ini masih menunggu approval admin",
           );
         }
 
@@ -580,7 +645,7 @@ const eventController = {
                 cancellation_request_id: cancelRequest.id,
                 reason: cancellation_reason,
               },
-            }))
+            })),
           );
         }
 
@@ -588,7 +653,7 @@ const eventController = {
           res,
           202,
           "Event sudah kurang dari H-4, request pembatalan dikirim ke admin",
-          cancelRequest
+          cancelRequest,
         );
       }
 
@@ -614,17 +679,24 @@ const eventController = {
         });
       }
 
-      const refundResult = await refundService.createAutoRefundForCanceledEvent({
-        event,
-        actor_id: user_id,
-        refund_method: "original_payment",
-      });
+      const refundResult = await refundService.createAutoRefundForCanceledEvent(
+        {
+          event,
+          actor_id: user_id,
+          refund_method: "original_payment",
+        },
+      );
 
-      return sendSuccess(res, 200, "Event berhasil dibatalkan dan refund diproses", {
-        event,
-        notified_users_count: buyers.length,
-        refund: refundResult,
-      });
+      return sendSuccess(
+        res,
+        200,
+        "Event berhasil dibatalkan dan refund diproses",
+        {
+          event,
+          notified_users_count: buyers.length,
+          refund: refundResult,
+        },
+      );
     } catch (error) {
       console.error("Error cancelEvent:", error);
       return sendError(res, 500, "Gagal membatalkan event", error.message);
@@ -654,7 +726,7 @@ const eventController = {
         return sendError(
           res,
           404,
-          "Data perubahan event tidak ditemukan atau sudah tidak aktif"
+          "Data perubahan event tidak ditemukan atau sudah tidak aktif",
         );
       }
 
@@ -698,7 +770,7 @@ const eventController = {
         refundRequests.map((refund) => [
           String(refund.transaction_id),
           refund.get({ plain: true }),
-        ])
+        ]),
       );
 
       const refundDeadlineExpired =
@@ -708,7 +780,7 @@ const eventController = {
       const formattedTransactions = transactions.map((transaction) => {
         const plainTransaction = transaction.get({ plain: true });
         const existingRefund = refundByTransactionId.get(
-          String(plainTransaction.id)
+          String(plainTransaction.id),
         );
 
         return {
@@ -742,7 +814,7 @@ const eventController = {
         res,
         500,
         "Gagal mengambil detail perubahan event",
-        error.message
+        error.message,
       );
     }
   },
@@ -767,7 +839,7 @@ const eventController = {
       return sendError(
         res,
         error.statusCode || 500,
-        error.message || "Gagal mengajukan refund"
+        error.message || "Gagal mengajukan refund",
       );
     }
   },
@@ -951,22 +1023,27 @@ const eventController = {
         where: whereClause,
       });
 
-      return sendSuccess(res, 200, "Cancellation requests retrieved successfully", {
-        requests,
-        pagination: {
-          total,
-          page: parsedPage,
-          limit: parsedLimit,
-          pages: Math.ceil(total / parsedLimit),
+      return sendSuccess(
+        res,
+        200,
+        "Cancellation requests retrieved successfully",
+        {
+          requests,
+          pagination: {
+            total,
+            page: parsedPage,
+            limit: parsedLimit,
+            pages: Math.ceil(total / parsedLimit),
+          },
         },
-      });
+      );
     } catch (error) {
       console.error("Error getCancellationRequests:", error);
       return sendError(
         res,
         500,
         "Gagal mengambil cancellation requests",
-        error.message
+        error.message,
       );
     }
   },
@@ -976,7 +1053,11 @@ const eventController = {
       const { user_id, role, admin_note } = req.body;
 
       if (role !== "admin") {
-        return sendError(res, 403, "Only admin can approve cancellation request");
+        return sendError(
+          res,
+          403,
+          "Only admin can approve cancellation request",
+        );
       }
 
       const admin = await User.findByPk(user_id);
@@ -995,7 +1076,7 @@ const eventController = {
         return sendError(
           res,
           400,
-          "Cancellation request ini sudah diproses sebelumnya"
+          "Cancellation request ini sudah diproses sebelumnya",
         );
       }
 
@@ -1054,11 +1135,13 @@ const eventController = {
         },
       });
 
-      const refundResult = await refundService.createAutoRefundForCanceledEvent({
-        event,
-        actor_id: user_id,
-        refund_method: "original_payment",
-      });
+      const refundResult = await refundService.createAutoRefundForCanceledEvent(
+        {
+          event,
+          actor_id: user_id,
+          refund_method: "original_payment",
+        },
+      );
 
       return sendSuccess(
         res,
@@ -1069,7 +1152,7 @@ const eventController = {
           event,
           notified_users_count: buyers.length,
           refund: refundResult,
-        }
+        },
       );
     } catch (error) {
       console.error("Error approveCancellationRequest:", error);
@@ -1077,7 +1160,7 @@ const eventController = {
         res,
         500,
         "Gagal approve cancellation request",
-        error.message
+        error.message,
       );
     }
   },
@@ -1087,7 +1170,11 @@ const eventController = {
       const { user_id, role, admin_note } = req.body;
 
       if (role !== "admin") {
-        return sendError(res, 403, "Only admin can reject cancellation request");
+        return sendError(
+          res,
+          403,
+          "Only admin can reject cancellation request",
+        );
       }
 
       const admin = await User.findByPk(user_id);
@@ -1106,7 +1193,7 @@ const eventController = {
         return sendError(
           res,
           400,
-          "Cancellation request ini sudah diproses sebelumnya"
+          "Cancellation request ini sudah diproses sebelumnya",
         );
       }
 
@@ -1146,7 +1233,7 @@ const eventController = {
         {
           cancellation_request: cancelRequest,
           event,
-        }
+        },
       );
     } catch (error) {
       console.error("Error rejectCancellationRequest:", error);
@@ -1154,7 +1241,7 @@ const eventController = {
         res,
         500,
         "Gagal reject cancellation request",
-        error.message
+        error.message,
       );
     }
   },
@@ -1407,7 +1494,13 @@ const eventController = {
               {
                 model: Event,
                 as: "Event",
-                attributes: ["id", "title", "location", "start_date", "end_date"],
+                attributes: [
+                  "id",
+                  "title",
+                  "location",
+                  "start_date",
+                  "end_date",
+                ],
               },
             ],
           },
@@ -1423,7 +1516,7 @@ const eventController = {
         return sendError(
           res,
           404,
-          "Kode tiket tidak ditemukan atau tidak sesuai dengan event ini"
+          "Kode tiket tidak ditemukan atau tidak sesuai dengan event ini",
         );
       }
 
@@ -1443,29 +1536,32 @@ const eventController = {
         status: "used",
       });
 
-      return sendSuccess(res, 200, "Tiket berhasil divalidasi dan ditandai used", {
-        ticket_id: ticket.id,
-        ticket_code: ticket.ticket_code,
-        status: "used",
-        buyer: ticket.User,
-        ticket_type: {
-          id: ticket.TicketType.id,
-          name: ticket.TicketType.name,
-          price: ticket.TicketType.price,
+      return sendSuccess(
+        res,
+        200,
+        "Tiket berhasil divalidasi dan ditandai used",
+        {
+          ticket_id: ticket.id,
+          ticket_code: ticket.ticket_code,
+          status: "used",
+          buyer: ticket.User,
+          ticket_type: {
+            id: ticket.TicketType.id,
+            name: ticket.TicketType.name,
+            price: ticket.TicketType.price,
+          },
+          event: ticket.TicketType.Event,
+          validated_by: {
+            user_id,
+            role,
+          },
         },
-        event: ticket.TicketType.Event,
-        validated_by: {
-          user_id,
-          role,
-        },
-      });
+      );
     } catch (error) {
       console.error("Error validateTicketCode:", error);
       return sendError(res, 500, "Gagal validasi tiket", error.message);
     }
   },
 };
-
-
 
 module.exports = eventController;

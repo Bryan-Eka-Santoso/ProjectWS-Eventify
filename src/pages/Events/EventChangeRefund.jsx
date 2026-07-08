@@ -4,6 +4,7 @@ import axios from "axios";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { AUTH_USER } from "../../config/auth";
+import AppModal from "../../components/AppModal";
 
 function EventChangeRefund() {
   const { id, eventChangeId } = useParams();
@@ -12,6 +13,57 @@ function EventChangeRefund() {
   const [loading, setLoading] = useState(true);
   const [requestingId, setRequestingId] = useState(null);
   const [reason, setReason] = useState("");
+
+  const [modal, setModal] = useState({
+    show: false,
+    title: "",
+    message: "",
+    type: "info",
+    showCancel: false,
+    confirmText: "OK",
+    cancelText: "Batal",
+    onConfirm: null,
+  });
+
+  const showInfoModal = (title, message, type = "info") => {
+    setModal({
+      show: true,
+      title,
+      message,
+      type,
+      showCancel: false,
+      confirmText: "OK",
+      cancelText: "Batal",
+      onConfirm: null,
+    });
+  };
+
+  const showConfirmModal = ({
+    title,
+    message,
+    type = "confirm",
+    confirmText = "Ya",
+    cancelText = "Batal",
+    onConfirm,
+  }) => {
+    setModal({
+      show: true,
+      title,
+      message,
+      type,
+      showCancel: true,
+      confirmText,
+      cancelText,
+      onConfirm,
+    });
+  };
+
+  const closeModal = () => {
+    setModal((prev) => ({
+      ...prev,
+      show: false,
+    }));
+  };
 
   const fetchRefundInfo = async () => {
     try {
@@ -23,15 +75,17 @@ function EventChangeRefund() {
           params: {
             user_id: AUTH_USER.id,
           },
-        }
+        },
       );
 
       setData(res.data.data);
     } catch (error) {
       console.error("Gagal mengambil detail perubahan event:", error);
-      alert(
+      showInfoModal(
+        "Gagal Mengambil Detail Perubahan Event",
         error.response?.data?.message ||
-          "Gagal mengambil detail perubahan event."
+          "Gagal mengambil detail perubahan event.",
+        "error",
       );
     } finally {
       setLoading(false);
@@ -42,13 +96,7 @@ function EventChangeRefund() {
     fetchRefundInfo();
   }, [id, eventChangeId]);
 
-  const handleRequestRefund = async (transaction) => {
-    const confirmRefund = window.confirm(
-      `Ajukan refund untuk transaksi #${transaction.id}?`
-    );
-
-    if (!confirmRefund) return;
-
+  const processRequestRefund = async (transaction) => {
     try {
       setRequestingId(transaction.id);
 
@@ -59,21 +107,42 @@ function EventChangeRefund() {
           transaction_id: transaction.id,
           event_change_id: eventChangeId,
           reason: reason.trim() || null,
-        }
+        },
       );
 
-      alert(res.data.message || "Pengajuan refund berhasil dibuat.");
+      showInfoModal(
+        "Pengajuan Refund Berhasil",
+        res.data.message || "Pengajuan refund berhasil dibuat.",
+        "success",
+      );
+
       setReason("");
       fetchRefundInfo();
     } catch (error) {
       console.error("Gagal request refund:", error);
-      alert(
+      showInfoModal(
+        "Gagal Mengajukan Refund",
         error.response?.data?.message ||
-          "Gagal mengajukan refund untuk event ini."
+          "Gagal mengajukan refund untuk event ini.",
+        "error",
       );
     } finally {
       setRequestingId(null);
     }
+  };
+
+  const handleRequestRefund = async (transaction) => {
+    showConfirmModal({
+      title: "Konfirmasi Pengajuan Refund",
+      message: `Ajukan refund untuk transaksi #${transaction.id}?`,
+      type: "confirm",
+      confirmText: "Ya, Ajukan Refund",
+      cancelText: "Batal",
+      onConfirm: () => {
+        closeModal();
+        processRequestRefund(transaction);
+      },
+    });
   };
 
   const formatDateTime = (value) => {
@@ -112,10 +181,26 @@ function EventChangeRefund() {
     return (
       <>
         <Navbar />
-        <div className="container py-5 text-center" style={{ minHeight: "80vh" }}>
+        <div
+          className="container py-5 text-center"
+          style={{ minHeight: "80vh" }}
+        >
           <div className="spinner-border text-primary"></div>
           <p className="text-muted mt-2">Memuat detail perubahan event...</p>
         </div>
+
+        <AppModal
+          show={modal.show}
+          title={modal.title}
+          message={modal.message}
+          type={modal.type}
+          showCancel={modal.showCancel}
+          confirmText={modal.confirmText}
+          cancelText={modal.cancelText}
+          onConfirm={modal.onConfirm}
+          onClose={closeModal}
+        />
+
         <Footer />
       </>
     );
@@ -133,6 +218,19 @@ function EventChangeRefund() {
             Kembali ke My Tickets
           </Link>
         </div>
+
+        <AppModal
+          show={modal.show}
+          title={modal.title}
+          message={modal.message}
+          type={modal.type}
+          showCancel={modal.showCancel}
+          confirmText={modal.confirmText}
+          cancelText={modal.cancelText}
+          onConfirm={modal.onConfirm}
+          onClose={closeModal}
+        />
+
         <Footer />
       </>
     );
@@ -272,14 +370,13 @@ function EventChangeRefund() {
                                 Transaksi #{transaction.id}
                               </div>
                               <small className="text-muted">
-                                Total:{" "}
-                                {formatRupiah(transaction.final_amount)}
+                                Total: {formatRupiah(transaction.final_amount)}
                               </small>
                             </div>
 
                             {transaction.existing_refund ? (
                               getRefundStatusBadge(
-                                transaction.existing_refund.status
+                                transaction.existing_refund.status,
                               )
                             ) : (
                               <span className="badge bg-success">ELIGIBLE</span>
@@ -328,6 +425,18 @@ function EventChangeRefund() {
           </div>
         </div>
       </div>
+
+      <AppModal
+        show={modal.show}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        showCancel={modal.showCancel}
+        confirmText={modal.confirmText}
+        cancelText={modal.cancelText}
+        onConfirm={modal.onConfirm}
+        onClose={closeModal}
+      />
 
       <Footer />
     </>
