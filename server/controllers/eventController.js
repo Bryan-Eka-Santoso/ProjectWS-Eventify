@@ -170,6 +170,74 @@ const sendEventCanceledEmails = async ({ users, event }) => {
   }
 };
 
+const sendCancellationRequestEmailsToAdmins = async ({
+  admins,
+  organizer,
+  event,
+  cancellationRequest,
+}) => {
+  for (const admin of admins) {
+    try {
+      await emailService.sendCancellationRequestEmailToAdmin({
+        to: admin.email,
+        adminName: admin.name,
+        organizer,
+        event,
+        cancellationRequest,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to send cancellation request email to admin:",
+        error.message
+      );
+    }
+  }
+};
+
+const sendCancellationApprovedEmailToOrganizer = async ({
+  organizer,
+  event,
+  adminNote,
+}) => {
+  if (!organizer?.email) return;
+
+  try {
+    await emailService.sendCancellationApprovedEmailToOrganizer({
+      to: organizer.email,
+      name: organizer.name,
+      event,
+      adminNote,
+    });
+  } catch (error) {
+    console.error(
+      "Failed to send cancellation approved email to organizer:",
+      error.message
+    );
+  }
+};
+
+const sendCancellationRejectedEmailToOrganizer = async ({
+  organizer,
+  event,
+  adminNote,
+}) => {
+  if (!organizer?.email) return;
+
+  try {
+    await emailService.sendCancellationRejectedEmailToOrganizer({
+      to: organizer.email,
+      name: organizer.name,
+      event,
+      adminNote,
+    });
+  } catch (error) {
+    console.error(
+      "Failed to send cancellation rejected email to organizer:",
+      error.message
+    );
+  }
+};
+
 const eventController = {
   createEvent: async (req, res) => {
     try {
@@ -582,6 +650,15 @@ const eventController = {
               },
             }))
           );
+
+          const organizer = await User.findByPk(user_id);
+
+          await sendCancellationRequestEmailsToAdmins({
+            admins,
+            organizer,
+            event,
+            cancellationRequest: cancelRequest,
+          });
         }
 
         return sendSuccess(
@@ -1053,6 +1130,13 @@ const eventController = {
           admin_note: admin_note || null,
         },
       });
+      const organizer = await User.findByPk(cancelRequest.requested_by);
+
+      await sendCancellationApprovedEmailToOrganizer({
+        organizer,
+        event,
+        adminNote: admin_note || null,
+      });
 
       const refundResult = await refundService.createAutoRefundForCanceledEvent({
         event,
@@ -1137,6 +1221,13 @@ const eventController = {
           cancellation_request_id: cancelRequest.id,
           admin_note,
         },
+      });
+      const organizer = await User.findByPk(cancelRequest.requested_by);
+
+      await sendCancellationRejectedEmailToOrganizer({
+        organizer,
+        event,
+        adminNote: admin_note || null,
       });
 
       return sendSuccess(

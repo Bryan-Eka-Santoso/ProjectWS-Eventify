@@ -196,14 +196,19 @@ const notifyRefundRejected = async ({
   user_id,
   actor_id = null,
   refund,
+  rejection_reason = null,
   admin_note = null,
 }) => {
+  const reason = rejection_reason || admin_note || refund.rejection_reason || null;
+
   return await createNotification({
     recipient_id: user_id,
     actor_id,
     type: "refund_rejected",
     title: "Refund ditolak",
-    body: "Pengajuan refund kamu ditolak oleh admin.",
+    body: reason
+      ? `Pengajuan refund kamu ditolak oleh admin. Alasan: ${reason}`
+      : "Pengajuan refund kamu ditolak oleh admin.",
     target_type: null,
     target_id: null,
     data: {
@@ -211,8 +216,8 @@ const notifyRefundRejected = async ({
       event_id: refund.event_id,
       transaction_id: refund.transaction_id,
       amount: refund.amount,
-      status: refund.status,
-      admin_note,
+      status: "rejected",
+      rejection_reason: reason,
     },
   });
 };
@@ -244,6 +249,30 @@ const notifyRefundRequestToAdmins = async ({
   return await createBulkNotifications(notifications);
 };
 
+const notifyTicketPurchaseSuccess = async ({
+  user_id,
+  transaction,
+  event,
+  tickets = [],
+}) => {
+  return await createNotification({
+    recipient_id: user_id,
+    actor_id: null,
+    type: "ticket_purchase_success",
+    title: "Pembelian ticket berhasil",
+    body: `Ticket untuk event "${event?.title || "Event"}" berhasil dibeli.`,
+    target_type: "event",
+    target_id: event?.id || null,
+    data: {
+      transaction_id: transaction.id,
+      event_id: event?.id || null,
+      event_title: event?.title || null,
+      ticket_count: tickets.length,
+      payment_status: "paid",
+    },
+  });
+};
+
 module.exports = {
   createNotification,
   createBulkNotifications,
@@ -255,4 +284,5 @@ module.exports = {
   notifyRefundApproved,
   notifyRefundRejected,
   notifyRefundRequestToAdmins,
+  notifyTicketPurchaseSuccess,
 };

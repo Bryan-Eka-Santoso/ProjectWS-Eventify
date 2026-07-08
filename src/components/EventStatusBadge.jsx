@@ -2,10 +2,14 @@ function EventStatusBadge({ status }) {
   const statusClass = {
     published: "bg-success",
     draft: "bg-warning text-dark",
+    pending: "bg-warning text-dark",
     pending_approval: "bg-info text-dark",
+    approved: "bg-success",
     rejected: "bg-danger",
     canceled: "bg-secondary",
     completed: "bg-primary",
+    processing: "bg-info text-dark",
+    refunded: "bg-success",
   };
 
   return (

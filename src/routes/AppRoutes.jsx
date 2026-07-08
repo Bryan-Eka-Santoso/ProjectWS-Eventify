@@ -7,8 +7,6 @@ import Home from "../pages/Home";
 import AdminRoute from "./AdminRoute";
 import UserRoute from "./UserRoute";
 
-//Events
-
 import Events from "../pages/Events/Events";
 import CreateEvent from "../pages/Events/CreateEvent";
 import MyEvents from "../pages/Events/MyEvents";
@@ -34,8 +32,10 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+
       <Route element={<UserRoute />}>
         <Route path="/" element={<Home />} />
+
         <Route path="/events" element={<Events />} />
         <Route path="/events/create" element={<CreateEvent />} />
         <Route path="/events/my-events" element={<MyEvents />} />
@@ -52,19 +52,25 @@ function AppRoutes() {
 
         <Route path="/events/:id/edit" element={<EditEvent />} />
         <Route path="/events/:id/validate-ticket" element={<ValidateTicket />} />
-        <Route path="/events/:id/change/:eventChangeId" element={<EventChangeRefund />}/>
+        <Route
+          path="/events/:id/change/:eventChangeId"
+          element={<EventChangeRefund />}
+        />
         <Route path="/events/:id" element={<EventDetail />} />
 
         <Route path="/community" element={<Community />} />
-
-        {/* --- 🔖 RUTE BARU UNTUK HALAMAN SAVED EVENTS (Bookmark) --- */}
-        <Route path="/events/saved" element={<SavedEvents />} />
-         {/* My Profile */}
         <Route path="/profile" element={<MyProfile />} />
       </Route>
-      <Route path="/admin/home" element={<HomeAdmin />} />
+
+      <Route element={<AdminRoute />}>
+        <Route path="/admin/home" element={<HomeAdmin />} />
+        <Route
+          path="/admin/cancellation-requests"
+          element={<CancellationRequests />}
+        />
+      </Route>
     </Routes>
   );
 }
 
-export default AppRoutes;  
+export default AppRoutes;
