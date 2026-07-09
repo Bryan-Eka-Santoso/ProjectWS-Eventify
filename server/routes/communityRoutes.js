@@ -4,6 +4,11 @@ const router = express.Router();
 const communityController = require("../controllers/communityController");
 const upload = require("../middlewares/upload");
 
+const authLimiter = require("../middlewares/authLimiter");
+const apiLimiter = require("../middlewares/apiLimiter");
+const uploadLimiter = require("../middlewares/uploadLimiter");
+const verifyToken = require("../middlewares/verifyJWT").verifyToken;
+const checkRoles = require("../middlewares/checkRoles").checkRoles;
 const validate = require("../middlewares/validate");
 const communityValidation = require("../validators/communityValidation");
 
@@ -20,14 +25,14 @@ router.get(
   "/admin/all-rooms",
   verifyToken,
   checkRoles("admin"),
-  communityController.adminGetAllChatRooms
+  communityController.adminGetAllChatRooms,
 );
 
 router.delete(
   "/admin/rooms/:chat_room_id",
   verifyToken,
   checkRoles("admin"),
-  communityController.adminDeleteChatRoom
+  communityController.adminDeleteChatRoom,
 );
 
 router.get(
@@ -35,7 +40,7 @@ router.get(
   validate({
     query: communityValidation.userIdQuerySchema,
   }),
-  communityController.getUnreadCounts
+  communityController.getUnreadCounts,
 );
 
 router.post(
@@ -170,7 +175,7 @@ router.delete(
     params: communityValidation.deleteChatRoomParamsSchema,
     body: communityValidation.deleteChatRoomBodySchema,
   }),
-  communityController.updateMemberRole
+  communityController.updateMemberRole,
 );
 router.delete(
   "/:chat_room_id/members/:user_id",
@@ -219,7 +224,6 @@ router.post(
   }),
   communityController.sendMediaMessage,
 );
-
 
 router.post(
   "/:chat_room_id/messages/share-event",
@@ -270,7 +274,6 @@ router.get(
   communityController.getPinnedMessages,
 );
 
-
 // =========================
 // MESSAGE READS / UNREAD
 // =========================
@@ -294,7 +297,6 @@ router.post(
   }),
   communityController.markAllMessagesAsRead,
 );
-
 
 router.get(
   "/:chat_room_id/unread-count",

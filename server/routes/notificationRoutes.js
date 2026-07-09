@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 
-const { verifyToken } = require("../middlewares/verifyJWT");
 const notificationController = require("../controllers/notificationController");
 const validate = require("../middlewares/validate");
 const notificationValidation = require("../validators/notificationValidation");
@@ -29,7 +28,7 @@ router.get(
   validate({
     query: notificationValidation.userIdQuerySchema,
   }),
-  notificationController.getUnreadCount
+  notificationController.getUnreadCount,
 );
 
 router.patch(
@@ -37,7 +36,7 @@ router.patch(
   validate({
     body: notificationValidation.userIdBodySchema,
   }),
-  notificationController.markAllAsRead
+  notificationController.markAllAsRead,
 );
 
 router.patch(

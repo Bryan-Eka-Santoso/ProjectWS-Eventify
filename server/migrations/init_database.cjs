@@ -7,7 +7,7 @@ module.exports = {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
       name: { type: Sequelize.STRING(255), allowNull: false },
       email: { type: Sequelize.STRING(255), unique: true, allowNull: false },
-      password: { type: Sequelize.STRING(255), allowNull: false },
+      password: { type: Sequelize.STRING(255), allowNull: true },
       role: {
         type: Sequelize.ENUM("admin", "organizer", "user"),
         allowNull: false,
@@ -16,6 +16,7 @@ module.exports = {
       bio: { type: Sequelize.TEXT, allowNull: true },
       points: { type: Sequelize.INTEGER, defaultValue: 0 },
       api_key: { type: Sequelize.STRING(255), unique: true, allowNull: false },
+      google_id: { type: Sequelize.STRING(255), allowNull: true },
       refresh_token: { type: Sequelize.STRING(255), allowNull: true },
       created_at: {
         type: Sequelize.DATE,
