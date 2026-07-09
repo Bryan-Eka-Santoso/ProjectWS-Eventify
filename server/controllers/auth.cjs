@@ -104,7 +104,8 @@ exports.login = async (req, res) => {
     if (!user.password) {
       return res.status(400).json({
         status: "error",
-        message: "Akun ini terdaftar menggunakan Google. Silakan login dengan Google.",
+        message:
+          "Akun ini terdaftar menggunakan Google. Silakan login dengan Google.",
       });
     }
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -198,7 +199,7 @@ exports.refresh = async (req, res) => {
       process.env.ACCESS_TOKEN_SECRET,
       {
         expiresIn: "15m",
-      }
+      },
     );
 
     return res.status(200).json({

@@ -23,7 +23,11 @@ router.post(
   "/tickets/midtrans-callback",
   eventController.handleMidtransCallback,
 );
-router.get("/tickets/my-tickets", verifyToken, eventController.getUserTicketsList);
+router.get(
+  "/tickets/my-tickets",
+  verifyToken,
+  eventController.getUserTicketsList,
+);
 
 // ==========================================
 // 🔥 ROUTE BARU KHUSUS VOUCHER & POIN (Ditaruh atas biar ga tabrakan slug /:id)
@@ -38,28 +42,28 @@ router.get(
   "/vouchers/admin-list",
   verifyToken,
   checkRoles("admin"),
-  eventController.getAllVouchersAdmin
+  eventController.getAllVouchersAdmin,
 );
 
 router.post(
   "/vouchers",
   verifyToken,
   checkRoles("admin"),
-  eventController.createVoucher
+  eventController.createVoucher,
 );
 
 router.put(
   "/vouchers/:id",
   verifyToken,
   checkRoles("admin"),
-  eventController.updateVoucher
+  eventController.updateVoucher,
 );
 
 router.delete(
   "/vouchers/:id",
   verifyToken,
   checkRoles("admin"),
-  eventController.deleteVoucher
+  eventController.deleteVoucher,
 );
 
 // =====================================================
@@ -87,15 +91,11 @@ router.get(
   "/admin/all-events",
   verifyToken,
   checkRoles("admin"),
-  eventController.getAllEventsAdmin
+  eventController.getAllEventsAdmin,
 );
 
 // Ambil saved event milik user
-router.get(
-  "/saved-list",
-  verifyToken,
-  eventController.getSavedEventsList,
-);
+router.get("/saved-list", verifyToken, eventController.getSavedEventsList);
 
 // Ambil categories
 router.get("/categories", eventController.getCategories);
@@ -108,21 +108,21 @@ router.post(
   "/categories",
   verifyToken,
   checkRoles("admin"),
-  eventController.createCategory
+  eventController.createCategory,
 );
 
 router.put(
   "/categories/:id",
   verifyToken,
   checkRoles("admin"),
-  eventController.updateCategory
+  eventController.updateCategory,
 );
 
 router.delete(
   "/categories/:id",
   verifyToken,
   checkRoles("admin"),
-  eventController.deleteCategory
+  eventController.deleteCategory,
 );
 
 // =====================================================
