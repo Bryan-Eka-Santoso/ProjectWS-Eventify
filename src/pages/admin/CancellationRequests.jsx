@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import api from "../../config/api"; // ✅ Menggunakan instance api kita
 import { getCurrentUser } from "../../config/auth";
-import Navbar from "../../components/Navbar";
+import Navbar from "../../components/admin/Navbar";
 import Footer from "../../components/Footer";
 import EventStatusBadge from "../../components/EventStatusBadge";
-
 
 function CancellationRequests() {
   const [requests, setRequests] = useState([]);
@@ -16,23 +15,20 @@ function CancellationRequests() {
     try {
       setLoading(true);
 
-      const res = await api.get(
-        "/events/cancellation-requests",
-        {
-          params: {
-            status,
-            page: 1,
-            limit: 50,
-          },
-        }
-      );
+      const res = await api.get("/events/cancellation-requests", {
+        params: {
+          status,
+          page: 1,
+          limit: 50,
+        },
+      });
 
       setRequests(res.data.data?.requests || []);
     } catch (error) {
       console.error("Gagal mengambil cancellation requests:", error);
       alert(
         error.response?.data?.message ||
-          "Gagal mengambil daftar request pembatalan event."
+          "Gagal mengambil daftar request pembatalan event.",
       );
     } finally {
       setLoading(false);
@@ -49,14 +45,14 @@ function CancellationRequests() {
 
   const handleApprove = async (request) => {
     const confirmApprove = window.confirm(
-      `Setujui pembatalan event "${request.Event?.title}"?`
+      `Setujui pembatalan event "${request.Event?.title}"?`,
     );
 
     if (!confirmApprove) return;
 
     const adminNote = window.prompt(
       "Catatan admin:",
-      "Request pembatalan event disetujui oleh admin."
+      "Request pembatalan event disetujui oleh admin.",
     );
 
     try {
@@ -66,7 +62,7 @@ function CancellationRequests() {
         `/events/cancellation-requests/${request.id}/approve`,
         {
           admin_note: adminNote || null,
-        }
+        },
       );
 
       alert(res.data.message);
@@ -75,7 +71,7 @@ function CancellationRequests() {
       console.error("Gagal approve cancellation request:", error);
       alert(
         error.response?.data?.message ||
-          "Gagal approve request pembatalan event."
+          "Gagal approve request pembatalan event.",
       );
     } finally {
       setProcessingId(null);
@@ -84,7 +80,7 @@ function CancellationRequests() {
 
   const handleReject = async (request) => {
     const adminNote = window.prompt(
-      `Masukkan alasan penolakan untuk event "${request.Event?.title}":`
+      `Masukkan alasan penolakan untuk event "${request.Event?.title}":`,
     );
 
     if (!adminNote || adminNote.trim().length < 3) {
@@ -99,7 +95,7 @@ function CancellationRequests() {
         `/events/cancellation-requests/${request.id}/reject`,
         {
           admin_note: adminNote,
-        }
+        },
       );
 
       alert(res.data.message);
@@ -108,7 +104,7 @@ function CancellationRequests() {
       console.error("Gagal reject cancellation request:", error);
       alert(
         error.response?.data?.message ||
-          "Gagal reject request pembatalan event."
+          "Gagal reject request pembatalan event.",
       );
     } finally {
       setProcessingId(null);
@@ -132,9 +128,7 @@ function CancellationRequests() {
         <div className="container py-5" style={{ minHeight: "80vh" }}>
           <div className="alert alert-danger rounded-4 shadow-sm">
             <h5 className="fw-bold mb-1">Akses Ditolak</h5>
-            <p className="mb-0">
-              Halaman ini hanya dapat diakses oleh admin.
-            </p>
+            <p className="mb-0">Halaman ini hanya dapat diakses oleh admin.</p>
           </div>
         </div>
 
@@ -175,9 +169,7 @@ function CancellationRequests() {
         {loading ? (
           <div className="text-center py-5">
             <div className="spinner-border text-primary" role="status"></div>
-            <p className="text-muted mt-2">
-              Memuat cancellation requests...
-            </p>
+            <p className="text-muted mt-2">Memuat cancellation requests...</p>
           </div>
         ) : requests.length === 0 ? (
           <div className="text-center py-5 bg-light border rounded-4">

@@ -10,7 +10,6 @@ const checkRoles = require("../middlewares/checkRoles").checkRoles;
 const apiLimiter = require("../middlewares/apiLimiter");
 const uploadLimiter = require("../middlewares/uploadLimiter");
 
-
 const validate = require("../middlewares/validate");
 const eventValidation = require("../validators/eventValidation");
 
@@ -155,8 +154,8 @@ router.delete(
 
 router.post(
   "/",
-  // verifyToken,
-  // checkRoles("admin", "organizer"),
+  verifyToken,
+  checkRoles("admin", "organizer"),
   upload.fields([
     { name: "main_image", maxCount: 1 },
     { name: "album", maxCount: 10 },

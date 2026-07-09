@@ -72,7 +72,9 @@ exports.updateProfile = async (req, res) => {
     name ? (user.name = name) : null;
     email ? (user.email = email) : null;
     bio ? (user.bio = bio) : null;
-
+    organizer_name ? (user.organizer_name = organizer_name) : null;
+    phone_number ? (user.phone_number = phone_number) : null;
+    address ? (user.address = address) : null;
     await user.save();
     if (req.user.role === "organizer") {
       const { error } = editProfileOrganizerSchema.validate(req.body);
