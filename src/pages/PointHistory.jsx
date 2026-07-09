@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { AUTH_USER } from "../config/auth";
 
-const API_BASE = `http://localhost:${process.env.PORT}/api/transactions`;
+const API_BASE = `http://localhost:5000/api/transactions`;
 
 function PointHistory() {
   const [histories, setHistories] = useState([]);
@@ -63,9 +63,7 @@ function PointHistory() {
 
           <div className="text-end">
             <div className="small text-muted">Saldo Poin</div>
-            <div className="fs-3 fw-bold text-primary">
-              {currentPoints} pts
-            </div>
+            <div className="fs-3 fw-bold text-primary">{currentPoints} pts</div>
           </div>
         </div>
 
@@ -87,10 +85,7 @@ function PointHistory() {
         ) : (
           <div className="d-flex flex-column gap-2">
             {histories.map((h) => (
-              <div
-                key={h.id}
-                className="card border rounded-4 shadow-sm"
-              >
+              <div key={h.id} className="card border rounded-4 shadow-sm">
                 <div className="card-body p-3 d-flex justify-content-between align-items-center">
                   <div className="d-flex align-items-center gap-3">
                     <span

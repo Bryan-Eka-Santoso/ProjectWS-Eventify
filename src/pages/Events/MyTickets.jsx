@@ -13,7 +13,7 @@ function MyTickets() {
   useEffect(() => {
     axios
       .get(
-        `http://localhost:${process.env.PORT}/api/events/tickets/my-tickets?user_id=${AUTH_USER.id}`,
+        `http://localhost:5000/api/events/tickets/my-tickets?user_id=${AUTH_USER.id}`,
       )
       .then((res) => {
         setTickets(res.data);

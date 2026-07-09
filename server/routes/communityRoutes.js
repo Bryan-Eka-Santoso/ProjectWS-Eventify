@@ -45,6 +45,7 @@ router.get(
 
 router.post(
   "/",
+  uploadLimiter,
   upload.single("profile_image"),
   validate({
     body: communityValidation.createChatRoomBodySchema,
@@ -127,6 +128,7 @@ router.delete(
 
 router.put(
   "/:chat_room_id",
+  uploadLimiter,
   upload.single("profile_image"),
   validate({
     params: communityValidation.updateChatRoomParamsSchema,
@@ -203,6 +205,7 @@ router.post(
 
 router.post(
   "/:chat_room_id/messages/media",
+  uploadLimiter,
   upload.single("media"),
   validate({
     params: communityValidation.sendMediaMessageParamsSchema,

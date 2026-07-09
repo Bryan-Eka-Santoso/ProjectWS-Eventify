@@ -5,7 +5,7 @@ import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { AUTH_USER } from "../../config/auth";
 
-const API_BASE = `http://localhost:${process.env.PORT}/api/transactions`;
+const API_BASE = `http://localhost:5000/api/transactions`;
 
 const STATUS_BADGE = {
   paid: "bg-success",

@@ -30,7 +30,7 @@ function DetailExternal() {
 
     // 🔥 MENGIRIM ID USER DAN ROLE ASLI DARI AUTH_USER PUSAT SEKARANG WOII
     axios
-      .post(`http://localhost:${process.env.PORT}/api/events/follow-external`, {
+      .post(`http://localhost:5000/api/events/follow-external`, {
         external_id: id,
         title: event.name,
         location: event.location || "Online",

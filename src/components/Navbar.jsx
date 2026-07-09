@@ -9,7 +9,7 @@ function Navbar() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:3005/api/auth/logout", {
+      await fetch("http://localhost:5000/api/auth/logout", {
         method: "POST",
         credentials: "include",
       });
@@ -55,7 +55,7 @@ function Navbar() {
           {/* Menu Tengah */}
           <ul className="navbar-nav me-auto mb-2 mb-lg-0 gap-2">
             <li className="nav-item">
-              <NavLink
+              {/* <NavLink
                 to="/"
                 className={({ isActive }) =>
                   `nav-link ${isActive ? "active fw-bold" : ""}`
@@ -63,7 +63,7 @@ function Navbar() {
               >
                 <i className="bi bi-house-fill me-1"></i>
                 Home
-              </NavLink>
+              </NavLink> */}
             </li>
 
             <li className="nav-item">

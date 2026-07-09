@@ -70,7 +70,7 @@ function EventChangeRefund() {
       setLoading(true);
 
       const res = await axios.get(
-        `http://localhost:${process.env.PORT}/api/events/${id}/changes/${eventChangeId}/refund-info`,
+        `http://localhost:5000/api/events/${id}/changes/${eventChangeId}/refund-info`,
         {
           params: {
             user_id: AUTH_USER.id,
@@ -101,7 +101,7 @@ function EventChangeRefund() {
       setRequestingId(transaction.id);
 
       const res = await axios.post(
-        `http://localhost:${process.env.PORT}/api/events/${id}/refund-request`,
+        `http://localhost:5000/api/events/${id}/refund-request`,
         {
           user_id: AUTH_USER.id,
           transaction_id: transaction.id,

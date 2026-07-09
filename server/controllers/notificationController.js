@@ -61,7 +61,7 @@ const notificationController = {
             limit: parsedLimit,
             pages: Math.ceil(total / parsedLimit),
           },
-        }
+        },
       );
     } catch (error) {
       console.error("Error getMyNotifications:", error);
@@ -69,7 +69,7 @@ const notificationController = {
         res,
         500,
         "Failed to retrieve notifications",
-        error.message
+        error.message,
       );
     }
   },
@@ -94,7 +94,7 @@ const notificationController = {
         res,
         500,
         "Failed to retrieve unread count",
-        error.message
+        error.message,
       );
     }
   },
@@ -124,7 +124,7 @@ const notificationController = {
         res,
         200,
         "Notification marked as read successfully",
-        notification
+        notification,
       );
     } catch (error) {
       console.error("Error markAsRead:", error);
@@ -132,7 +132,7 @@ const notificationController = {
         res,
         500,
         "Failed to mark notification as read",
-        error.message
+        error.message,
       );
     }
   },
@@ -151,7 +151,7 @@ const notificationController = {
             recipient_id: user_id,
             is_read: false,
           },
-        }
+        },
       );
 
       return sendSuccess(res, 200, "All notifications marked as read", {
@@ -163,7 +163,7 @@ const notificationController = {
         res,
         500,
         "Failed to mark all notifications as read",
-        error.message
+        error.message,
       );
     }
   },
@@ -193,7 +193,7 @@ const notificationController = {
         res,
         500,
         "Failed to delete notification",
-        error.message
+        error.message,
       );
     }
   },

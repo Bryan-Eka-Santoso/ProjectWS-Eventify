@@ -62,7 +62,6 @@ function AppRoutes() {
 
       {/* USER & ORGANIZER */}
       <Route element={<ProtectedRoute />}>
-
         <Route path="/events/:id" element={<EventDetail />} />
 
         <Route path="/events/external" element={<ExploreExternal />} />
@@ -101,7 +100,6 @@ function AppRoutes() {
       {/* ORGANIZER ONLY */}
       <Route element={<OrganizerRoute />}>
         <Route path="/events/create" element={<CreateEvent />} />
-
         <Route path="/events/my-events" element={<MyEvents />} />
 
         <Route path="/events/:id/edit" element={<EditEvent />} />

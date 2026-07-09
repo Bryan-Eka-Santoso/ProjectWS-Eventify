@@ -36,7 +36,7 @@ exports.register = async (req, res) => {
       return res.status(201).json({
         status: "success",
         message: "Registration successful",
-        redirect: "/",
+        redirect: "/login",
       });
     }
 
@@ -66,7 +66,7 @@ exports.register = async (req, res) => {
     return res.status(200).json({
       status: "success",
       message: "Your account has been restored successfully.",
-      redirect: "/",
+      redirect: "/login",
     });
   } catch (error) {
     console.error(error);
@@ -104,6 +104,8 @@ exports.login = async (req, res) => {
     if (!user.password) {
       return res.status(400).json({
         status: "error",
+        message:
+          "Akun ini terdaftar menggunakan Google. Silakan login dengan Google.",
         message:
           "This account is registered via Google login. Please use Google login to access your account.",
       });
@@ -150,12 +152,23 @@ exports.login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return res.status(200).json({
-      status: "success",
-      message: "Login successful",
-      token: token,
-      redirect: "/",
-    });
+    console.error("User role:", user.role);
+
+    if (user.role === "admin") {
+      return res.status(200).json({
+        status: "success",
+        message: "Login successful",
+        token: token,
+        redirect: "/admin/home",
+      });
+    } else {
+      return res.status(200).json({
+        status: "success",
+        message: "Login successful",
+        token: token,
+        redirect: "/events",
+      });
+    }
   } catch (error) {
     console.error(error);
 
@@ -195,6 +208,7 @@ exports.refresh = async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
+        name: user.name,
       },
       process.env.ACCESS_TOKEN_SECRET,
       {
@@ -314,6 +328,7 @@ exports.googleLogin = async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
+        name: user.name,
       },
       process.env.ACCESS_TOKEN_SECRET,
       {

@@ -13,7 +13,7 @@ function SavedEvents() {
     // Tarik data event spesifik yang disimpan oleh user_id aktif gess
     axios
       .get(
-        `http://localhost:${process.env.PORT}/api/events/saved-list?user_id=${AUTH_USER.id}`,
+        `http://localhost:5000/api/events/saved-list?user_id=${AUTH_USER.id}`,
       )
       .then((res) => {
         setSavedEvents(res.data);

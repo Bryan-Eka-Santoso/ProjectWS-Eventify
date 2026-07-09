@@ -55,12 +55,12 @@ function Navbar() {
         <div className="collapse navbar-collapse" id="adminNavbarContent">
           {/* Menu Tengah */}
           <ul className="navbar-nav mx-auto mb-2 mb-lg-0 gap-1">
-            <li className="nav-item">
+            {/* <li className="nav-item">
               <NavLink to="/admin/home" className={linkClass}>
                 <i className="bi bi-house-fill me-1"></i>
                 Home
               </NavLink>
-            </li>
+            </li> */}
 
             <li className="nav-item">
               <NavLink to="/admin/users" className={linkClass}>

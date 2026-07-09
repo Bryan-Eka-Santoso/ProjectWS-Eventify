@@ -70,7 +70,7 @@ function VoucherShop() {
   const fetchUserPoints = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:${process.env.PORT}/api/events/vouchers/user-points?user_id=${AUTH_USER.id}`,
+        `http://localhost:5000/api/events/vouchers/user-points?user_id=${AUTH_USER.id}`,
       );
       setUserPoints(res.data.points);
     } catch (err) {
@@ -81,7 +81,7 @@ function VoucherShop() {
   const fetchVouchers = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:${process.env.PORT}/api/events/vouchers/shop-list`,
+        `http://localhost:5000/api/events/vouchers/shop-list`,
       );
       setVouchers(res.data);
       setLoading(false);
@@ -94,7 +94,7 @@ function VoucherShop() {
   const claimVoucher = async (voucherId) => {
     try {
       const res = await axios.post(
-        `http://localhost:${process.env.PORT}/api/events/vouchers/claim`,
+        `http://localhost:5000/api/events/vouchers/claim`,
         {
           user_id: AUTH_USER.id,
           voucher_id: voucherId,

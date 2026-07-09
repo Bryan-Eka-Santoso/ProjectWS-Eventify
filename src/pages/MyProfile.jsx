@@ -33,15 +33,12 @@ function MyProfile() {
 
   const getProfile = async () => {
     try {
-      const response = await fetch(
-        `http://localhost:${process.env.PORT}/api/auth/profile`,
-        {
-          credentials: "include",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+      const response = await fetch(`http://localhost:5000/api/auth/profile`, {
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-      );
+      });
 
       if (response.status === 404 || response.status === 401) {
         localStorage.removeItem("token");
@@ -82,25 +79,22 @@ function MyProfile() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(
-        `http://localhost:${process.env.PORT}/api/auth/update`,
-        {
-          method: "PUT",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({
-            name: formData.name,
-            email: formData.email,
-            bio: formData.bio,
-            organizer_name: formData.organizer_name,
-            phone_number: formData.phone_number,
-            address: formData.address,
-          }),
+      const response = await fetch(`http://localhost:5000/api/auth/update`, {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-      );
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          bio: formData.bio,
+          organizer_name: formData.organizer_name,
+          phone_number: formData.phone_number,
+          address: formData.address,
+        }),
+      });
 
       const data = await response.json();
 
@@ -145,7 +139,7 @@ function MyProfile() {
     e.preventDefault();
     try {
       const response = await fetch(
-        `http://localhost:${process.env.PORT}/api/auth/change-password`,
+        `http://localhost:5000/api/auth/change-password`,
         {
           method: "PUT",
           credentials: "include",
@@ -213,7 +207,7 @@ function MyProfile() {
 
     try {
       const response = await fetch(
-        `http://localhost:${process.env.PORT}/api/auth/change-avatar`,
+        `http://localhost:5000/api/auth/change-avatar`,
         {
           method: "PUT",
           credentials: "include",
@@ -262,7 +256,7 @@ function MyProfile() {
       form.append("address", formData.address);
 
       const response = await fetch(
-        `http://localhost:${process.env.PORT}/api/auth/register-organizer`,
+        `http://localhost:5000/api/auth/register-organizer`,
         {
           method: "POST",
           credentials: "include",
@@ -282,7 +276,7 @@ function MyProfile() {
         });
 
         // Logout
-        await fetch(`http://localhost:${process.env.PORT}/api/auth/logout`, {
+        await fetch(`http://localhost:5000/api/auth/logout`, {
           method: "POST",
           credentials: "include",
         });
@@ -312,16 +306,13 @@ function MyProfile() {
 
   const deleteAccount = async () => {
     try {
-      const response = await fetch(
-        `http://localhost:${process.env.PORT}/api/auth/profile`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          credentials: "include",
+      const response = await fetch(`http://localhost:5000/api/auth/profile`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-      );
+        credentials: "include",
+      });
 
       console.log("Status:", response.status);
 
@@ -410,7 +401,7 @@ function MyProfile() {
                         user.avatar
                           ? user.google_id !== null
                             ? user.avatar
-                            : `http://localhost:${process.env.PORT}${user.avatar}`
+                            : `http://localhost:5000${user.avatar}`
                           : defaultAvatar
                       }
                       alt={user.name}

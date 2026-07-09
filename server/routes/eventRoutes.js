@@ -12,14 +12,48 @@ const uploadLimiter = require("../middlewares/uploadLimiter");
 
 const validate = require("../middlewares/validate");
 const eventValidation = require("../validators/eventValidation");
+
+// Semua route tetap kena limiter
+router.use(apiLimiter);
+
+// =====================================================
+// ROUTE PUBLIC / TIDAK WAJIB LOGIN
+// Route ini harus ditaruh sebelum route yang butuh verifyToken,
+// supaya data dummy categories, published events, voucher shop,
+// dan autocomplete lokasi bisa muncul di frontend.
+// =====================================================
+
+// Ambil categories
+router.get("/categories", eventController.getCategories);
+
+// Ambil event published + filter kategori
+router.get(
+  "/published",
+  validate({ query: eventValidation.getPublishedEventsQuerySchema }),
+  eventController.getPublishedEvents,
+);
+
+// Ambil list voucher aktif untuk user/shop
+router.get("/vouchers/shop-list", eventController.getAllVouchers);
+
+// GEOAPIFY LOCATION AUTOCOMPLETE
+router.get("/locations/autocomplete", eventController.searchLocationGeoapify);
+
 // ==========================================
-// 🔥 ROUTE BARU KHUSUS TRANSAKSI TIKET & MIDTRANS SNAP GATEWAY
+// ROUTE KHUSUS TRANSAKSI TIKET & MIDTRANS SNAP GATEWAY
 // ==========================================
-router.post("/tickets/checkout", eventController.createTicketCheckout);
+
+router.post(
+  "/tickets/checkout",
+  verifyToken,
+  eventController.createTicketCheckout,
+);
+
 router.post(
   "/tickets/midtrans-callback",
   eventController.handleMidtransCallback,
 );
+
 router.get(
   "/tickets/my-tickets",
   verifyToken,
@@ -27,11 +61,13 @@ router.get(
 );
 
 // ==========================================
-// 🔥 ROUTE BARU KHUSUS VOUCHER & POIN (Ditaruh atas biar ga tabrakan slug /:id)
+// ROUTE KHUSUS VOUCHER & POIN
 // ==========================================
+
 router.get("/vouchers/user-points", verifyToken, eventController.getUserPoints);
-router.get("/vouchers/shop-list", eventController.getAllVouchers);
+
 router.post("/vouchers/claim", verifyToken, eventController.claimVoucher);
+
 router.get("/vouchers/my-vouchers", verifyToken, eventController.getMyVouchers);
 
 // 🔥 ADMIN VOUCHER (DISCOUNT) CRUD
@@ -67,13 +103,6 @@ router.delete(
 // GET EVENTS
 // =====================================================
 
-// Ambil event published + filter kategori
-router.get(
-  "/published",
-  validate({ query: eventValidation.getPublishedEventsQuerySchema }),
-  eventController.getPublishedEvents,
-);
-
 // Ambil event milik organizer/admin
 router.get(
   "/my-events",
@@ -83,7 +112,6 @@ router.get(
 );
 
 // 🔥 ADMIN: ambil SEMUA event dari semua organizer + filter status
-
 router.get(
   "/admin/all-events",
   verifyToken,
@@ -94,13 +122,11 @@ router.get(
 // Ambil saved event milik user
 router.get("/saved-list", verifyToken, eventController.getSavedEventsList);
 
-// Ambil categories
-router.get("/categories", eventController.getCategories);
-
 // =====================================================
-// 🔥 ADMIN CATEGORY CRUD (create/update/delete)
+// ADMIN CATEGORY CRUD
 // Ditaruh sebelum route /:id agar tidak dianggap ID event.
 // =====================================================
+
 router.post(
   "/categories",
   verifyToken,
@@ -123,20 +149,13 @@ router.delete(
 );
 
 // =====================================================
-// 🔥 GEOAPIFY LOCATION AUTOCOMPLETE
-// Route ini dipanggil frontend saat user mengetik lokasi event.
-// Harus ditaruh sebelum route /:id agar tidak dianggap sebagai ID event.
-// =====================================================
-router.get("/locations/autocomplete", eventController.searchLocationGeoapify);
-
-// =====================================================
 // CREATE EVENT
 // =====================================================
 
 router.post(
   "/",
-  verifyToken,
-  checkRoles("admin", "organizer"),
+  // verifyToken,
+  // checkRoles("admin", "organizer"),
   upload.fields([
     { name: "main_image", maxCount: 1 },
     { name: "album", maxCount: 10 },
@@ -211,8 +230,6 @@ router.patch(
 
 // =====================================================
 // CANCEL EVENT / REFUND FLOW
-// Jangan aktifkan dulu kalau function controller-nya belum dibuat.
-// Nanti setelah kita rewrite eventController, bagian ini bisa dibuka.
 // =====================================================
 
 router.patch(
@@ -238,6 +255,7 @@ router.post(
 
 // =====================================================
 // ADMIN CANCELLATION REQUEST ROUTES
+// Taruh sebelum route detail /:id.
 // =====================================================
 
 router.get(
@@ -272,7 +290,10 @@ router.patch(
   eventController.rejectCancellationRequest,
 );
 
-//pakai ticket
+// =====================================================
+// PAKAI TICKET
+// =====================================================
+
 router.patch(
   "/:id/tickets/validate",
   verifyToken,
@@ -283,14 +304,16 @@ router.patch(
   }),
   eventController.validateTicketCode,
 );
+
 router.get(
   "/:id/changes/:event_change_id/refund-info",
   verifyToken,
   eventController.getEventChangeRefundInfo,
 );
+
 // =====================================================
 // DETAIL EVENT
-// Harus di bawah route spesifik
+// Harus paling bawah agar tidak menabrak route spesifik lain.
 // =====================================================
 
 router.get(

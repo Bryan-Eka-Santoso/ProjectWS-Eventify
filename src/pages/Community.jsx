@@ -6,7 +6,7 @@ import Footer from "../components/Footer";
 import socketService from "../services/socketService";
 import { AUTH_USER } from "../config/auth";
 
-const SERVER_URL = `http://localhost:${process.env.PORT}`;
+const SERVER_URL = `http://localhost:5000`;
 const API_URL = `${SERVER_URL}/api/community`;
 const EVENT_API_URL = `${SERVER_URL}/api/events/published`;
 
