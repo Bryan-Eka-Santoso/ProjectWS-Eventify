@@ -1,6 +1,6 @@
 // server/services/transactionService.js
 const db = require("../models");
-
+const emailService = require("./emailService");
 const User = db.User;
 const TicketType = db.TicketType;
 const Event = db.Event;
@@ -9,6 +9,7 @@ const TransactionDetail = db.TransactionDetail;
 const UserVoucher = db.UserVoucher;
 const Voucher = db.Voucher;
 const UserTicket = db.UserTicket;
+const notificationService = require("./notificationService");
 
 // Inisialisasi Engine Midtrans SDK Client di dalam Service Layer
 const midtransClient = require("midtrans-client");
@@ -175,18 +176,21 @@ const transactionService = {
       (transaction_status === "capture" && fraud_status === "accept")
     ) {
       const detail = tx.Details[0];
+      const buyer = await User.findByPk(tx.user_id);
 
+      const ticketTypeWithEvent = await TicketType.findByPk(detail.ticket_type_id, {
+        include: [{ model: Event, as: "Event" }],
+      });
       // 1. Potong kuota tiket
-      const ticketType = await TicketType.findByPk(detail.ticket_type_id);
-      if (ticketType) {
+      if (ticketTypeWithEvent) {
         await TicketType.update(
           {
             remaining_quota: Math.max(
               0,
-              ticketType.remaining_quota - detail.quantity,
+              ticketTypeWithEvent.remaining_quota - detail.quantity,
             ),
           },
-          { where: { id: ticketType.id } },
+          { where: { id: ticketTypeWithEvent.id } },
         );
       }
 
@@ -210,7 +214,7 @@ const transactionService = {
           status: "active",
         });
       }
-      await UserTicket.bulkCreate(ticketsToCreate);
+      const createdTickets = await UserTicket.bulkCreate(ticketsToCreate);
 
       // 4. Kalkulasi bonus reward poin (> 500rb)
       let calculatedPoints = 0;
@@ -244,6 +248,44 @@ const transactionService = {
         },
         { where: { id: transactionId } },
       );
+      if (buyer?.email && ticketTypeWithEvent?.Event) {
+        try {
+          await emailService.sendTicketPurchaseSuccessEmail({
+            to: buyer.email,
+            name: buyer.name,
+            event: ticketTypeWithEvent.Event,
+            transaction: {
+              ...tx.get({ plain: true }),
+              payment_status: "paid",
+              payment_method: payment_type || "Simulated Payment",
+              earned_points: calculatedPoints,
+            },
+            tickets: createdTickets,
+          });
+        } catch (error) {
+          console.error("Failed to send ticket purchase email:", error.message);
+        }
+      }
+      if (ticketTypeWithEvent?.Event) {
+        try {
+          await notificationService.notifyTicketPurchaseSuccess({
+            user_id: tx.user_id,
+            event: ticketTypeWithEvent.Event,
+            transaction: {
+              ...tx.get({ plain: true }),
+              payment_status: "paid",
+              payment_method: payment_type || "Simulated Payment",
+              earned_points: calculatedPoints,
+            },
+            tickets: createdTickets,
+          });
+        } catch (error) {
+          console.error(
+            "Failed to send ticket purchase notification:",
+            error.message
+          );
+        }
+      }
 
       return {
         status: 200,

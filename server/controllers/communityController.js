@@ -69,7 +69,8 @@ const getMemberRole = async (chat_room_id, user_id) => {
 
 exports.createChatRoom = async (req, res) => {
   try {
-    let { name, description, category_ids, creator_id } = req.body;
+    let { name, description, category_ids } = req.body;
+    const creator_id = req.user.id;
 
     const profile_image_url = `/uploads/${req.file.filename}`;
 
@@ -323,7 +324,8 @@ exports.getChatRoomById = async (req, res) => {
 exports.updateChatRoom = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
-    const { name, description, user_id } = req.body;
+    const { name, description } = req.body;
+    const user_id = req.user.id;
 
     const chatRoom = await ChatRoom.findByPk(chat_room_id);
 
@@ -370,7 +372,7 @@ exports.updateChatRoom = async (req, res) => {
 exports.deleteChatRoom = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
-    const { user_id } = req.body;
+    const user_id = req.user.id;
 
     const chatRoom = await ChatRoom.findByPk(chat_room_id);
 
@@ -396,6 +398,117 @@ exports.deleteChatRoom = async (req, res) => {
     });
   } catch (error) {
     console.error("Error deleteChatRoom:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete chat room",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
+// 🔥 ADMIN CHAT ROOM OVERSIGHT
+// =====================================================
+
+// Ambil SEMUA chat room + jumlah member + info creator (admin only)
+exports.adminGetAllChatRooms = async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    let whereClause = {};
+    if (search) {
+      whereClause = {
+        [Op.or]: [
+          { name: { [Op.like]: `%${search}%` } },
+          { description: { [Op.like]: `%${search}%` } },
+        ],
+      };
+    }
+
+    const chatRooms = await ChatRoom.findAll({
+      where: whereClause,
+      include: [
+        {
+          association: "Creator",
+          attributes: ["id", "name", "email"],
+          required: false,
+        },
+        {
+          association: "ChatRoomMembers",
+          attributes: ["id"],
+          required: false,
+        },
+      ],
+      order: [["created_at", "DESC"]],
+    });
+
+    const data = chatRooms.map((room) => {
+      const plain = room.get({ plain: true });
+      return {
+        ...plain,
+        member_count: plain.ChatRoomMembers ? plain.ChatRoomMembers.length : 0,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Chat rooms retrieved successfully",
+      data,
+    });
+  } catch (error) {
+    console.error("Error adminGetAllChatRooms:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve chat rooms",
+      error: error.message,
+    });
+  }
+};
+
+// Force-delete chat room apapun (admin only) + bersihkan data turunannya
+exports.adminDeleteChatRoom = async (req, res) => {
+  const t = await db.sequelize.transaction();
+  try {
+    const { chat_room_id } = req.params;
+
+    const chatRoom = await ChatRoom.findByPk(chat_room_id);
+
+    if (!chatRoom) {
+      await t.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Chat room not found",
+      });
+    }
+
+    // Bersihkan data turunan supaya tidak kena foreign key constraint
+    await MessageRead.destroy({
+      where: { chat_room_id },
+      transaction: t,
+    });
+    await Message.destroy({
+      where: { chat_room_id },
+      transaction: t,
+    });
+    await ChatRoomMember.destroy({
+      where: { chat_room_id },
+      transaction: t,
+    });
+    await ChatRoomCategory.destroy({
+      where: { chat_room_id },
+      transaction: t,
+    });
+    await chatRoom.destroy({ transaction: t });
+
+    await t.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: "Chat room deleted successfully",
+    });
+  } catch (error) {
+    await t.rollback();
+    console.error("Error adminDeleteChatRoom:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to delete chat room",
@@ -463,7 +576,8 @@ exports.getCategories = async (req, res) => {
 
 exports.joinChatRoom = async (req, res) => {
   try {
-    const { chat_room_id, user_id } = req.body;
+    const { chat_room_id } = req.body;
+    const user_id = req.user.id;
 
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
@@ -500,7 +614,8 @@ exports.joinChatRoom = async (req, res) => {
 
 exports.leaveChatRoom = async (req, res) => {
   try {
-    const { chat_room_id, user_id } = req.body;
+    const { chat_room_id } = req.body;
+    const user_id = req.user.id;
 
     const member = await findMember(chat_room_id, user_id);
 
@@ -529,7 +644,8 @@ exports.leaveChatRoom = async (req, res) => {
 
 exports.checkMembership = async (req, res) => {
   try {
-    const { chat_room_id, user_id } = req.query;
+    const { chat_room_id } = req.query;
+    const user_id = req.user.id;
 
     const member = await findMember(chat_room_id, user_id);
 
@@ -606,7 +722,8 @@ exports.getChatRoomMembers = async (req, res) => {
 exports.updateMemberRole = async (req, res) => {
   try {
     const { chat_room_id, user_id } = req.params;
-    const { requester_id, role } = req.body;
+    const { role } = req.body;
+    const requester_id = req.user.id;
 
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
@@ -658,7 +775,7 @@ exports.updateMemberRole = async (req, res) => {
 exports.kickMember = async (req, res) => {
   try {
     const { chat_room_id, user_id } = req.params;
-    const { requester_id } = req.body;
+    const requester_id = req.user.id;
 
     if (parseInt(requester_id) === parseInt(user_id)) {
       return res.status(400).json({
@@ -717,8 +834,9 @@ exports.kickMember = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
+    const sender_id = req.user.id;
+
     const {
-      sender_id,
       message_type = "text",
       body,
       media_url,
@@ -758,7 +876,8 @@ exports.sendMessage = async (req, res) => {
 exports.sendMediaMessage = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
-    const { sender_id, message_type, body } = req.body;
+    const sender_id = req.user.id;
+    const { message_type, body } = req.body;
 
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
@@ -795,7 +914,8 @@ exports.sendMediaMessage = async (req, res) => {
 exports.shareEventToChat = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
-    const { sender_id, recommended_event_id, body } = req.body;
+    const sender_id = req.user.id;
+    const { recommended_event_id, body } = req.body;
 
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
@@ -843,9 +963,15 @@ exports.getMessages = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
     const { page = 1, limit = 20 } = req.query;
+    
 
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
+
+    const user_id = req.user.id;
+
+    const member = await ensureMember(chat_room_id, user_id, res);
+    if (!member) return;
 
     const parsedPage = parseInt(page);
     const parsedLimit = parseInt(limit);
@@ -914,6 +1040,11 @@ exports.getLatestMessages = async (req, res) => {
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
 
+    const user_id = req.user.id;
+
+    const member = await ensureMember(chat_room_id, user_id, res);
+    if (!member) return;
+
     const messages = await Message.findAll({
       where: {
         chat_room_id,
@@ -955,7 +1086,8 @@ exports.getLatestMessages = async (req, res) => {
 exports.searchMessages = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
-    const { keyword, user_id, page = 1, limit = 20 } = req.query;
+    const { keyword, page = 1, limit = 20 } = req.query;
+    const user_id = req.user.id;
 
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
@@ -1028,7 +1160,7 @@ exports.searchMessages = async (req, res) => {
 exports.deleteMessage = async (req, res) => {
   try {
     const { message_id } = req.params;
-    const { user_id } = req.body;
+    const user_id = req.user.id;
 
     const message = await Message.findByPk(message_id);
 
@@ -1073,7 +1205,7 @@ exports.deleteMessage = async (req, res) => {
 exports.pinMessage = async (req, res) => {
   try {
     const { message_id } = req.params;
-    const { user_id } = req.body;
+    const user_id = req.user.id;
 
     const message = await Message.findByPk(message_id);
 
@@ -1117,7 +1249,7 @@ exports.pinMessage = async (req, res) => {
 exports.unpinMessage = async (req, res) => {
   try {
     const { message_id } = req.params;
-    const { user_id } = req.body;
+    const user_id = req.user.id;
 
     const message = await Message.findByPk(message_id);
 
@@ -1161,7 +1293,7 @@ exports.unpinMessage = async (req, res) => {
 exports.getPinnedMessages = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
-    const { user_id } = req.query;
+    const user_id = req.user.id;
 
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
@@ -1218,7 +1350,8 @@ exports.getPinnedMessages = async (req, res) => {
 exports.markMessagesAsRead = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
-    const { user_id, message_ids } = req.body;
+    const { message_ids } = req.body;
+    const user_id = req.user.id;
 
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
@@ -1271,7 +1404,7 @@ exports.markMessagesAsRead = async (req, res) => {
 exports.markAllMessagesAsRead = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
-    const { user_id } = req.body;
+    const user_id = req.user.id;
 
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
@@ -1321,7 +1454,7 @@ exports.markAllMessagesAsRead = async (req, res) => {
 exports.getUnreadCountByRoom = async (req, res) => {
   try {
     const { chat_room_id } = req.params;
-    const { user_id } = req.query;
+    const user_id = req.user.id;
 
     const chatRoom = await ensureChatRoomExists(chat_room_id, res);
     if (!chatRoom) return;
@@ -1372,7 +1505,7 @@ exports.getUnreadCountByRoom = async (req, res) => {
 
 exports.getUnreadCounts = async (req, res) => {
   try {
-    const { user_id } = req.query;
+    const user_id = req.user.id;
 
     const memberships = await ChatRoomMember.findAll({
       where: {

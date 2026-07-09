@@ -7,26 +7,46 @@ const upload = require("../middlewares/upload");
 const validate = require("../middlewares/validate");
 const communityValidation = require("../validators/communityValidation");
 
+const verifyToken = require("../middlewares/verifyJWT").verifyToken;
+const checkRoles = require("../middlewares/checkRoles").checkRoles;
+
+const apiLimiter = require("../middlewares/apiLimiter");
+const uploadLimiter = require("../middlewares/uploadLimiter");
+
 // =========================
 // STATIC / GLOBAL ROUTES
 // =========================
 
+router.use(apiLimiter);
+router.use(verifyToken);
+
 router.get("/categories", communityController.getCategories);
+
+router.get(
+  "/admin/all-rooms",
+  verifyToken,
+  checkRoles("admin"),
+  communityController.adminGetAllChatRooms
+);
+
+router.delete(
+  "/admin/rooms/:chat_room_id",
+  verifyToken,
+  checkRoles("admin"),
+  communityController.adminDeleteChatRoom
+);
 
 router.get(
   "/unread-counts",
   validate({
     query: communityValidation.userIdQuerySchema,
   }),
-  communityController.getUnreadCounts
+  communityController.getUnreadCounts,
 );
-
-// =========================
-// CHAT ROOM / GROUP ROOT
-// =========================
 
 router.post(
   "/",
+  uploadLimiter,
   upload.single("profile_image"),
   validate({
     body: communityValidation.createChatRoomBodySchema,
@@ -34,10 +54,10 @@ router.post(
       required: true,
       fieldName: "profile_image",
       allowedMimeTypes: ["image/jpeg", "image/png", "image/jpg", "image/webp"],
-      maxSize: 2 * 1024 * 1024, // 2MB
+      maxSize: 2 * 1024 * 1024,
     },
   }),
-  communityController.createChatRoom
+  communityController.createChatRoom,
 );
 
 router.get(
@@ -45,74 +65,71 @@ router.get(
   validate({
     query: communityValidation.getAllChatRoomsQuerySchema,
   }),
-  communityController.getAllChatRooms
+  communityController.getAllChatRooms,
 );
-
-// =========================
-// MEMBERSHIP GLOBAL ROUTES
-// =========================
 
 router.post(
   "/join",
+  verifyToken,
   validate({
     body: communityValidation.membershipBodySchema,
   }),
-  communityController.joinChatRoom
+  communityController.joinChatRoom,
 );
 
 router.post(
   "/leave",
+  verifyToken,
   validate({
     body: communityValidation.membershipBodySchema,
   }),
-  communityController.leaveChatRoom
+  communityController.leaveChatRoom,
 );
 
 router.get(
   "/check-membership",
+  verifyToken,
   validate({
     query: communityValidation.checkMembershipQuerySchema,
   }),
-  communityController.checkMembership
+  communityController.checkMembership,
 );
-
 // =========================
 // MESSAGE GLOBAL ROUTES
 // =========================
 
 router.delete(
   "/messages/:message_id",
+  verifyToken,
   validate({
     params: communityValidation.messageIdParamsSchema,
-    body: communityValidation.userIdBodySchema,
   }),
-  communityController.deleteMessage
+  communityController.deleteMessage,
 );
 
 router.post(
   "/messages/:message_id/pin",
+  verifyToken,
   validate({
     params: communityValidation.messageIdParamsSchema,
-    body: communityValidation.userIdBodySchema,
   }),
-  communityController.pinMessage
+  communityController.pinMessage,
 );
-
 router.delete(
   "/messages/:message_id/pin",
+  verifyToken,
   validate({
     params: communityValidation.messageIdParamsSchema,
-    body: communityValidation.userIdBodySchema,
   }),
-  communityController.unpinMessage
+  communityController.unpinMessage,
 );
-
 // =========================
 // CHAT ROOM / GROUP DYNAMIC ROUTES
 // =========================
 
 router.put(
   "/:chat_room_id",
+  uploadLimiter,
   upload.single("profile_image"),
   validate({
     params: communityValidation.updateChatRoomParamsSchema,
@@ -121,19 +138,20 @@ router.put(
       required: false,
       fieldName: "profile_image",
       allowedMimeTypes: ["image/jpeg", "image/png", "image/jpg", "image/webp"],
-      maxSize: 2 * 1024 * 1024, // 2MB
+      maxSize: 2 * 1024 * 1024,
     },
   }),
-  communityController.updateChatRoom
+  communityController.updateChatRoom,
 );
 
 router.delete(
   "/:chat_room_id",
+  verifyToken,
   validate({
     params: communityValidation.deleteChatRoomParamsSchema,
     body: communityValidation.deleteChatRoomBodySchema,
   }),
-  communityController.deleteChatRoom
+  communityController.deleteChatRoom,
 );
 
 router.get(
@@ -141,7 +159,7 @@ router.get(
   validate({
     params: communityValidation.chatRoomIdParamsSchema,
   }),
-  communityController.getChatRoomMemberCount
+  communityController.getChatRoomMemberCount,
 );
 
 router.get(
@@ -150,25 +168,26 @@ router.get(
     params: communityValidation.chatRoomIdParamsSchema,
     query: communityValidation.paginationQuerySchema,
   }),
-  communityController.getChatRoomMembers
-);
-
-router.put(
-  "/:chat_room_id/members/:user_id/role",
-  validate({
-    params: communityValidation.memberParamsSchema,
-    body: communityValidation.updateMemberRoleBodySchema,
-  }),
-  communityController.updateMemberRole
+  communityController.getChatRoomMembers,
 );
 
 router.delete(
+  "/:chat_room_id",
+  verifyToken,
+  validate({
+    params: communityValidation.deleteChatRoomParamsSchema,
+    body: communityValidation.deleteChatRoomBodySchema,
+  }),
+  communityController.updateMemberRole,
+);
+router.delete(
   "/:chat_room_id/members/:user_id",
+  verifyToken,
   validate({
     params: communityValidation.memberParamsSchema,
     body: communityValidation.kickMemberBodySchema,
   }),
-  communityController.kickMember
+  communityController.kickMember,
 );
 
 // =========================
@@ -177,15 +196,17 @@ router.delete(
 
 router.post(
   "/:chat_room_id/messages",
+  verifyToken,
   validate({
     params: communityValidation.sendMessageParamsSchema,
     body: communityValidation.sendMessageBodySchema,
   }),
-  communityController.sendMessage
+  communityController.sendMessage,
 );
 
 router.post(
   "/:chat_room_id/messages/media",
+  uploadLimiter,
   upload.single("media"),
   validate({
     params: communityValidation.sendMediaMessageParamsSchema,
@@ -202,60 +223,62 @@ router.post(
         "video/webm",
         "video/ogg",
       ],
-      maxSize: 20 * 1024 * 1024, // 20MB
+      maxSize: 20 * 1024 * 1024,
     },
   }),
-  communityController.sendMediaMessage
+  communityController.sendMediaMessage,
 );
+
 
 router.post(
   "/:chat_room_id/messages/share-event",
+  verifyToken,
   validate({
     params: communityValidation.shareEventParamsSchema,
     body: communityValidation.shareEventBodySchema,
   }),
-  communityController.shareEventToChat
+  communityController.shareEventToChat,
 );
 
 router.get(
   "/:chat_room_id/messages/search",
+  verifyToken,
   validate({
     params: communityValidation.searchMessagesParamsSchema,
     query: communityValidation.searchMessagesQuerySchema,
   }),
-  communityController.searchMessages
+  communityController.searchMessages,
 );
 
 router.get(
   "/:chat_room_id/messages/latest",
+  verifyToken,
   validate({
     params: communityValidation.getLatestMessagesParamsSchema,
     query: communityValidation.getLatestMessagesQuerySchema,
   }),
-  communityController.getLatestMessages
+  communityController.getLatestMessages,
 );
 
 router.get(
   "/:chat_room_id/messages",
+  verifyToken,
   validate({
     params: communityValidation.getMessagesParamsSchema,
     query: communityValidation.getMessagesQuerySchema,
   }),
-  communityController.getMessages
+  communityController.getMessages,
 );
-
-// =========================
-// PINNED MESSAGES
-// =========================
 
 router.get(
   "/:chat_room_id/pinned-messages",
+  verifyToken,
   validate({
     params: communityValidation.pinnedMessagesParamsSchema,
-    query: communityValidation.userIdQuerySchema,
   }),
-  communityController.getPinnedMessages
+  communityController.getPinnedMessages,
 );
+
 
 // =========================
 // MESSAGE READS / UNREAD
@@ -263,29 +286,32 @@ router.get(
 
 router.post(
   "/:chat_room_id/messages/read",
+  verifyToken,
   validate({
     params: communityValidation.markMessagesAsReadParamsSchema,
     body: communityValidation.markMessagesAsReadBodySchema,
   }),
-  communityController.markMessagesAsRead
+  communityController.markMessagesAsRead,
 );
 
 router.post(
   "/:chat_room_id/read-all",
+  verifyToken,
   validate({
     params: communityValidation.markAllMessagesAsReadParamsSchema,
     body: communityValidation.markAllMessagesAsReadBodySchema,
   }),
-  communityController.markAllMessagesAsRead
+  communityController.markAllMessagesAsRead,
 );
+
 
 router.get(
   "/:chat_room_id/unread-count",
+  verifyToken,
   validate({
     params: communityValidation.chatRoomIdParamsSchema,
-    query: communityValidation.userIdQuerySchema,
   }),
-  communityController.getUnreadCountByRoom
+  communityController.getUnreadCountByRoom,
 );
 
 // =========================
@@ -298,7 +324,7 @@ router.get(
   validate({
     params: communityValidation.chatRoomIdParamsSchema,
   }),
-  communityController.getChatRoomById
+  communityController.getChatRoomById,
 );
 
 module.exports = router;

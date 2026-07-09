@@ -1,4 +1,5 @@
 const db = require("../models");
+const emailService = require("./emailService");
 const notificationService = require("./notificationService");
 
 const {
@@ -221,6 +222,8 @@ const requestRefundAfterEventChanged = async ({
 
   const event = await Event.findByPk(event_id);
 
+  const buyer = await User.findByPk(user_id);
+
   if (admins.length > 0) {
     await notificationService.notifyRefundRequestToAdmins({
       admins,
@@ -228,7 +231,28 @@ const requestRefundAfterEventChanged = async ({
       refund,
       event,
     });
-  }
+
+    if (buyer) {
+      for (const admin of admins) {
+        if (!admin.email) continue;
+
+        try {
+          await emailService.sendRefundRequestEmailToAdmin({
+            to: admin.email,
+            adminName: admin.name,
+            buyer,
+            event,
+            refund,
+          });
+        } catch (error) {
+          console.error(
+            "Failed to send refund request email to admin:",
+            error.message
+          );
+        }
+      }
+    }
+}
 
   return refund;
 };
@@ -286,6 +310,20 @@ const markRefundAsSuccess = async ({ refund_id, actor_id = null }) => {
     actor_id,
     refund,
   });
+
+  const user = await User.findByPk(refund.user_id);
+
+  if (user?.email) {
+    try {
+      await emailService.sendRefundSuccessEmail({
+        to: user.email,
+        name: user.name,
+        refund,
+      });
+    } catch (error) {
+      console.error("Failed to send refund success email:", error.message);
+    }
+  }
 
   return refund;
 };
@@ -352,6 +390,83 @@ const approveRefundRequest = async ({ refund_id, actor_id = null }) => {
     actor_id,
     refund,
   });
+  const user = await User.findByPk(refund.user_id);
+
+  if (user?.email) {
+    try {
+      await emailService.sendRefundSuccessEmail({
+        to: user.email,
+        name: user.name,
+        refund,
+      });
+    } catch (error) {
+      console.error("Failed to send refund approved email:", error.message);
+    }
+  }
+
+  return refund;
+};
+
+const rejectRefundRequest = async ({
+  refund_id,
+  actor_id = null,
+  rejection_reason,
+}) => {
+  const refund = await RefundRequest.findByPk(refund_id);
+
+  if (!refund) {
+    throwError("Refund request tidak ditemukan", 404);
+  }
+
+  if (refund.refund_type !== "event_changed") {
+    throwError("Refund ini bukan refund manual dari perubahan event", 400);
+  }
+
+  if (refund.status !== "requested") {
+    throwError(
+      `Refund tidak bisa ditolak karena status saat ini: ${refund.status}`,
+      400
+    );
+  }
+
+  const transaction = await Transaction.findByPk(refund.transaction_id);
+
+  if (!transaction) {
+    throwError("Transaction tidak ditemukan", 404);
+  }
+
+  await refund.update({
+    status: "rejected",
+    rejection_reason,
+    rejected_at: new Date(),
+  });
+
+  await transaction.update({
+    refund_status: "rejected",
+  });
+
+  if (notificationService.notifyRefundRejected) {
+    await notificationService.notifyRefundRejected({
+      user_id: refund.user_id,
+      actor_id,
+      refund,
+      rejection_reason,
+    });
+  }
+
+  const user = await User.findByPk(refund.user_id);
+
+  if (user?.email) {
+    try {
+      await emailService.sendRefundRejectedEmail({
+        to: user.email,
+        name: user.name,
+        refund,
+      });
+    } catch (error) {
+      console.error("Failed to send refund rejected email:", error.message);
+    }
+  }
 
   return refund;
 };
@@ -361,4 +476,6 @@ module.exports = {
   createAutoRefundForCanceledEvent,
   requestRefundAfterEventChanged,
   markRefundAsSuccess,
+  approveRefundRequest,
+  rejectRefundRequest,
 };

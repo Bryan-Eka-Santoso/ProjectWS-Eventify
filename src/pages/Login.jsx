@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import logoEventify from "../assets/images/Logo-Eventify.png";
 import Swal from "sweetalert2";
+import { GoogleLogin } from "@react-oauth/google";
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -21,12 +22,56 @@ function Login() {
     });
   };
 
+  const handleGoogleLogin = async (credentialResponse) => {
+    try {
+      const response = await fetch(
+        "http://localhost:3005/api/auth/google-login",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            credential: credentialResponse.credential,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (response.status >= 200 && response.status < 300) {
+        localStorage.setItem("token", data.token);
+
+        await Swal.fire({
+          icon: "success",
+          text: data.message,
+        });
+
+        window.location.href = "/";
+      } else {
+        Swal.fire({
+          icon: "warning",
+          text: data.message,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+
+      Swal.fire({
+        icon: "error",
+        text: "Unable to login with Google. Please try again later.",
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
       const response = await fetch("http://localhost:3005/api/auth/login", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -150,7 +195,10 @@ function Login() {
                   </div>
 
                   <div className="d-flex justify-content-end mb-4">
-                    <a href="#" className="text-decoration-none small">
+                    <a
+                      href="/forgot-password"
+                      className="text-decoration-none small"
+                    >
                       Forgot Password?
                     </a>
                   </div>
@@ -166,15 +214,21 @@ function Login() {
                       <hr className="flex-grow-1" />
                     </div>
 
-                    <button className="btn btn-outline-dark" type="button">
-                      <i className="bi bi-google"></i> Login with Google
-                    </button>
+                    <GoogleLogin
+                      onSuccess={handleGoogleLogin}
+                      onError={() => {
+                        Swal.fire({
+                          icon: "error",
+                          text: "Google login failed.",
+                        });
+                      }}
+                    />
 
-                    <div className="text-center">
+                    {/* <div className="text-center">
                       <a href="/" className="text-decoration-none text-muted">
                         Continue as Guest
                       </a>
-                    </div>
+                    </div> */}
                   </div>
                 </form>
               </div>

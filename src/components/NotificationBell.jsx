@@ -28,11 +28,16 @@ function NotificationBell() {
         clickable: true,
         getPath: (notification) => {
           const eventId = notification.data?.event_id || notification.target_id;
+          const eventChangeId = notification.data?.event_change_id;
+
+          if (eventId && eventChangeId) {
+            return `/events/${eventId}/change/${eventChangeId}`;
+          }
+
           return eventId ? `/events/${eventId}` : null;
         },
-        actionLabel: "Lihat event",
+        actionLabel: "Lihat perubahan",
       },
-
       event_canceled: {
         clickable: false,
         actionLabel: null,
@@ -61,6 +66,30 @@ function NotificationBell() {
       refund_success: {
         clickable: false,
         actionLabel: null,
+      },
+      refund_request_created: {
+        clickable: userRole === "admin",
+        getPath: () => "/admin/refund-requests",
+        actionLabel: "Kelola refund",
+      },
+
+      refund_approved: {
+        clickable: false,
+        actionLabel: null,
+      },
+
+      refund_rejected: {
+        clickable: false,
+        actionLabel: null,
+      },
+
+      ticket_purchase_success: {
+        clickable: true,
+        getPath: (notification) => {
+          const eventId = notification.data?.event_id || notification.target_id;
+          return eventId ? `/events/${eventId}` : "/events/my-tickets";
+        },
+        actionLabel: "Lihat ticket",
       },
     };
   }, [userRole]);
@@ -268,34 +297,13 @@ function NotificationBell() {
       await markAsRead(notification.id);
     }
 
-    if (notification.type === "event_changed") {
-      const eventId = notification.data?.event_id || notification.target_id;
-      const eventChangeId = notification.data?.event_change_id;
+    const path = getNotificationPath(notification);
 
+    if (path) {
       setIsOpen(false);
-
-      if (eventId && eventChangeId) {
-        navigate(`/events/${eventId}/change/${eventChangeId}`);
-        return;
-      }
-
-      if (eventId) {
-        navigate(`/events/${eventId}`);
-        return;
-      }
-
-      return;
+      navigate(path);
     }
-
-    if (notification.type === "event_cancellation_requested") {
-      setIsOpen(false);
-      navigate("/admin/cancellation-requests");
-      return;
-    }
-
-    // Notif lain cukup dibaca, tidak perlu navigate.
   };
-
   const getNotificationIcon = (type) => {
     if (type === "event_canceled") return "🛑";
     if (type === "event_changed") return "✏️";
@@ -308,6 +316,7 @@ function NotificationBell() {
     if (type === "refund_approved") return "✅";
     if (type === "refund_rejected") return "❌";
     if (type === "refund_request_created") return "💸";
+    if (type === "ticket_purchase_success") return "🎫";
 
     return "🔔";
   };

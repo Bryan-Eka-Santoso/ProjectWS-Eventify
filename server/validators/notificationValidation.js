@@ -11,10 +11,6 @@ const notificationIdParamsSchema = Joi.object({
 });
 
 const getNotificationsQuerySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
 
   is_read: Joi.boolean().optional(),
 
@@ -23,23 +19,8 @@ const getNotificationsQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(10).optional(),
 });
 
-const userIdQuerySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-});
-
-const userIdBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-});
 
 module.exports = {
   notificationIdParamsSchema,
   getNotificationsQuerySchema,
-  userIdQuerySchema,
-  userIdBodySchema,
 };

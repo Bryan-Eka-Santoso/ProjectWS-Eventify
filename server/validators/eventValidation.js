@@ -61,15 +61,6 @@ const createEventBodySchema = Joi.object({
 
   category_ids: commaSeparatedIds.optional(),
 
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
-  role: Joi.string().valid("admin", "organizer").required().messages({
-    "any.only": "role must be admin, organizer, or user",
-    "any.required": "role is required",
-  }),
   tickets: Joi.string()
   .custom((value, helpers) => {
     try {
@@ -105,17 +96,6 @@ const createEventBodySchema = Joi.object({
   }),
 });
 
-const getMyEventsQuerySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
-  role: Joi.string().valid("admin", "organizer", "user").required().messages({
-    "any.only": "role must be admin, organizer, or user",
-    "any.required": "role is required",
-  }),
-});
 
 const updateStatusBodySchema = Joi.object({
   status: Joi.string()
@@ -134,8 +114,6 @@ const updateStatusBodySchema = Joi.object({
       "any.required": "status is required",
     }),
 
-  user_id: Joi.number().integer().positive().optional(),
-  role: Joi.string().valid("admin", "organizer", "user").optional(),
 });
 
 const getPublishedEventsQuerySchema = Joi.object({
@@ -143,15 +121,7 @@ const getPublishedEventsQuerySchema = Joi.object({
 });
 
 const updateEventBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
 
-  role: Joi.string().valid("admin", "organizer", "user").required().messages({
-    "any.only": "role must be admin, organizer, or user",
-    "any.required": "role is required",
-  }),
 
   title: Joi.string().trim().min(3).max(255).optional(),
   description: optionalText.max(5000).optional(),
@@ -181,40 +151,18 @@ const followExternalEventBodySchema = Joi.object({
     "date.base": "start_date must be a valid date",
     "any.required": "start_date is required",
   }),
-
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
-  role: Joi.string().valid("admin", "organizer", "user").required(),
 });
 
 const toggleSaveEventBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
   event_id: id.messages({
     "any.required": "event_id is required",
     "number.base": "event_id must be a number",
   }),
 });
 
-const checkSaveStatusQuerySchema = Joi.object({
-  user_id: Joi.number().integer().positive().optional(),
-});
 
 // Nanti dipakai di tahap controller cancel event
 const cancelEventBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
-  role: Joi.string().valid("admin", "organizer", "user").required(),
-
   cancellation_reason: Joi.string().trim().min(5).max(2000).required().messages({
     "string.empty": "cancellation_reason cannot be empty",
     "string.min": "cancellation_reason must be at least 5 characters",
@@ -225,11 +173,6 @@ const cancelEventBodySchema = Joi.object({
 
 // Nanti dipakai untuk refund opt-in setelah jadwal/lokasi berubah
 const requestRefundBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
   transaction_id: id.messages({
     "any.required": "transaction_id is required",
     "number.base": "transaction_id must be a number",
@@ -243,12 +186,6 @@ const requestRefundBodySchema = Joi.object({
   reason: optionalText.max(1000).optional(),
 });
 
-const savedEventsQuerySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-});
 
 const cancellationRequestIdParamsSchema = Joi.object({
   request_id: id.messages({
@@ -258,16 +195,6 @@ const cancellationRequestIdParamsSchema = Joi.object({
 });
 
 const getCancellationRequestsQuerySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
-  role: Joi.string().valid("admin").required().messages({
-    "any.only": "Only admin can access cancellation requests",
-    "any.required": "role is required",
-  }),
-
   status: Joi.string().valid("pending", "approved", "rejected").optional(),
 
   page: Joi.number().integer().min(1).default(1).optional(),
@@ -276,30 +203,10 @@ const getCancellationRequestsQuerySchema = Joi.object({
 });
 
 const approveCancellationRequestBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
-  role: Joi.string().valid("admin").required().messages({
-    "any.only": "Only admin can approve cancellation request",
-    "any.required": "role is required",
-  }),
-
   admin_note: optionalText.max(1000).optional(),
 });
 
 const rejectCancellationRequestBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
-  role: Joi.string().valid("admin").required().messages({
-    "any.only": "Only admin can reject cancellation request",
-    "any.required": "role is required",
-  }),
-
   admin_note: Joi.string().trim().min(3).max(1000).required().messages({
     "string.empty": "admin_note cannot be empty",
     "string.min": "admin_note must be at least 3 characters",
@@ -309,16 +216,6 @@ const rejectCancellationRequestBodySchema = Joi.object({
 });
 
 const validateTicketBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
-  role: Joi.string().valid("admin", "organizer").required().messages({
-    "any.only": "role must be admin or organizer",
-    "any.required": "role is required",
-  }),
-
   ticket_code: Joi.string().trim().min(5).max(255).required().messages({
     "string.empty": "ticket_code cannot be empty",
     "string.min": "ticket_code must be at least 5 characters",
@@ -327,22 +224,43 @@ const validateTicketBodySchema = Joi.object({
   }),
 });
 
+const checkoutTicketBodySchema = Joi.object({
+  ticket_type_id: id.messages({
+    "any.required": "ticket_type_id is required",
+    "number.base": "ticket_type_id must be a number",
+  }),
+
+  quantity: Joi.number().integer().min(1).required().messages({
+    "any.required": "quantity is required",
+    "number.base": "quantity must be a number",
+    "number.min": "quantity must be at least 1",
+  }),
+
+  user_voucher_id: Joi.number().integer().positive().allow(null).optional(),
+});
+
+const claimVoucherBodySchema = Joi.object({
+  voucher_id: id.messages({
+    "any.required": "voucher_id is required",
+    "number.base": "voucher_id must be a number",
+  }),
+});
+
 module.exports = {
   eventIdParamsSchema,
   createEventBodySchema,
-  getMyEventsQuerySchema,
   updateStatusBodySchema,
   getPublishedEventsQuerySchema,
   updateEventBodySchema,
   followExternalEventBodySchema,
   toggleSaveEventBodySchema,
-  checkSaveStatusQuerySchema,
   cancelEventBodySchema,
   requestRefundBodySchema,
-  savedEventsQuerySchema,
   cancellationRequestIdParamsSchema,
   getCancellationRequestsQuerySchema,
   approveCancellationRequestBodySchema,
   rejectCancellationRequestBodySchema,
   validateTicketBodySchema,
+  checkoutTicketBodySchema,
+  claimVoucherBodySchema,
 };

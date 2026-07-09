@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -7,7 +8,7 @@ import { AUTH_USER } from "../config/auth";
 
 const SERVER_URL = "http://localhost:5000";
 const API_URL = `${SERVER_URL}/api/community`;
-const EVENT_API_URL = `${SERVER_URL}/api/events`;
+const EVENT_API_URL = `${SERVER_URL}/api/events/published`;
 
 const initialCreateForm = {
   name: "",
@@ -23,6 +24,7 @@ const initialMediaForm = {
 };
 
 function Community() {
+  const navigate = useNavigate();
   const currentUser = AUTH_USER;
 
   const [chatRooms, setChatRooms] = useState([]);
@@ -140,9 +142,20 @@ function Community() {
   }, []);
 
   const getEventImage = useCallback((event) => {
-    const url = event?.image_url || event?.poster_url || event?.poster || event?.image || event?.thumbnail;
-    return imageSrc(url);
-  }, [imageSrc]);
+    const url =
+      event?.main_image_url ||
+      event?.image_url ||
+      event?.poster_url ||
+      event?.poster ||
+      event?.image ||
+      event?.thumbnail;
+
+    if (!url) return "https://via.placeholder.com/600x400?text=No+Poster";
+    if (url.startsWith("http")) return url;
+    if (url.startsWith("/uploads/")) return `${SERVER_URL}${url}`;
+
+    return `${SERVER_URL}/uploads/${url}`;
+  }, []);
 
   const roomCategories = useCallback((room) => {
     return room?.Categories || room?.categories || [];
@@ -217,11 +230,11 @@ function Community() {
   const fetchEvents = useCallback(async () => {
     try {
       setLoadingEvents(true);
-      const response = await axios.get(EVENT_API_URL, {
-        params: { page: 1, limit: 100 },
-      });
+
+      const response = await axios.get(EVENT_API_URL);
 
       const payload = response.data;
+
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload?.data?.data)
@@ -482,6 +495,20 @@ function Community() {
     setShowAttachmentMenu(false);
     setMediaForm(initialMediaForm);
     setShowMediaModal(true);
+  };
+
+  const openEventPage = (eventOrId) => {
+    const eventId =
+      typeof eventOrId === "object"
+        ? getEventId(eventOrId)
+        : eventOrId;
+
+    if (!eventId) {
+      showToast("Event ID tidak ditemukan");
+      return;
+    }
+
+    navigate(`/events/${eventId}`);
   };
 
   const openEventDetail = (event) => {
@@ -804,12 +831,12 @@ function Community() {
           <div className="community-event-card-mini">
             <strong>{event?.title || event?.name || `Event #${message.recommended_event_id}`}</strong>
             <span>{event?.location || "Detail event mengikuti data backend event."}</span>
-            <button
+           <button
               type="button"
               className="community-btn community-btn-primary community-btn-small"
               onClick={() => {
-                if (event) openEventDetail(event);
-                else showToast(`Buka detail Event ID ${message.recommended_event_id}`);
+                const eventId = event ? getEventId(event) : message.recommended_event_id;
+                openEventPage(eventId);
               }}
             >
               View Event
@@ -1201,9 +1228,20 @@ function Community() {
                   <h3>Shared Events</h3>
                   {sharedEvents.length > 0 ? (
                     sharedEvents.slice(-3).map((message) => (
-                      <div className="community-shared-event" key={message.id || `${message.recommended_event_id}-${message.created_at}`}>
+                      <button
+                        type="button"
+                        className="community-shared-event"
+                        key={message.id || `${message.recommended_event_id}-${message.created_at}`}
+                        onClick={() => openEventPage(message.recommended_event_id)}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          border: "1px solid #ddd6fe",
+                          cursor: "pointer",
+                        }}
+                      >
                         Event #{message.recommended_event_id}
-                      </div>
+                      </button>
                     ))
                   ) : (
                     <p className="community-muted">Belum ada event yang dibagikan.</p>
@@ -1296,7 +1334,7 @@ function Community() {
               <div className="community-empty-small">Loading events...</div>
             ) : events.length === 0 ? (
               <div className="community-empty-small">
-                Event belum tersedia atau endpoint <b>/api/events</b> belum mengembalikan data.
+                Event belum tersedia atau endpoint
               </div>
             ) : (
               <div className="community-event-grid">

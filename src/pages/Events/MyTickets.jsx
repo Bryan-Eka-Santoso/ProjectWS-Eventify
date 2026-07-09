@@ -8,6 +8,7 @@ import { AUTH_USER } from "../../config/auth";
 function MyTickets() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   useEffect(() => {
     axios
@@ -106,9 +107,13 @@ function MyTickets() {
                   </div>
 
                   <div className="card-footer bg-light p-3 text-center border-top">
-                    <small className="text-muted text-center">
-                      Diterbitkan otomatis oleh Eventify System
-                    </small>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-4"
+                      onClick={() => setSelectedTicket(t)}
+                    >
+                      🔍 Lihat Detail Tiket
+                    </button>
                   </div>
                 </div>
               </div>
@@ -116,6 +121,101 @@ function MyTickets() {
           </div>
         )}
       </div>
+
+      {/* MODAL DETAIL TIKET */}
+      {selectedTicket && (
+        <>
+          <div
+            className="modal-backdrop fade show"
+            style={{ zIndex: 1900 }}
+          ></div>
+
+          <div
+            className="modal fade show d-block"
+            tabIndex="-1"
+            role="dialog"
+            style={{ zIndex: 1910 }}
+          >
+            <div className="modal-dialog modal-dialog-centered" role="document">
+              <div className="modal-content border-0 rounded-4 shadow-lg">
+                <div className="modal-header bg-primary text-white rounded-top-4">
+                  <h5 className="modal-title fw-bold mb-0">
+                    🎫 Detail Tiket
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() => setSelectedTicket(null)}
+                  ></button>
+                </div>
+
+                <div className="modal-body p-4">
+                  <h5 className="fw-bold mb-1">
+                    {selectedTicket.TicketType?.Event?.title || "Judul Event"}
+                  </h5>
+                  <p className="text-muted small mb-3">
+                    📍 {selectedTicket.TicketType?.Event?.location || "Lokasi"}
+                    {selectedTicket.TicketType?.Event?.start_date && (
+                      <>
+                        <br />
+                        🗓️{" "}
+                        {new Date(
+                          selectedTicket.TicketType.Event.start_date,
+                        ).toLocaleString("id-ID", {
+                          dateStyle: "long",
+                          timeStyle: "short",
+                        })}
+                      </>
+                    )}
+                  </p>
+
+                  <div className="row g-2 mb-3">
+                    <div className="col-6">
+                      <div className="p-2 bg-light rounded-3 border h-100">
+                        <div className="small text-muted">Kategori Tiket</div>
+                        <div className="fw-bold text-uppercase">
+                          {selectedTicket.TicketType?.name || "REGULAR"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-6">
+                      <div className="p-2 bg-light rounded-3 border h-100">
+                        <div className="small text-muted">Status</div>
+                        <div className="fw-bold text-uppercase">
+                          {selectedTicket.status}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-center p-4 bg-dark rounded-3 text-white">
+                    <div className="small text-light mb-2">
+                      KODE UNIK MASUK (TAMPILKAN KE PANITIA):
+                    </div>
+                    <code className="fs-4 fw-bold text-warning d-block tracking-widest">
+                      {selectedTicket.ticket_code}
+                    </code>
+                  </div>
+                </div>
+
+                <div className="modal-footer bg-light rounded-bottom-4">
+                  <small className="text-muted me-auto">
+                    Diterbitkan otomatis oleh Eventify System
+                  </small>
+                  <button
+                    type="button"
+                    className="btn btn-primary fw-bold"
+                    onClick={() => setSelectedTicket(null)}
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <Footer />
     </>
   );

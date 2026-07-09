@@ -29,6 +29,10 @@ const SavedEvent = require("./SavedEvent")(sequelize, DataTypes);
 const TicketType = require("./TicketType")(sequelize, DataTypes);
 const Comment = require("./Comment")(sequelize, DataTypes);
 
+// Feed sosial
+const Post = require("./Post")(sequelize, DataTypes);
+const PostComment = require("./PostComment")(sequelize, DataTypes);
+
 // Voucher, transaction, ticket, refund
 const Voucher = require("./Voucher")(sequelize, DataTypes);
 const UserVoucher = require("./UserVoucher")(sequelize, DataTypes);
@@ -42,6 +46,9 @@ const ChatRoomMember = require("./ChatRoomMember")(sequelize, DataTypes);
 const ChatRoomCategory = require("./ChatRoomCategory")(sequelize, DataTypes);
 const Message = require("./Message")(sequelize, DataTypes);
 const MessageRead = require("./MessageRead")(sequelize, DataTypes);
+
+const ApiLog = require("./ApiLog")(sequelize, DataTypes);
+
 
 // =====================================================
 // EVENT CHANGE RELATIONSHIPS
@@ -302,6 +309,37 @@ Comment.belongsTo(Event, {
   as: "Event",
 });
 
+// Post & PostComment (feed sosial)
+User.hasMany(Post, {
+  foreignKey: "user_id",
+  as: "Posts",
+});
+
+Post.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "User",
+});
+
+Post.hasMany(PostComment, {
+  foreignKey: "post_id",
+  as: "PostComments",
+});
+
+PostComment.belongsTo(Post, {
+  foreignKey: "post_id",
+  as: "Post",
+});
+
+User.hasMany(PostComment, {
+  foreignKey: "user_id",
+  as: "PostComments",
+});
+
+PostComment.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "User",
+});
+
 // Event & TicketType
 Event.hasMany(TicketType, {
   foreignKey: "event_id",
@@ -539,11 +577,21 @@ User.hasMany(MessageRead, {
   foreignKey: "user_id",
   as: "MessageReads",
 });
-
 MessageRead.belongsTo(User, {
   foreignKey: "user_id",
   as: "User",
 });
+
+ApiLog.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "User",
+});
+
+User.hasMany(ApiLog, {
+  foreignKey: "user_id",
+  as: "ApiLogs",
+});
+
 
 // =====================================================
 // DB EXPORT
@@ -568,6 +616,10 @@ const db = {
   TicketType,
   Comment,
 
+  // Feed sosial
+  Post,
+  PostComment,
+
   // Voucher, transaction, ticket
   Voucher,
   UserVoucher,
@@ -585,6 +637,8 @@ const db = {
   EventChange,
   EventCancellationRequest,
   RefundRequest,
+
+  ApiLog,
 };
 
 module.exports = db;

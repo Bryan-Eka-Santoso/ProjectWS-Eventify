@@ -17,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       password: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       role: {
         type: DataTypes.ENUM("admin", "organizer", "user"),
@@ -35,6 +35,18 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: true,
         defaultValue: 0,
+      },
+      api_key: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      refresh_token: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      google_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
     },
     {

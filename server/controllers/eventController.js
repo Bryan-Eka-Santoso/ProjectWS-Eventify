@@ -11,6 +11,7 @@ const TicketType = db.TicketType;
 const Voucher = db.Voucher;
 const UserVoucher = db.UserVoucher;
 const RefundRequest = db.RefundRequest;
+const PointHistory = db.PointHistory;
 
 // Ambil model relasi transaksi baru dari database gess
 const Transaction = db.Transaction;
@@ -166,6 +167,74 @@ const sendEventCanceledEmails = async ({ users, event }) => {
   }
 };
 
+const sendCancellationRequestEmailsToAdmins = async ({
+  admins,
+  organizer,
+  event,
+  cancellationRequest,
+}) => {
+  for (const admin of admins) {
+    try {
+      await emailService.sendCancellationRequestEmailToAdmin({
+        to: admin.email,
+        adminName: admin.name,
+        organizer,
+        event,
+        cancellationRequest,
+      });
+    } catch (error) {
+      console.error(
+        "Failed to send cancellation request email to admin:",
+        error.message
+      );
+    }
+  }
+};
+
+const sendCancellationApprovedEmailToOrganizer = async ({
+  organizer,
+  event,
+  adminNote,
+}) => {
+  if (!organizer?.email) return;
+
+  try {
+    await emailService.sendCancellationApprovedEmailToOrganizer({
+      to: organizer.email,
+      name: organizer.name,
+      event,
+      adminNote,
+    });
+  } catch (error) {
+    console.error(
+      "Failed to send cancellation approved email to organizer:",
+      error.message
+    );
+  }
+};
+
+const sendCancellationRejectedEmailToOrganizer = async ({
+  organizer,
+  event,
+  adminNote,
+}) => {
+  if (!organizer?.email) return;
+
+  try {
+    await emailService.sendCancellationRejectedEmailToOrganizer({
+      to: organizer.email,
+      name: organizer.name,
+      event,
+      adminNote,
+    });
+  } catch (error) {
+    console.error(
+      "Failed to send cancellation rejected email to organizer:",
+      error.message
+    );
+  }
+};
+
 const eventController = {
   // =====================================================
   // 🔥 GEOAPIFY LOCATION AUTOCOMPLETE
@@ -247,10 +316,11 @@ const eventController = {
         start_date,
         end_date,
         category_ids,
-        user_id,
-        role,
         tickets,
       } = req.body;
+
+      const user_id = req.user.id;
+      const role = req.user.role;
       const main_image =
         req.files && req.files.main_image
           ? req.files.main_image[0].filename
@@ -262,12 +332,7 @@ const eventController = {
           .status(404)
           .json({ message: "User pembuat tidak ditemukan di database gess!" });
       }
-      if (checkUser.role !== role) {
-        return res.status(403).json({
-          message:
-            "Manipulasi data terdeteksi! Role tidak cocok dengan database.",
-        });
-      }
+
 
       // 🔥 FIXED: organizer_id sekarang langsung diisi dengan user_id si organizer gess!
       let organizerIdValue = null;
@@ -331,7 +396,8 @@ const eventController = {
 
   getMyEvents: async (req, res) => {
     try {
-      const { user_id, role } = req.query;
+      const user_id = req.user.id;
+      const role = req.user.role;
       let whereClause = {};
 
       // 🔥 FIXED: Pencarian langsung dicocokkan ke user_id milik organizer tanpa lewat aplikasi lagi
@@ -388,6 +454,43 @@ const eventController = {
     }
   },
 
+  // =====================================================
+  // 🔥 ADMIN EVENT MODERATION
+  // Ambil SEMUA event dari semua organizer + filter status (admin only)
+  // =====================================================
+  getAllEventsAdmin: async (req, res) => {
+    try {
+      const { status } = req.query;
+      const whereClause = {};
+      if (status) {
+        whereClause.status = status;
+      }
+
+      const events = await Event.findAll({
+        where: whereClause,
+        include: [
+          {
+            model: User,
+            as: "Organizer",
+            attributes: ["id", "name", "email"],
+          },
+          {
+            model: Category,
+            as: "Categories",
+            attributes: ["id", "name"],
+            through: { attributes: [] },
+          },
+        ],
+        order: [["created_at", "DESC"]],
+      });
+
+      res.json(events);
+    } catch (error) {
+      console.error("Error getAllEventsAdmin:", error);
+      res.status(500).json({ message: error.message });
+    }
+  },
+
   getEventById: async (req, res) => {
     try {
       const { id } = req.params;
@@ -422,9 +525,10 @@ const eventController = {
     try {
       const { id } = req.params;
 
+      const user_id = req.user.id;
+      const role = req.user.role;
+
       const {
-        user_id,
-        role,
         title,
         description,
         location,
@@ -575,7 +679,9 @@ const eventController = {
   cancelEvent: async (req, res) => {
     try {
       const { id } = req.params;
-      const { user_id, role, cancellation_reason } = req.body;
+      const user_id = req.user.id;
+      const role = req.user.role;
+      const { cancellation_reason } = req.body;
 
       const event = await Event.findByPk(id);
 
@@ -647,6 +753,15 @@ const eventController = {
               },
             })),
           );
+
+          const organizer = await User.findByPk(user_id);
+
+          await sendCancellationRequestEmailsToAdmins({
+            admins,
+            organizer,
+            event,
+            cancellationRequest: cancelRequest,
+          });
         }
 
         return sendSuccess(
@@ -706,7 +821,7 @@ const eventController = {
   getEventChangeRefundInfo: async (req, res) => {
     try {
       const { id, event_change_id } = req.params;
-      const { user_id } = req.query;
+      const user_id = req.user.id;
 
       const eventChange = await EventChange.findOne({
         where: {
@@ -822,7 +937,8 @@ const eventController = {
   requestRefundAfterEventChanged: async (req, res) => {
     try {
       const { id } = req.params;
-      const { user_id, transaction_id, event_change_id, reason } = req.body;
+      const user_id = req.user.id;
+      const { transaction_id, event_change_id, reason } = req.body;
 
       const refund = await refundService.requestRefundAfterEventChanged({
         user_id,
@@ -853,10 +969,124 @@ const eventController = {
     }
   },
 
+  // =====================================================
+  // 🔥 ADMIN CATEGORY CRUD
+  // =====================================================
+
+  // Buat kategori baru (admin only)
+  createCategory: async (req, res) => {
+    try {
+      const { name, description} = req.body;
+
+      if (!name || name.trim().length < 2) {
+        return res
+          .status(400)
+          .json({ message: "Nama kategori minimal 2 karakter." });
+      }
+
+      const existing = await Category.findOne({
+        where: { name: name.trim() },
+      });
+
+      if (existing) {
+        return res
+          .status(400)
+          .json({ message: "Kategori dengan nama ini sudah ada." });
+      }
+
+      const category = await Category.create({
+        name: name.trim(),
+        description: description?.trim() || null,
+      });
+
+      return res.status(201).json({
+        message: "Kategori berhasil dibuat.",
+        data: category,
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Update kategori (admin only)
+  updateCategory: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description } = req.body;
+
+      const category = await Category.findByPk(id);
+
+      if (!category) {
+        return res.status(404).json({ message: "Kategori tidak ditemukan." });
+      }
+
+      if (!name || name.trim().length < 2) {
+        return res
+          .status(400)
+          .json({ message: "Nama kategori minimal 2 karakter." });
+      }
+
+      const duplicate = await Category.findOne({
+        where: { name: name.trim(), id: { [Op.ne]: id } },
+      });
+
+      if (duplicate) {
+        return res
+          .status(400)
+          .json({ message: "Kategori dengan nama ini sudah ada." });
+      }
+
+      category.name = name.trim();
+      category.description = description?.trim() || null;
+      await category.save();
+
+      return res.json({
+        message: "Kategori berhasil diperbarui.",
+        data: category,
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Hapus kategori (admin only) — ditolak kalau masih dipakai event/chat room
+  deleteCategory: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const category = await Category.findByPk(id);
+
+      if (!category) {
+        return res.status(404).json({ message: "Kategori tidak ditemukan." });
+      }
+
+      const eventUsage = await db.EventCategory.count({
+        where: { category_id: id },
+      });
+
+      const chatRoomUsage = await db.ChatRoomCategory.count({
+        where: { category_id: id },
+      });
+
+      if (eventUsage > 0 || chatRoomUsage > 0) {
+        return res.status(400).json({
+          message: `Kategori masih dipakai oleh ${eventUsage} event dan ${chatRoomUsage} chat room. Lepaskan dulu sebelum menghapus.`,
+        });
+      }
+
+      await category.destroy();
+
+      return res.json({ message: "Kategori berhasil dihapus." });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
   followExternalEvent: async (req, res) => {
     try {
-      const { external_id, title, location, start_date, user_id, role } =
-        req.body;
+      const { external_id, title, location, start_date } = req.body;
+      const user_id = req.user.id;
+      const role = req.user.role;
 
       let event = await Event.findOne({
         where: { external_id: String(external_id) },
@@ -910,7 +1140,8 @@ const eventController = {
 
   toggleSaveEvent: async (req, res) => {
     try {
-      const { user_id, event_id } = req.body;
+      const { event_id } = req.body;
+      const user_id = req.user.id;
       const alreadySaved = await SavedEvent.findOne({
         where: { user_id, event_id },
       });
@@ -937,7 +1168,7 @@ const eventController = {
   checkSaveStatus: async (req, res) => {
     try {
       const { id } = req.params;
-      const { user_id } = req.query;
+      const user_id = req.user.id;
 
       if (!user_id) return res.json({ isSaved: false });
 
@@ -953,7 +1184,7 @@ const eventController = {
 
   getSavedEventsList: async (req, res) => {
     try {
-      const { user_id } = req.query;
+      const user_id = req.user.id;
       const savedList = await SavedEvent.findAll({
         where: { user_id },
         include: [
@@ -974,11 +1205,8 @@ const eventController = {
   },
   getCancellationRequests: async (req, res) => {
     try {
-      const { user_id, role, status, page = 1, limit = 10 } = req.query;
-
-      if (role !== "admin") {
-        return sendError(res, 403, "Only admin can view cancellation requests");
-      }
+      const {  status, page = 1, limit = 10 } = req.query;
+      const user_id = req.user.id;
 
       const admin = await User.findByPk(user_id);
 
@@ -1050,15 +1278,8 @@ const eventController = {
   approveCancellationRequest: async (req, res) => {
     try {
       const { request_id } = req.params;
-      const { user_id, role, admin_note } = req.body;
-
-      if (role !== "admin") {
-        return sendError(
-          res,
-          403,
-          "Only admin can approve cancellation request",
-        );
-      }
+      const { admin_note } = req.body;
+      const user_id = req.user.id;
 
       const admin = await User.findByPk(user_id);
 
@@ -1134,6 +1355,13 @@ const eventController = {
           admin_note: admin_note || null,
         },
       });
+      const organizer = await User.findByPk(cancelRequest.requested_by);
+
+      await sendCancellationApprovedEmailToOrganizer({
+        organizer,
+        event,
+        adminNote: admin_note || null,
+      });
 
       const refundResult = await refundService.createAutoRefundForCanceledEvent(
         {
@@ -1167,15 +1395,9 @@ const eventController = {
   rejectCancellationRequest: async (req, res) => {
     try {
       const { request_id } = req.params;
-      const { user_id, role, admin_note } = req.body;
+      const { admin_note } = req.body;
 
-      if (role !== "admin") {
-        return sendError(
-          res,
-          403,
-          "Only admin can reject cancellation request",
-        );
-      }
+      const user_id = req.user.id;
 
       const admin = await User.findByPk(user_id);
 
@@ -1225,6 +1447,13 @@ const eventController = {
           admin_note,
         },
       });
+      const organizer = await User.findByPk(cancelRequest.requested_by);
+
+      await sendCancellationRejectedEmailToOrganizer({
+        organizer,
+        event,
+        adminNote: admin_note || null,
+      });
 
       return sendSuccess(
         res,
@@ -1248,7 +1477,7 @@ const eventController = {
 
   getUserPoints: async (req, res) => {
     try {
-      const { user_id } = req.query;
+      const user_id = req.user.id;
       if (!user_id)
         return res.status(400).json({ message: "User ID dibutuhkan gess!" });
 
@@ -1292,9 +1521,190 @@ const eventController = {
     }
   },
 
+  // =====================================================
+  // 🔥 ADMIN VOUCHER (DISCOUNT) CRUD
+  // =====================================================
+
+  // Ambil SEMUA voucher termasuk yang non-aktif (admin only)
+  getAllVouchersAdmin: async (req, res) => {
+    try {
+      
+      const vouchers = await Voucher.findAll({ order: [["id", "DESC"]] });
+      return res.json(vouchers);
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Buat voucher baru (admin only)
+  createVoucher: async (req, res) => {
+    try {
+      const {
+        code,
+        name,
+        percentage,
+        max_cut,
+        points_required,
+        stock,
+        valid_until,
+        is_active,
+      } = req.body;
+
+      if (!code || code.trim().length < 3) {
+        return res
+          .status(400)
+          .json({ message: "Kode voucher minimal 3 karakter." });
+      }
+
+      if (!name || name.trim().length < 2) {
+        return res
+          .status(400)
+          .json({ message: "Nama voucher minimal 2 karakter." });
+      }
+
+      if (percentage != null && (percentage < 1 || percentage > 100)) {
+        return res
+          .status(400)
+          .json({ message: "Persentase diskon harus antara 1 - 100." });
+      }
+
+      const existing = await Voucher.findOne({
+        where: { code: code.trim() },
+      });
+
+      if (existing) {
+        return res
+          .status(400)
+          .json({ message: "Kode voucher ini sudah dipakai." });
+      }
+
+      const voucher = await Voucher.create({
+        code: code.trim(),
+        name: name.trim(),
+        percentage: percentage != null ? Number(percentage) : null,
+        max_cut: max_cut != null && max_cut !== "" ? Number(max_cut) : null,
+        points_required:
+          points_required != null && points_required !== ""
+            ? Number(points_required)
+            : 0,
+        stock: stock != null && stock !== "" ? Number(stock) : null,
+        valid_until: valid_until || null,
+        is_active: is_active != null ? Boolean(is_active) : true,
+      });
+
+      return res.status(201).json({
+        message: "Voucher berhasil dibuat.",
+        data: voucher,
+      });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Update voucher (admin only)
+  updateVoucher: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        code,
+        name,
+        percentage,
+        max_cut,
+        points_required,
+        stock,
+        valid_until,
+        is_active,
+      } = req.body;
+
+      const voucher = await Voucher.findByPk(id);
+
+      if (!voucher) {
+        return res.status(404).json({ message: "Voucher tidak ditemukan." });
+      }
+
+      if (!code || code.trim().length < 3) {
+        return res
+          .status(400)
+          .json({ message: "Kode voucher minimal 3 karakter." });
+      }
+
+      if (!name || name.trim().length < 2) {
+        return res
+          .status(400)
+          .json({ message: "Nama voucher minimal 2 karakter." });
+      }
+
+      if (percentage != null && (percentage < 1 || percentage > 100)) {
+        return res
+          .status(400)
+          .json({ message: "Persentase diskon harus antara 1 - 100." });
+      }
+
+      const duplicate = await Voucher.findOne({
+        where: { code: code.trim(), id: { [Op.ne]: id } },
+      });
+
+      if (duplicate) {
+        return res
+          .status(400)
+          .json({ message: "Kode voucher ini sudah dipakai." });
+      }
+
+      voucher.code = code.trim();
+      voucher.name = name.trim();
+      voucher.percentage = percentage != null ? Number(percentage) : null;
+      voucher.max_cut =
+        max_cut != null && max_cut !== "" ? Number(max_cut) : null;
+      voucher.points_required =
+        points_required != null && points_required !== ""
+          ? Number(points_required)
+          : 0;
+      voucher.stock = stock != null && stock !== "" ? Number(stock) : null;
+      voucher.valid_until = valid_until || null;
+      if (is_active != null) voucher.is_active = Boolean(is_active);
+
+      await voucher.save();
+
+      return res.json({
+        message: "Voucher berhasil diperbarui.",
+        data: voucher,
+      });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Hapus voucher (admin only) — kalau sudah pernah diklaim, sarankan non-aktifkan
+  deleteVoucher: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const voucher = await Voucher.findByPk(id);
+
+      if (!voucher) {
+        return res.status(404).json({ message: "Voucher tidak ditemukan." });
+      }
+
+      const claimed = await UserVoucher.count({ where: { voucher_id: id } });
+
+      if (claimed > 0) {
+        return res.status(400).json({
+          message: `Voucher sudah diklaim oleh ${claimed} user, jadi tidak bisa dihapus. Non-aktifkan saja lewat Edit.`,
+        });
+      }
+
+      await voucher.destroy();
+
+      return res.json({ message: "Voucher berhasil dihapus." });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  },
+
   claimVoucher: async (req, res) => {
     try {
-      const { user_id, voucher_id } = req.body;
+      const { voucher_id } = req.body;
+      const user_id = req.user.id;
 
       const user = await User.findByPk(user_id);
       const voucher = await Voucher.findByPk(voucher_id);
@@ -1337,6 +1747,14 @@ const eventController = {
         is_used: false,
       });
 
+      // Catat pengeluaran poin ke riwayat poin
+      await PointHistory.create({
+        user_id,
+        amount: voucher.points_required,
+        type: "spend",
+        description: `Tukar poin dengan voucher ${voucher.name}`,
+      });
+
       res.json({
         message: `Sukses menukarkan ${voucher.points_required} poin dengan voucher ${voucher.name}!`,
         remainingPoints: newPointsBalance,
@@ -1349,7 +1767,7 @@ const eventController = {
 
   getMyVouchers: async (req, res) => {
     try {
-      const { user_id } = req.query;
+      const user_id = req.user.id;
       if (!user_id)
         return res.status(400).json({ message: "User ID diperlukan." });
 
@@ -1371,7 +1789,8 @@ const eventController = {
 
   createTicketCheckout: async (req, res) => {
     try {
-      const { user_id, ticket_type_id, quantity, user_voucher_id } = req.body;
+      const user_id = req.user.id;
+      const { ticket_type_id, quantity, user_voucher_id } = req.body;
 
       if (!user_id || !ticket_type_id || !quantity) {
         return res
@@ -1429,7 +1848,7 @@ const eventController = {
 
   getUserTicketsList: async (req, res) => {
     try {
-      const { user_id } = req.query;
+      const user_id = req.user.id;
       if (!user_id)
         return res.status(400).json({ message: "User ID diperlukan gess!" });
 
@@ -1460,7 +1879,9 @@ const eventController = {
   validateTicketCode: async (req, res) => {
     try {
       const { id } = req.params;
-      const { user_id, role, ticket_code } = req.body;
+      const { ticket_code } = req.body;
+      const user_id = req.user.id;
+      const role = req.user.role;
 
       const event = await Event.findByPk(id);
 
