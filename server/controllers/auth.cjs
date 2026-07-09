@@ -116,7 +116,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    const accessToken = jwt.sign(
+    const token = jwt.sign(
       {
         id: user.id,
         email: user.email,

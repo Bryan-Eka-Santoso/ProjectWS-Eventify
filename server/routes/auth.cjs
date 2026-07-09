@@ -47,7 +47,7 @@ router.post(
   verifyToken,
   checkRoles("user"),
   uploadLimiter,
-  upload.single("ktpImage"),
+  upload.single("ktp_image_url"),
   userController.registerOrganization,
 );
 
@@ -61,4 +61,5 @@ router.delete(
 router.post("/refresh", authController.refresh);
 // router.get("/profile", verifyToken, userController.getProfile);
 // router.put("/change-password/:id", verifyToken, userController.changePassword);
+
 module.exports = router;

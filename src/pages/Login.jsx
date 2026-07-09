@@ -224,11 +224,11 @@ function Login() {
                       }}
                     />
 
-                    <div className="text-center">
+                    {/* <div className="text-center">
                       <a href="/" className="text-decoration-none text-muted">
                         Continue as Guest
                       </a>
-                    </div>
+                    </div> */}
                   </div>
                 </form>
               </div>
