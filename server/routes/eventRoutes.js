@@ -8,16 +8,16 @@ const verifyToken = require("../middlewares/verifyJWT").verifyToken;
 const checkRoles = require("../middlewares/checkRoles").checkRoles;
 
 const apiLimiter = require("../middlewares/apiLimiter");
-const uploadLimiter = require("../middlewares/uploadLimiter");
-
-const { verifyToken } = require("../middlewares/verifyJWT");
-const { checkRoles } = require("../middlewares/checkRoles");
 
 const validate = require("../middlewares/validate");
 const eventValidation = require("../validators/eventValidation");
 // ==========================================
 // 🔥 ROUTE BARU KHUSUS TRANSAKSI TIKET & MIDTRANS SNAP GATEWAY
 // ==========================================
+
+router.use(apiLimiter);
+router.use(verifyToken);
+
 router.post("/tickets/checkout", eventController.createTicketCheckout);
 router.post(
   "/tickets/midtrans-callback",

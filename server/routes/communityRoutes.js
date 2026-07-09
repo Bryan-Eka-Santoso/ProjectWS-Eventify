@@ -7,6 +7,12 @@ const upload = require("../middlewares/upload");
 const validate = require("../middlewares/validate");
 const communityValidation = require("../validators/communityValidation");
 
+const verifyToken = require("../middlewares/verifyJWT").verifyToken;
+const checkRoles = require("../middlewares/checkRoles").checkRoles;
+
+const apiLimiter = require("../middlewares/apiLimiter");
+const uploadLimiter = require("../middlewares/uploadLimiter");
+
 // =========================
 // STATIC / GLOBAL ROUTES
 // =========================
@@ -35,11 +41,12 @@ router.get(
   validate({
     query: communityValidation.userIdQuerySchema,
   }),
-  communityController.getUnreadCounts
+  communityController.getUnreadCounts,
 );
 
 router.post(
   "/",
+  uploadLimiter,
   upload.single("profile_image"),
   validate({
     body: communityValidation.createChatRoomBodySchema,
@@ -122,6 +129,7 @@ router.delete(
 
 router.put(
   "/:chat_room_id",
+  uploadLimiter,
   upload.single("profile_image"),
   validate({
     params: communityValidation.updateChatRoomParamsSchema,
@@ -170,7 +178,7 @@ router.delete(
     params: communityValidation.deleteChatRoomParamsSchema,
     body: communityValidation.deleteChatRoomBodySchema,
   }),
-  communityController.updateMemberRole
+  communityController.updateMemberRole,
 );
 router.delete(
   "/:chat_room_id/members/:user_id",
@@ -198,6 +206,7 @@ router.post(
 
 router.post(
   "/:chat_room_id/messages/media",
+  uploadLimiter,
   upload.single("media"),
   validate({
     params: communityValidation.sendMediaMessageParamsSchema,
