@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/admin/Navbar";
 import Footer from "../../components/admin/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
 
-const API_BASE = "http://localhost:5000/api/social/admin/users";
+const API_BASE = "/social/admin/users";
 
 const ROLE_BADGE = {
   admin: "bg-danger",
@@ -49,9 +49,7 @@ function Users() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(API_BASE, {
-        params: { role: AUTH_USER.role },
-      });
+      const res = await api.get(API_BASE);
       setUsers(res.data.data || []);
     } catch (error) {
       console.error("Gagal mengambil users:", error);
@@ -82,8 +80,7 @@ function Users() {
     try {
       setSaving(true);
 
-      await axios.put(`${API_BASE}/${editingUser.id}/role`, {
-        role: AUTH_USER.role,
+      await api.put(`${API_BASE}/${editingUser.id}/role`, {
         new_role: newRole,
       });
 
@@ -116,9 +113,7 @@ function Users() {
   const confirmDelete = async (user) => {
     closeModal();
     try {
-      await axios.delete(`${API_BASE}/${user.id}`, {
-        data: { role: AUTH_USER.role, admin_id: AUTH_USER.id },
-      });
+      await api.delete(`${API_BASE}/${user.id}`);
       await fetchUsers();
       notify("success", "Berhasil", "User berhasil dihapus.");
     } catch (error) {
@@ -229,14 +224,14 @@ function Users() {
                         <button
                           className="btn btn-sm btn-outline-primary fw-semibold rounded-3"
                           onClick={() => openRoleForm(user)}
-                          disabled={user.id === AUTH_USER.id}
+                          disabled={user.id === getCurrentUser().id}
                         >
                           <i className="bi bi-person-gear"></i> Role
                         </button>
                         <button
                           className="btn btn-sm btn-outline-danger fw-semibold rounded-3"
                           onClick={() => handleDelete(user)}
-                          disabled={user.id === AUTH_USER.id}
+                          disabled={user.id === getCurrentUser().id}
                         >
                           <i className="bi bi-trash"></i> Hapus
                         </button>

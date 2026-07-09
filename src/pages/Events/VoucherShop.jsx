@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
 import AppModal from "../../components/AppModal";
 
 function VoucherShop() {
@@ -69,8 +69,8 @@ function VoucherShop() {
 
   const fetchUserPoints = async () => {
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/events/vouchers/user-points?user_id=${AUTH_USER.id}`,
+      const res = await api.get(
+        `/events/vouchers/user-points`,
       );
       setUserPoints(res.data.points);
     } catch (err) {
@@ -80,8 +80,13 @@ function VoucherShop() {
 
   const fetchVouchers = async () => {
     try {
+<<<<<<< HEAD
       const res = await axios.get(
         `http://localhost:5000/api/events/vouchers/shop-list`,
+=======
+      const res = await api.get(
+        "/events/vouchers/shop-list",
+>>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
       );
       setVouchers(res.data);
       setLoading(false);
@@ -93,10 +98,14 @@ function VoucherShop() {
 
   const claimVoucher = async (voucherId) => {
     try {
+<<<<<<< HEAD
       const res = await axios.post(
         `http://localhost:5000/api/events/vouchers/claim`,
+=======
+      const res = await api.post(
+        "/events/vouchers/claim",
+>>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
         {
-          user_id: AUTH_USER.id,
           voucher_id: voucherId,
         },
       );
@@ -157,8 +166,8 @@ function VoucherShop() {
         >
           <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-              <h5 className="mb-1 opacity-75">Halo, {AUTH_USER.name}! 👋</h5>
-              <p className="mb-0 small opacity-50">ID User: {AUTH_USER.id}</p>
+              <h5 className="mb-1 opacity-75">Halo, {getCurrentUser().name}! 👋</h5>
+              <p className="mb-0 small opacity-50">ID User: {getCurrentUser().id}</p>
             </div>
             <div className="text-end">
               <span className="small opacity-75 d-block text-uppercase fw-bold mb-1">

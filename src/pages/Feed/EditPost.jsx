@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
+
 
 const API_BASE = `http://localhost:5000/api/social`;
 
@@ -36,10 +37,10 @@ function EditPost() {
 
     const fetchPost = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/posts/${id}`);
+        const res = await api.get(`${API_BASE}/posts/${id}`);
         const post = res.data.data;
 
-        if (Number(post.user_id) !== Number(AUTH_USER.id)) {
+        if (Number(post.user_id) !== Number(getCurrentUser().id)) {
           notify(
             "error",
             "Akses Ditolak",
@@ -76,8 +77,7 @@ function EditPost() {
     try {
       setSaving(true);
 
-      await axios.put(`${API_BASE}/posts/${id}`, {
-        user_id: AUTH_USER.id,
+      await api.put(`${API_BASE}/posts/${id}`, {
         content: content.trim(),
         image_url: imageUrl.trim() || null,
       });

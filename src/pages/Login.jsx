@@ -25,7 +25,7 @@ function Login() {
   const handleGoogleLogin = async (credentialResponse) => {
     try {
       const response = await fetch(
-        `http://localhost:5000/api/auth/google-login`,
+        "http://localhost:5000/api/auth/google-login",
         {
           method: "POST",
           credentials: "include",
@@ -69,7 +69,7 @@ function Login() {
     e.preventDefault();
 
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/login`, {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         credentials: "include",
         headers: {

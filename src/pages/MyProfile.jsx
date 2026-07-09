@@ -33,7 +33,7 @@ function MyProfile() {
 
   const getProfile = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/profile`, {
+      const response = await fetch("http://localhost:5000/api/auth/profile", {
         credentials: "include",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -79,7 +79,7 @@ function MyProfile() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/update`, {
+      const response = await fetch("http://localhost:5000/api/auth/update", {
         method: "PUT",
         credentials: "include",
         headers: {
@@ -139,7 +139,7 @@ function MyProfile() {
     e.preventDefault();
     try {
       const response = await fetch(
-        `http://localhost:5000/api/auth/change-password`,
+        "http://localhost:5000/api/auth/change-password",
         {
           method: "PUT",
           credentials: "include",
@@ -207,7 +207,7 @@ function MyProfile() {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/auth/change-avatar`,
+        "http://localhost:5000/api/auth/change-avatar",
         {
           method: "PUT",
           credentials: "include",
@@ -256,7 +256,7 @@ function MyProfile() {
       form.append("address", formData.address);
 
       const response = await fetch(
-        `http://localhost:5000/api/auth/register-organizer`,
+        "http://localhost:5000/api/auth/register-organizer",
         {
           method: "POST",
           credentials: "include",
@@ -306,7 +306,7 @@ function MyProfile() {
 
   const deleteAccount = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/profile`, {
+      const response = await fetch("http://localhost:5000/api/auth/profile", {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,

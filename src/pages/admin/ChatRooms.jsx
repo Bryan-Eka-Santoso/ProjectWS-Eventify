@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/admin/Navbar";
 import Footer from "../../components/admin/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
+
 
 const SERVER_URL = "http://localhost:5000";
-const API_BASE = `${SERVER_URL}/api/community`;
+const API_BASE = `/community`;
 
 const imageSrc = (url) => {
   if (!url) return "https://via.placeholder.com/80?text=No+Img";
@@ -44,9 +45,7 @@ function ChatRooms() {
   const fetchRooms = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_BASE}/admin/all-rooms`, {
-        params: { role: AUTH_USER.role },
-      });
+      const res = await api.get(`${API_BASE}/admin/all-rooms`);
       setRooms(res.data?.data || []);
     } catch (error) {
       console.error("Gagal mengambil chat room:", error);
@@ -79,9 +78,7 @@ function ChatRooms() {
   const confirmDelete = async (room) => {
     closeModal();
     try {
-      await axios.delete(`${API_BASE}/admin/rooms/${room.id}`, {
-        data: { role: AUTH_USER.role },
-      });
+      await api.delete(`${API_BASE}/admin/rooms/${room.id}`);
       await fetchRooms();
       notify("success", "Berhasil", "Chat room berhasil dihapus.");
     } catch (error) {

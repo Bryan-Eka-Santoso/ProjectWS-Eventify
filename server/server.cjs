@@ -5,6 +5,7 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 
 // 🎯 FIXED: Path disesuaikan karena .env sudah masuk ke dalam folder server gess!
 dotenv.config({ path: path.resolve(__dirname, "./.env") });
@@ -70,7 +71,23 @@ const io = new Server(server, {
 
 // Simpan instance io agar bisa dipakai di service lain
 socketService.setIo(io);
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
 
+    if (!token) {
+      return next(new Error("Unauthorized. Token not found."));
+    }
+
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+
+    socket.user = decoded;
+
+    next();
+  } catch (error) {
+    return next(new Error("Unauthorized. Invalid token."));
+  }
+});
 // Jalankan socket handler
 communitySocket(io);
 notificationSocket(io);

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
 import AppModal from "../../components/AppModal";
 
 function ValidateTicket() {
@@ -42,7 +42,7 @@ function ValidateTicket() {
     try {
       setLoadingEvent(true);
 
-      const res = await axios.get(`http://localhost:5000/api/events/${id}`);
+      const res = await api.get(`/events/${id}`);
       setEvent(res.data);
     } catch (error) {
       console.error("Gagal mengambil detail event:", error);
@@ -76,14 +76,9 @@ function ValidateTicket() {
       setValidating(true);
       setResult(null);
 
-      const res = await axios.patch(
-        `http://localhost:5000/api/events/${id}/tickets/validate`,
-        {
-          user_id: AUTH_USER.id,
-          role: AUTH_USER.role,
-          ticket_code: ticketCode.trim(),
-        },
-      );
+      const res = await api.patch(`/events/${id}/tickets/validate`, {
+        ticket_code: ticketCode.trim(),
+      });
 
       setResult({
         success: true,
@@ -107,7 +102,7 @@ function ValidateTicket() {
     }
   };
 
-  if (AUTH_USER.role !== "organizer" && AUTH_USER.role !== "admin") {
+  if (getCurrentUser().role !== "organizer" && getCurrentUser().role !== "admin") {
     return (
       <>
         <Navbar />

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
 
 const API_BASE = `http://localhost:5000/api/transactions`;
 
@@ -23,9 +23,7 @@ function TransactionHistory() {
 
     const fetchTransactions = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/my`, {
-          params: { user_id: AUTH_USER.id },
-        });
+        const res = await api.get(`${API_BASE}/my`);
         setTransactions(res.data.data || []);
       } catch (error) {
         console.error("Gagal mengambil riwayat transaksi:", error);

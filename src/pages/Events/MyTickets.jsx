@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios"; // 🎯 FIXED: Kembali pakai import axios standar yang benar gess!
+import api from "../../config/api";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
 
 function MyTickets() {
   const [tickets, setTickets] = useState([]);
@@ -11,10 +10,8 @@ function MyTickets() {
   const [selectedTicket, setSelectedTicket] = useState(null);
 
   useEffect(() => {
-    axios
-      .get(
-        `http://localhost:5000/api/events/tickets/my-tickets?user_id=${AUTH_USER.id}`,
-      )
+    api
+      .get("/events/tickets/my-tickets")
       .then((res) => {
         setTickets(res.data);
         setLoading(false);

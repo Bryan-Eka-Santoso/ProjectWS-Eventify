@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/admin/Navbar";
 import Footer from "../../components/admin/Footer";
 import AppModal from "../../components/AppModal";
 import EventStatusBadge from "../../components/EventStatusBadge";
-import { AUTH_USER } from "../../config/auth";
 
-const API_BASE = "http://localhost:5000/api/events";
+
+const API_BASE = "/events";
 
 const STATUS_OPTIONS = [
   "draft",
@@ -48,9 +49,8 @@ function Events() {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_BASE}/admin/all-events`, {
+      const res = await api.get(`${API_BASE}/admin/all-events`, {
         params: {
-          role: AUTH_USER.role,
           status: statusFilter || undefined,
         },
       });
@@ -78,10 +78,8 @@ function Events() {
 
     try {
       setProcessingId(event.id);
-      await axios.patch(`${API_BASE}/${event.id}/status`, {
+      await api.patch(`${API_BASE}/${event.id}/status`, {
         status: newStatus,
-        user_id: AUTH_USER.id,
-        role: AUTH_USER.role,
       });
       await fetchEvents();
       notify(

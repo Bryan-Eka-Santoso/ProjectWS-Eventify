@@ -8,8 +8,14 @@ class SocketService {
   }
 
   connect() {
+    const token = localStorage.getItem("token");
+
     if (!this.socket) {
       this.socket = io(SOCKET_URL, {
+        auth: (cb) => {
+          const token = localStorage.getItem("token");
+          cb({ token });
+        },
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
@@ -20,12 +26,12 @@ class SocketService {
         console.log("✅ Socket connected:", this.socket.id);
       });
 
-      this.socket.on("disconnect", () => {
-        console.log("❌ Socket disconnected");
+      this.socket.on("connect_error", (error) => {
+        console.error("🔴 Socket connect error:", error.message);
       });
 
-      this.socket.on("error", (error) => {
-        console.error("🔴 Socket error:", error);
+      this.socket.on("disconnect", () => {
+        console.log("❌ Socket disconnected");
       });
     }
 
@@ -43,9 +49,9 @@ class SocketService {
   // CHAT ROOM SOCKET
   // =====================================================
 
-  joinRoom(chat_room_id, user_id, username) {
+  joinRoom(chat_room_id, username) {
     if (this.socket) {
-      this.socket.emit("join_room", { chat_room_id, user_id, username });
+      this.socket.emit("join_room", { chat_room_id, username });
     }
   }
 
@@ -57,7 +63,6 @@ class SocketService {
 
   sendMessage(
     chat_room_id,
-    sender_id,
     message_type = "text",
     body = null,
     media_url = null,
@@ -66,7 +71,6 @@ class SocketService {
     if (this.socket) {
       this.socket.emit("send_message", {
         chat_room_id,
-        sender_id,
         message_type,
         body,
         media_url,
@@ -121,15 +125,15 @@ class SocketService {
   // NOTIFICATION SOCKET
   // =====================================================
 
-  joinNotification(user_id) {
+  joinNotification() {
     if (this.socket) {
-      this.socket.emit("join_notification", { user_id });
+      this.socket.emit("join_notification");
     }
   }
 
-  leaveNotification(user_id) {
+  leaveNotification() {
     if (this.socket) {
-      this.socket.emit("leave_notification", { user_id });
+      this.socket.emit("leave_notification");
     }
   }
 

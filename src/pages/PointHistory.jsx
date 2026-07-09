@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../config/auth";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { AUTH_USER } from "../config/auth";
 
-const API_BASE = `http://localhost:5000/api/transactions`;
+const API_BASE = "http://localhost:5000/api/transactions";
 
 function PointHistory() {
   const [histories, setHistories] = useState([]);
@@ -17,9 +17,7 @@ function PointHistory() {
 
     const fetchHistory = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/points/history`, {
-          params: { user_id: AUTH_USER.id },
-        });
+        const res = await api.get(`${API_BASE}/points/history`);
         setHistories(res.data.data?.histories || []);
         setCurrentPoints(res.data.data?.current_points || 0);
       } catch (error) {

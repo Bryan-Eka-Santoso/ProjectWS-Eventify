@@ -1,17 +1,42 @@
-// export const AUTH_USER = {
-//   id: 1, // <--- Ganti angka ini saja untuk ganti user (5=Alex, 6=Bambang, dst)
-//   name: "Admin Event",
-//   role: "admin", // <--- "admin" atau "organizer"
-// };
+import { jwtDecode } from "jwt-decode";
 
-export const AUTH_USER = {
-  id: 2, // <--- Ganti angka ini saja untuk ganti user (5=Alex, 6=Bambang, dst)
-  name: "GILBERT ANTONIUS WIJAYA",
-  role: "organizer", // <--- "admin" atau "organizer"
+export const getToken = () => {
+  return localStorage.getItem("token");
 };
 
-// export const AUTH_USER = {
-//   id: 3, // <--- Ganti angka ini saja untuk ganti user (5=Alex, 6=Bambang, dst)
-//   name: "User Biasa",
-//   role: "user", // <--- "admin" atau "organizer"
-// };
+
+export const getAuthHeaders = () => {
+  const token = getToken();
+
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+      }
+    : {};
+};
+export const getCurrentUser = () => {
+  const token = getToken();
+
+  if (!token) return null;
+
+  try {
+    return jwtDecode(token);
+  } catch (error) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    return null;
+  }
+};
+
+export const getCurrentRole = () => {
+  return getCurrentUser()?.role || null;
+};
+
+export const isLoggedIn = () => {
+  return Boolean(getCurrentUser());
+};
+
+export const logoutLocal = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+};

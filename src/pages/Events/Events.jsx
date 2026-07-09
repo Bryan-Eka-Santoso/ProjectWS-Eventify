@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
 
 function Events() {
   const [events, setEvents] = useState([]);
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState(null);
+  const currentUser = getCurrentUser();
 
   useEffect(() => {
     fetchCategories();
@@ -21,9 +22,13 @@ function Events() {
 
   const fetchCategories = async () => {
     try {
+<<<<<<< HEAD
       const res = await axios.get(
         `http://localhost:5000/api/events/categories`,
       );
+=======
+      const res = await api.get("/events/categories");
+>>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
       setCategories(res.data);
     } catch (err) {
       console.error("Gagal memuat kategori:", err);
@@ -32,10 +37,15 @@ function Events() {
 
   const fetchEvents = async () => {
     try {
+<<<<<<< HEAD
       const url = activeCategory
         ? `http://localhost:5000/api/events/published?category_id=${activeCategory}`
         : `http://localhost:5000/api/events/published`;
       const res = await axios.get(url);
+=======
+      const params = activeCategory ? { category_id: activeCategory } : {};
+      const res = await api.get("/events/published", { params });
+>>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
       setEvents(res.data);
     } catch (err) {
       console.error("Gagal memuat event:", err);
@@ -51,15 +61,17 @@ function Events() {
       <Navbar />
       <div className="container mt-5 mb-5" style={{ minHeight: "75vh" }}>
         {/* --- ALERT INFO TESTING AKTIF --- */}
-        <div className="alert alert-info border-0 shadow-sm rounded-3 mb-4 d-flex justify-content-between align-items-center">
-          <div>
-            📍 Logged in as: <strong>{AUTH_USER.name}</strong>
-            <span className="badge bg-primary ms-2">
-              {AUTH_USER.role.toUpperCase()}
-            </span>
+        {currentUser && (
+          <div className="alert alert-info border-0 shadow-sm rounded-3 mb-4 d-flex justify-content-between align-items-center">
+            <div>
+              📍 Logged in as: <strong>{currentUser.name}</strong>
+              <span className="badge bg-primary ms-2">
+                {currentUser.role?.toUpperCase()}
+              </span>
+            </div>
+            <small className="text-muted">ID User: {currentUser.id}</small>
           </div>
-          <small className="text-muted">ID User: {AUTH_USER.id}</small>
-        </div>
+        )}
 
         {/* --- SEARCH BAR & FILTER KATEGORI --- */}
         <div className="row g-3 align-items-center mb-4">
@@ -96,7 +108,7 @@ function Events() {
         {/* --- REVISI ACTION BAR BARU --- */}
         <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
           <div>
-            {AUTH_USER.role !== "user" && (
+            {currentUser && currentUser.role !== "user" &&(
               <Link
                 to="/events/external"
                 className="btn btn-success fw-bold rounded-3 shadow-sm d-flex align-items-center gap-2"
@@ -132,7 +144,7 @@ function Events() {
             </Link>
 
             {/* Pembatas khusus Admin / Organizer */}
-            {AUTH_USER.role !== "user" && (
+            {currentUser && currentUser.role !== "user" && (
               <>
                 <Link
                   to="/events/my-events"

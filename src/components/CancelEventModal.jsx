@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { AUTH_USER } from "../config/auth";
 
 function CancelEventModal({ event, onClose, onSuccess }) {
   const [reason, setReason] = useState("");
@@ -18,9 +17,11 @@ function CancelEventModal({ event, onClose, onSuccess }) {
       const res = await axios.patch(
         `http://localhost:5000/api/events/${event.id}/cancel`,
         {
-          user_id: AUTH_USER.id,
-          role: AUTH_USER.role,
           cancellation_reason: reason,
+        },
+        {
+          headers: getAuthHeaders(),
+          withCredentials: true,
         }
       );
 

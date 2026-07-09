@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
 import AppModal from "../../components/AppModal";
 
 function EventDetail() {
@@ -57,8 +57,8 @@ function EventDetail() {
   };
 
   useEffect(() => {
-    axios
-      .get(`http://localhost:5000/api/events/${id}`)
+    api
+      .get(`/events/${id}`)
       .then((res) => {
         setEvent(res.data);
         setLoading(false);
@@ -68,9 +68,9 @@ function EventDetail() {
         setLoading(false);
       });
 
-    axios
+    api
       .get(
-        `http://localhost:5000/api/events/${id}/check-save?user_id=${AUTH_USER.id}`,
+        `/events/${id}/check-save`,
       )
       .then((res) => setIsSaved(res.data.isSaved))
       .catch((err) => console.error(err));
@@ -78,9 +78,9 @@ function EventDetail() {
 
   useEffect(() => {
     if (showModal) {
-      axios
+      api
         .get(
-          `http://localhost:5000/api/events/vouchers/my-vouchers?user_id=${AUTH_USER.id}`,
+          `/events/vouchers/my-vouchers`,
         )
         .then((res) => {
           setMyVouchers(res.data);
@@ -91,10 +91,14 @@ function EventDetail() {
 
   const handleToggleSave = async () => {
     try {
+<<<<<<< HEAD
       const res = await axios.post(
         `http://localhost:5000/api/events/toggle-save`,
+=======
+      const res = await api.post(
+        "/events/toggle-save",
+>>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
         {
-          user_id: AUTH_USER.id,
           event_id: id,
         },
       );
@@ -137,10 +141,14 @@ function EventDetail() {
 
     try {
       // 1. Ambil Token Snap dan Order ID dari Backend kamu gess
+<<<<<<< HEAD
       const res = await axios.post(
         `http://localhost:5000/api/events/tickets/checkout`,
+=======
+      const res = await api.post(
+        "/events/tickets/checkout",
+>>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
         {
-          user_id: AUTH_USER.id,
           ticket_type_id: selectedTicket.id,
           quantity: quantity,
           user_voucher_id: selectedVoucherId || null,
@@ -158,8 +166,13 @@ function EventDetail() {
 
             // 🎯 INI RAHASIANYA GESS: Frontend langsung nembak backend lokal kamu sendiri!
             // Mengirim parameter yang dibutuhkan oleh fungsi handleMidtransCallback kamu
+<<<<<<< HEAD
             await axios.post(
               `http://localhost:5000/api/events/tickets/midtrans-callback`,
+=======
+            await api.post(
+              "/events/tickets/midtrans-callback",
+>>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
               {
                 order_id: orderId || result.order_id,
                 transaction_status: "settlement", // Status lunas sesuai filter backend-mu gess
@@ -198,9 +211,13 @@ function EventDetail() {
             "info",
           );
 
-          axios
+          api
             .post(
+<<<<<<< HEAD
               `http://localhost:5000/api/events/tickets/midtrans-callback`,
+=======
+              "/events/tickets/midtrans-callback",
+>>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
               {
                 order_id: orderId || result.order_id,
                 transaction_status: "settlement",

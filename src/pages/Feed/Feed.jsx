@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
 
 const API_BASE = `http://localhost:5000/api/social`;
 
@@ -37,7 +37,7 @@ function Feed() {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_BASE}/posts`);
+      const res = await api.get(`${API_BASE}/posts`);
       setPosts(res.data.data || []);
     } catch (error) {
       console.error("Gagal mengambil feed:", error);
@@ -70,9 +70,7 @@ function Feed() {
   const confirmDelete = async (post) => {
     closeModal();
     try {
-      await axios.delete(`${API_BASE}/posts/${post.id}`, {
-        data: { user_id: AUTH_USER.id, role: AUTH_USER.role },
-      });
+      await api.delete(`${API_BASE}/posts/${post.id}`);
       await fetchPosts();
       notify("success", "Berhasil", "Post berhasil dihapus.");
     } catch (error) {
@@ -155,7 +153,7 @@ function Feed() {
                       </div>
                     </div>
 
-                    {Number(post.user_id) === Number(AUTH_USER.id) && (
+                    {Number(post.user_id) === Number(getCurrentUser().id) && (
                       <div className="d-flex gap-2">
                         <button
                           className="btn btn-sm btn-outline-primary rounded-3"

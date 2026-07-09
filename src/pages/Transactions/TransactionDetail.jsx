@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
+
 
 const API_BASE = `http://localhost:5000/api/transactions`;
 
@@ -25,9 +26,7 @@ function TransactionDetail() {
 
     const fetchTransaction = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/${id}`, {
-          params: { user_id: AUTH_USER.id, role: AUTH_USER.role },
-        });
+        const res = await api.get(`${API_BASE}/${id}`);
         setTransaction(res.data.data);
       } catch (error) {
         console.error("Gagal mengambil detail transaksi:", error);
