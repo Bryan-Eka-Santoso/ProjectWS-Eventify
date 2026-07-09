@@ -10,7 +10,6 @@ const checkRoles = require("../middlewares/checkRoles").checkRoles;
 const authLimiter = require("../middlewares/authLimiter");
 const apiLimiter = require("../middlewares/apiLimiter");
 const uploadLimiter = require("../middlewares/uploadLimiter");
-const organizerLimiter = require("../middlewares/organizerLimiter");
 
 router.post("/register", authLimiter, authController.register);
 
@@ -59,7 +58,7 @@ router.delete(
   userController.deleteProfile,
 );
 
-// router.post("/refresh", authController.refresh);
+router.post("/refresh", authController.refresh);
 // router.get("/profile", verifyToken, userController.getProfile);
 // router.put("/change-password/:id", verifyToken, userController.changePassword);
 module.exports = router;

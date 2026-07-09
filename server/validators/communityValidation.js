@@ -83,12 +83,6 @@ const createChatRoomBodySchema = Joi.object({
     "string.max": "Description cannot exceed 1000 characters",
   }),
 
-  creator_id: id.messages({
-    "any.required": "creator_id is required",
-    "number.base": "creator_id must be a number",
-    "number.positive": "creator_id must be a positive number",
-  }),
-
   category_ids: categoryIdsString.optional(),
 });
 
@@ -111,20 +105,10 @@ const updateChatRoomBodySchema = Joi.object({
     "string.max": "Description cannot exceed 1000 characters",
   }),
 
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
 });
 
 const deleteChatRoomParamsSchema = chatRoomIdParamsSchema;
 
-const deleteChatRoomBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-});
 
 const paginationQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).optional(),
@@ -141,10 +125,6 @@ const membershipBodySchema = Joi.object({
     "number.base": "chat_room_id must be a number",
   }),
 
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
 });
 
 const checkMembershipQuerySchema = Joi.object({
@@ -153,10 +133,6 @@ const checkMembershipQuerySchema = Joi.object({
     "number.base": "chat_room_id must be a number",
   }),
 
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
 });
 
 // =========================
@@ -173,10 +149,6 @@ const messageType = Joi.string().valid(
 const sendMessageParamsSchema = chatRoomIdParamsSchema;
 
 const sendMessageBodySchema = Joi.object({
-  sender_id: id.messages({
-    "any.required": "sender_id is required",
-    "number.base": "sender_id must be a number",
-  }),
 
   message_type: messageType.default("text").optional(),
 
@@ -217,10 +189,6 @@ const sendMessageBodySchema = Joi.object({
 const sendMediaMessageParamsSchema = chatRoomIdParamsSchema;
 
 const sendMediaMessageBodySchema = Joi.object({
-  sender_id: id.messages({
-    "any.required": "sender_id is required",
-    "number.base": "sender_id must be a number",
-  }),
 
   message_type: Joi.string().valid("image", "video").required().messages({
     "any.only": "message_type must be image or video",
@@ -233,10 +201,6 @@ const sendMediaMessageBodySchema = Joi.object({
 const shareEventParamsSchema = chatRoomIdParamsSchema;
 
 const shareEventBodySchema = Joi.object({
-  sender_id: id.messages({
-    "any.required": "sender_id is required",
-    "number.base": "sender_id must be a number",
-  }),
 
   recommended_event_id: id.messages({
     "any.required": "recommended_event_id is required",
@@ -266,11 +230,6 @@ const searchMessagesQuerySchema = Joi.object({
     "string.empty": "keyword is required",
     "string.min": "keyword is required",
     "any.required": "keyword is required",
-  }),
-
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
   }),
 
   page: Joi.number().integer().min(1).default(1).optional(),
@@ -308,10 +267,6 @@ const memberParamsSchema = Joi.object({
 });
 
 const updateMemberRoleBodySchema = Joi.object({
-  requester_id: id.messages({
-    "any.required": "requester_id is required",
-    "number.base": "requester_id must be a number",
-  }),
 
   role: Joi.string().valid("admin", "member").required().messages({
     "any.only": "Role can only be admin or member",
@@ -319,12 +274,6 @@ const updateMemberRoleBodySchema = Joi.object({
   }),
 });
 
-const kickMemberBodySchema = Joi.object({
-  requester_id: id.messages({
-    "any.required": "requester_id is required",
-    "number.base": "requester_id must be a number",
-  }),
-});
 
 // =========================
 // PINNED / READ / UNREAD
@@ -342,11 +291,6 @@ const userIdQuerySchema = Joi.object({
 const markMessagesAsReadParamsSchema = chatRoomIdParamsSchema;
 
 const markMessagesAsReadBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-
   message_ids: Joi.array()
     .items(Joi.number().integer().positive())
     .min(1)
@@ -359,13 +303,6 @@ const markMessagesAsReadBodySchema = Joi.object({
 });
 
 const markAllMessagesAsReadParamsSchema = chatRoomIdParamsSchema;
-
-const markAllMessagesAsReadBodySchema = Joi.object({
-  user_id: id.messages({
-    "any.required": "user_id is required",
-    "number.base": "user_id must be a number",
-  }),
-});
 
 // =========================
 // SOCKET PAYLOAD OPTIONAL
@@ -410,7 +347,6 @@ module.exports = {
   updateChatRoomParamsSchema,
   updateChatRoomBodySchema,
   deleteChatRoomParamsSchema,
-  deleteChatRoomBodySchema,
   chatRoomIdParamsSchema,
   paginationQuerySchema,
 
@@ -434,14 +370,11 @@ module.exports = {
 
   memberParamsSchema,
   updateMemberRoleBodySchema,
-  kickMemberBodySchema,
-
   pinnedMessagesParamsSchema,
   userIdQuerySchema,
   markMessagesAsReadParamsSchema,
   markMessagesAsReadBodySchema,
   markAllMessagesAsReadParamsSchema,
-  markAllMessagesAsReadBodySchema,
 
   socketJoinRoomSchema,
   socketSendMessageSchema,

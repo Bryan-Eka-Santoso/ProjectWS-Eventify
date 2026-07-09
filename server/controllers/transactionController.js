@@ -25,11 +25,7 @@ const transactionController = {
   // GET /api/transactions/my?user_id=
   getMyTransactions: async (req, res) => {
     try {
-      const { user_id } = req.query;
-
-      if (!user_id) {
-        return res.status(400).json({ message: "user_id wajib diisi." });
-      }
+      const user_id = req.user.id;
 
       const transactions = await Transaction.findAll({
         where: { user_id },
@@ -70,11 +66,7 @@ const transactionController = {
   // GET /api/transactions/points/history?user_id=
   getPointHistory: async (req, res) => {
     try {
-      const { user_id } = req.query;
-
-      if (!user_id) {
-        return res.status(400).json({ message: "user_id wajib diisi." });
-      }
+      const user_id = req.user.id;
 
       const [histories, user] = await Promise.all([
         PointHistory.findAll({
@@ -103,7 +95,8 @@ const transactionController = {
   // GET /api/transactions/events/:event_id/participants?user_id=&role=
   getEventParticipants: async (req, res) => {
     try {
-      const { user_id, role } = req.query;
+      const user_id = req.user.id;
+      const role = req.user.role;
       const { event_id } = req.params;
 
       const event = await Event.findByPk(event_id, {
@@ -159,11 +152,6 @@ const transactionController = {
   // GET /api/transactions/admin/all?role=admin
   adminGetAllTransactions: async (req, res) => {
     try {
-      if (req.query.role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh mengakses data transaksi." });
-      }
 
       const transactions = await Transaction.findAll({
         include: [
@@ -208,11 +196,7 @@ const transactionController = {
   // GET /api/transactions/admin/dashboard?role=admin
   adminGetDashboardStats: async (req, res) => {
     try {
-      if (req.query.role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh mengakses dashboard." });
-      }
+
 
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setHours(0, 0, 0, 0);
@@ -342,7 +326,8 @@ const transactionController = {
   // GET /api/transactions/:id?user_id=&role=
   getTransactionById: async (req, res) => {
     try {
-      const { user_id, role } = req.query;
+      const user_id = req.user.id;
+      const role = req.user.role;
 
       const transaction = await Transaction.findByPk(req.params.id, {
         include: [

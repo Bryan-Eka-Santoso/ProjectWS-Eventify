@@ -316,10 +316,11 @@ const eventController = {
         start_date,
         end_date,
         category_ids,
-        user_id,
-        role,
         tickets,
       } = req.body;
+
+      const user_id = req.user.id;
+      const role = req.user.role;
       const main_image =
         req.files && req.files.main_image
           ? req.files.main_image[0].filename
@@ -331,12 +332,7 @@ const eventController = {
           .status(404)
           .json({ message: "User pembuat tidak ditemukan di database gess!" });
       }
-      if (checkUser.role !== role) {
-        return res.status(403).json({
-          message:
-            "Manipulasi data terdeteksi! Role tidak cocok dengan database.",
-        });
-      }
+
 
       // 🔥 FIXED: organizer_id sekarang langsung diisi dengan user_id si organizer gess!
       let organizerIdValue = null;
@@ -400,7 +396,8 @@ const eventController = {
 
   getMyEvents: async (req, res) => {
     try {
-      const { user_id, role } = req.query;
+      const user_id = req.user.id;
+      const role = req.user.role;
       let whereClause = {};
 
       // 🔥 FIXED: Pencarian langsung dicocokkan ke user_id milik organizer tanpa lewat aplikasi lagi
@@ -463,14 +460,7 @@ const eventController = {
   // =====================================================
   getAllEventsAdmin: async (req, res) => {
     try {
-      const { role, status } = req.query;
-
-      if (role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh melihat semua event." });
-      }
-
+      const { status } = req.query;
       const whereClause = {};
       if (status) {
         whereClause.status = status;
@@ -535,9 +525,10 @@ const eventController = {
     try {
       const { id } = req.params;
 
+      const user_id = req.user.id;
+      const role = req.user.role;
+
       const {
-        user_id,
-        role,
         title,
         description,
         location,
@@ -688,7 +679,9 @@ const eventController = {
   cancelEvent: async (req, res) => {
     try {
       const { id } = req.params;
-      const { user_id, role, cancellation_reason } = req.body;
+      const user_id = req.user.id;
+      const role = req.user.role;
+      const { cancellation_reason } = req.body;
 
       const event = await Event.findByPk(id);
 
@@ -828,7 +821,7 @@ const eventController = {
   getEventChangeRefundInfo: async (req, res) => {
     try {
       const { id, event_change_id } = req.params;
-      const { user_id } = req.query;
+      const user_id = req.user.id;
 
       const eventChange = await EventChange.findOne({
         where: {
@@ -944,7 +937,8 @@ const eventController = {
   requestRefundAfterEventChanged: async (req, res) => {
     try {
       const { id } = req.params;
-      const { user_id, transaction_id, event_change_id, reason } = req.body;
+      const user_id = req.user.id;
+      const { transaction_id, event_change_id, reason } = req.body;
 
       const refund = await refundService.requestRefundAfterEventChanged({
         user_id,
@@ -982,13 +976,7 @@ const eventController = {
   // Buat kategori baru (admin only)
   createCategory: async (req, res) => {
     try {
-      const { name, description, role } = req.body;
-
-      if (role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh membuat kategori." });
-      }
+      const { name, description} = req.body;
 
       if (!name || name.trim().length < 2) {
         return res
@@ -1024,13 +1012,7 @@ const eventController = {
   updateCategory: async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, role } = req.body;
-
-      if (role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh mengubah kategori." });
-      }
+      const { name, description } = req.body;
 
       const category = await Category.findByPk(id);
 
@@ -1071,13 +1053,6 @@ const eventController = {
   deleteCategory: async (req, res) => {
     try {
       const { id } = req.params;
-      const { role } = req.body;
-
-      if (role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh menghapus kategori." });
-      }
 
       const category = await Category.findByPk(id);
 
@@ -1109,8 +1084,9 @@ const eventController = {
 
   followExternalEvent: async (req, res) => {
     try {
-      const { external_id, title, location, start_date, user_id, role } =
-        req.body;
+      const { external_id, title, location, start_date } = req.body;
+      const user_id = req.user.id;
+      const role = req.user.role;
 
       let event = await Event.findOne({
         where: { external_id: String(external_id) },
@@ -1164,7 +1140,8 @@ const eventController = {
 
   toggleSaveEvent: async (req, res) => {
     try {
-      const { user_id, event_id } = req.body;
+      const { event_id } = req.body;
+      const user_id = req.user.id;
       const alreadySaved = await SavedEvent.findOne({
         where: { user_id, event_id },
       });
@@ -1191,7 +1168,7 @@ const eventController = {
   checkSaveStatus: async (req, res) => {
     try {
       const { id } = req.params;
-      const { user_id } = req.query;
+      const user_id = req.user.id;
 
       if (!user_id) return res.json({ isSaved: false });
 
@@ -1207,7 +1184,7 @@ const eventController = {
 
   getSavedEventsList: async (req, res) => {
     try {
-      const { user_id } = req.query;
+      const user_id = req.user.id;
       const savedList = await SavedEvent.findAll({
         where: { user_id },
         include: [
@@ -1228,11 +1205,8 @@ const eventController = {
   },
   getCancellationRequests: async (req, res) => {
     try {
-      const { user_id, role, status, page = 1, limit = 10 } = req.query;
-
-      if (role !== "admin") {
-        return sendError(res, 403, "Only admin can view cancellation requests");
-      }
+      const {  status, page = 1, limit = 10 } = req.query;
+      const user_id = req.user.id;
 
       const admin = await User.findByPk(user_id);
 
@@ -1304,15 +1278,8 @@ const eventController = {
   approveCancellationRequest: async (req, res) => {
     try {
       const { request_id } = req.params;
-      const { user_id, role, admin_note } = req.body;
-
-      if (role !== "admin") {
-        return sendError(
-          res,
-          403,
-          "Only admin can approve cancellation request",
-        );
-      }
+      const { admin_note } = req.body;
+      const user_id = req.user.id;
 
       const admin = await User.findByPk(user_id);
 
@@ -1428,15 +1395,9 @@ const eventController = {
   rejectCancellationRequest: async (req, res) => {
     try {
       const { request_id } = req.params;
-      const { user_id, role, admin_note } = req.body;
+      const { admin_note } = req.body;
 
-      if (role !== "admin") {
-        return sendError(
-          res,
-          403,
-          "Only admin can reject cancellation request",
-        );
-      }
+      const user_id = req.user.id;
 
       const admin = await User.findByPk(user_id);
 
@@ -1516,7 +1477,7 @@ const eventController = {
 
   getUserPoints: async (req, res) => {
     try {
-      const { user_id } = req.query;
+      const user_id = req.user.id;
       if (!user_id)
         return res.status(400).json({ message: "User ID dibutuhkan gess!" });
 
@@ -1567,14 +1528,7 @@ const eventController = {
   // Ambil SEMUA voucher termasuk yang non-aktif (admin only)
   getAllVouchersAdmin: async (req, res) => {
     try {
-      const { role } = req.query;
-
-      if (role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh melihat semua voucher." });
-      }
-
+      
       const vouchers = await Voucher.findAll({ order: [["id", "DESC"]] });
       return res.json(vouchers);
     } catch (error) {
@@ -1594,14 +1548,7 @@ const eventController = {
         stock,
         valid_until,
         is_active,
-        role,
       } = req.body;
-
-      if (role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh membuat voucher." });
-      }
 
       if (!code || code.trim().length < 3) {
         return res
@@ -1667,14 +1614,7 @@ const eventController = {
         stock,
         valid_until,
         is_active,
-        role,
       } = req.body;
-
-      if (role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh mengubah voucher." });
-      }
 
       const voucher = await Voucher.findByPk(id);
 
@@ -1738,13 +1678,6 @@ const eventController = {
   deleteVoucher: async (req, res) => {
     try {
       const { id } = req.params;
-      const { role } = req.body;
-
-      if (role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh menghapus voucher." });
-      }
 
       const voucher = await Voucher.findByPk(id);
 
@@ -1770,7 +1703,8 @@ const eventController = {
 
   claimVoucher: async (req, res) => {
     try {
-      const { user_id, voucher_id } = req.body;
+      const { voucher_id } = req.body;
+      const user_id = req.user.id;
 
       const user = await User.findByPk(user_id);
       const voucher = await Voucher.findByPk(voucher_id);
@@ -1833,7 +1767,7 @@ const eventController = {
 
   getMyVouchers: async (req, res) => {
     try {
-      const { user_id } = req.query;
+      const user_id = req.user.id;
       if (!user_id)
         return res.status(400).json({ message: "User ID diperlukan." });
 
@@ -1855,7 +1789,8 @@ const eventController = {
 
   createTicketCheckout: async (req, res) => {
     try {
-      const { user_id, ticket_type_id, quantity, user_voucher_id } = req.body;
+      const user_id = req.user.id;
+      const { ticket_type_id, quantity, user_voucher_id } = req.body;
 
       if (!user_id || !ticket_type_id || !quantity) {
         return res
@@ -1913,7 +1848,7 @@ const eventController = {
 
   getUserTicketsList: async (req, res) => {
     try {
-      const { user_id } = req.query;
+      const user_id = req.user.id;
       if (!user_id)
         return res.status(400).json({ message: "User ID diperlukan gess!" });
 
@@ -1944,7 +1879,9 @@ const eventController = {
   validateTicketCode: async (req, res) => {
     try {
       const { id } = req.params;
-      const { user_id, role, ticket_code } = req.body;
+      const { ticket_code } = req.body;
+      const user_id = req.user.id;
+      const role = req.user.role;
 
       const event = await Event.findByPk(id);
 

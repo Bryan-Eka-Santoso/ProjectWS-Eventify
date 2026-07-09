@@ -4,31 +4,57 @@ const router = express.Router();
 const eventController = require("../controllers/eventController");
 const upload = require("../middlewares/upload");
 
+const { verifyToken } = require("../middlewares/verifyJWT");
+const { checkRoles } = require("../middlewares/checkRoles");
+
+const validate = require("../middlewares/validate");
+const eventValidation = require("../validators/eventValidation");
 // ==========================================
 // 🔥 ROUTE BARU KHUSUS TRANSAKSI TIKET & MIDTRANS SNAP GATEWAY
 // ==========================================
-router.post("/tickets/checkout", eventController.createTicketCheckout);
+router.post("/tickets/checkout", verifyToken, eventController.createTicketCheckout);
 router.post(
   "/tickets/midtrans-callback",
   eventController.handleMidtransCallback,
 );
-router.get("/tickets/my-tickets", eventController.getUserTicketsList);
+router.get("/tickets/my-tickets", verifyToken, eventController.getUserTicketsList);
 
 // ==========================================
 // 🔥 ROUTE BARU KHUSUS VOUCHER & POIN (Ditaruh atas biar ga tabrakan slug /:id)
 // ==========================================
-router.get("/vouchers/user-points", eventController.getUserPoints);
+router.get("/vouchers/user-points", verifyToken, eventController.getUserPoints);
 router.get("/vouchers/shop-list", eventController.getAllVouchers);
-router.post("/vouchers/claim", eventController.claimVoucher);
-router.get("/vouchers/my-vouchers", eventController.getMyVouchers);
+router.post("/vouchers/claim", verifyToken, eventController.claimVoucher);
+router.get("/vouchers/my-vouchers", verifyToken, eventController.getMyVouchers);
 
 // 🔥 ADMIN VOUCHER (DISCOUNT) CRUD
-router.get("/vouchers/admin-list", eventController.getAllVouchersAdmin);
-router.post("/vouchers", eventController.createVoucher);
-router.put("/vouchers/:id", eventController.updateVoucher);
-router.delete("/vouchers/:id", eventController.deleteVoucher);
-const validate = require("../middlewares/validate");
-const eventValidation = require("../validators/eventValidation");
+router.get(
+  "/vouchers/admin-list",
+  verifyToken,
+  checkRoles("admin"),
+  eventController.getAllVouchersAdmin
+);
+
+router.post(
+  "/vouchers",
+  verifyToken,
+  checkRoles("admin"),
+  eventController.createVoucher
+);
+
+router.put(
+  "/vouchers/:id",
+  verifyToken,
+  checkRoles("admin"),
+  eventController.updateVoucher
+);
+
+router.delete(
+  "/vouchers/:id",
+  verifyToken,
+  checkRoles("admin"),
+  eventController.deleteVoucher
+);
 
 // =====================================================
 // GET EVENTS
@@ -44,17 +70,24 @@ router.get(
 // Ambil event milik organizer/admin
 router.get(
   "/my-events",
-  validate({ query: eventValidation.getMyEventsQuerySchema }),
+  verifyToken,
+  checkRoles("admin", "organizer"),
   eventController.getMyEvents,
 );
 
 // 🔥 ADMIN: ambil SEMUA event dari semua organizer + filter status
-router.get("/admin/all-events", eventController.getAllEventsAdmin);
+
+router.get(
+  "/admin/all-events",
+  verifyToken,
+  checkRoles("admin"),
+  eventController.getAllEventsAdmin
+);
 
 // Ambil saved event milik user
 router.get(
   "/saved-list",
-  validate({ query: eventValidation.savedEventsQuerySchema }),
+  verifyToken,
   eventController.getSavedEventsList,
 );
 
@@ -65,9 +98,26 @@ router.get("/categories", eventController.getCategories);
 // 🔥 ADMIN CATEGORY CRUD (create/update/delete)
 // Ditaruh sebelum route /:id agar tidak dianggap ID event.
 // =====================================================
-router.post("/categories", eventController.createCategory);
-router.put("/categories/:id", eventController.updateCategory);
-router.delete("/categories/:id", eventController.deleteCategory);
+router.post(
+  "/categories",
+  verifyToken,
+  checkRoles("admin"),
+  eventController.createCategory
+);
+
+router.put(
+  "/categories/:id",
+  verifyToken,
+  checkRoles("admin"),
+  eventController.updateCategory
+);
+
+router.delete(
+  "/categories/:id",
+  verifyToken,
+  checkRoles("admin"),
+  eventController.deleteCategory
+);
 
 // =====================================================
 // 🔥 GEOAPIFY LOCATION AUTOCOMPLETE
@@ -82,6 +132,8 @@ router.get("/locations/autocomplete", eventController.searchLocationGeoapify);
 
 router.post(
   "/",
+  verifyToken,
+  checkRoles("admin", "organizer"),
   upload.fields([
     { name: "main_image", maxCount: 1 },
     { name: "album", maxCount: 10 },
@@ -97,6 +149,8 @@ router.post(
 
 router.post(
   "/follow-external",
+  verifyToken,
+  checkRoles("admin", "organizer"),
   validate({ body: eventValidation.followExternalEventBodySchema }),
   eventController.followExternalEvent,
 );
@@ -108,15 +162,16 @@ router.post(
 
 router.post(
   "/toggle-save",
+  verifyToken,
   validate({ body: eventValidation.toggleSaveEventBodySchema }),
   eventController.toggleSaveEvent,
 );
 
 router.get(
   "/:id/check-save",
+  verifyToken,
   validate({
     params: eventValidation.eventIdParamsSchema,
-    query: eventValidation.checkSaveStatusQuerySchema,
   }),
   eventController.checkSaveStatus,
 );
@@ -127,6 +182,8 @@ router.get(
 
 router.put(
   "/:id",
+  verifyToken,
+  checkRoles("admin", "organizer"),
   upload.fields([
     { name: "main_image", maxCount: 1 },
     { name: "album", maxCount: 10 },
@@ -140,6 +197,8 @@ router.put(
 
 router.patch(
   "/:id/status",
+  verifyToken,
+  checkRoles("admin"),
   validate({
     params: eventValidation.eventIdParamsSchema,
     body: eventValidation.updateStatusBodySchema,
@@ -155,6 +214,8 @@ router.patch(
 
 router.patch(
   "/:id/cancel",
+  verifyToken,
+  checkRoles("admin", "organizer"),
   validate({
     params: eventValidation.eventIdParamsSchema,
     body: eventValidation.cancelEventBodySchema,
@@ -164,6 +225,7 @@ router.patch(
 
 router.post(
   "/:id/refund-request",
+  verifyToken,
   validate({
     params: eventValidation.eventIdParamsSchema,
     body: eventValidation.requestRefundBodySchema,
@@ -177,6 +239,8 @@ router.post(
 
 router.get(
   "/cancellation-requests",
+  verifyToken,
+  checkRoles("admin"),
   validate({
     query: eventValidation.getCancellationRequestsQuerySchema,
   }),
@@ -185,6 +249,8 @@ router.get(
 
 router.patch(
   "/cancellation-requests/:request_id/approve",
+  verifyToken,
+  checkRoles("admin"),
   validate({
     params: eventValidation.cancellationRequestIdParamsSchema,
     body: eventValidation.approveCancellationRequestBodySchema,
@@ -194,6 +260,8 @@ router.patch(
 
 router.patch(
   "/cancellation-requests/:request_id/reject",
+  verifyToken,
+  checkRoles("admin"),
   validate({
     params: eventValidation.cancellationRequestIdParamsSchema,
     body: eventValidation.rejectCancellationRequestBodySchema,
@@ -204,6 +272,8 @@ router.patch(
 //pakai ticket
 router.patch(
   "/:id/tickets/validate",
+  verifyToken,
+  checkRoles("admin", "organizer"),
   validate({
     params: eventValidation.eventIdParamsSchema,
     body: eventValidation.validateTicketBodySchema,
@@ -212,6 +282,7 @@ router.patch(
 );
 router.get(
   "/:id/changes/:event_change_id/refund-info",
+  verifyToken,
   eventController.getEventChangeRefundInfo,
 );
 // =====================================================

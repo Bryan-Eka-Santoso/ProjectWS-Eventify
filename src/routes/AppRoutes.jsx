@@ -57,11 +57,11 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
+      <Route path="/events" element={<Events />} />
+      <Route path="/" element={<Home />} />
+
       {/* USER & ORGANIZER */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Home />} />
-
-        <Route path="/events" element={<Events />} />
 
         <Route path="/events/:id" element={<EventDetail />} />
 

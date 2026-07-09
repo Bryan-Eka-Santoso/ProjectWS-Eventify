@@ -23,7 +23,8 @@ const sendError = (res, statusCode, message, error = null) => {
 const notificationController = {
   getMyNotifications: async (req, res) => {
     try {
-      const { user_id, is_read, page = 1, limit = 10 } = req.query;
+      const user_id = req.user.id;
+      const { is_read, page = 1, limit = 10 } = req.query;
 
       const whereClause = {
         recipient_id: user_id,
@@ -75,7 +76,7 @@ const notificationController = {
 
   getUnreadCount: async (req, res) => {
     try {
-      const { user_id } = req.query;
+      const user_id = req.user.id;
 
       const unreadCount = await Notification.count({
         where: {
@@ -100,8 +101,8 @@ const notificationController = {
 
   markAsRead: async (req, res) => {
     try {
+      const user_id = req.user.id;
       const { id } = req.params;
-      const { user_id } = req.body;
 
       const notification = await Notification.findOne({
         where: {
@@ -138,7 +139,7 @@ const notificationController = {
 
   markAllAsRead: async (req, res) => {
     try {
-      const { user_id } = req.body;
+      const user_id = req.user.id;
 
       const [updatedCount] = await Notification.update(
         {
@@ -169,8 +170,8 @@ const notificationController = {
 
   deleteNotification: async (req, res) => {
     try {
+      const user_id = req.user.id;
       const { id } = req.params;
-      const { user_id } = req.body;
 
       const notification = await Notification.findOne({
         where: {

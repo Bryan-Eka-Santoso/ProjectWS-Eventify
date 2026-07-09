@@ -88,11 +88,8 @@ const socialController = {
   // POST /api/social/posts { user_id, content, image_url }
   createPost: async (req, res) => {
     try {
-      const { user_id, content, image_url } = req.body;
-
-      if (!user_id) {
-        return res.status(400).json({ message: "user_id wajib diisi." });
-      }
+      const { content, image_url } = req.body;
+      const user_id = req.user.id;
 
       if (!content || content.trim().length < 3) {
         return res
@@ -119,7 +116,8 @@ const socialController = {
   // PUT /api/social/posts/:id { user_id, content, image_url }
   updatePost: async (req, res) => {
     try {
-      const { user_id, content, image_url } = req.body;
+      const { content, image_url } = req.body;
+      const user_id = req.user.id;
 
       const post = await Post.findByPk(req.params.id);
 
@@ -157,7 +155,8 @@ const socialController = {
   // DELETE /api/social/posts/:id { user_id, role }
   deletePost: async (req, res) => {
     try {
-      const { user_id, role } = req.body;
+      const user_id = req.user.id;
+      const role = req.user.role;
 
       const post = await Post.findByPk(req.params.id);
 
@@ -191,11 +190,8 @@ const socialController = {
   // POST /api/social/posts/:id/comments { user_id, body }
   createComment: async (req, res) => {
     try {
-      const { user_id, body } = req.body;
-
-      if (!user_id) {
-        return res.status(400).json({ message: "user_id wajib diisi." });
-      }
+      const {  body } = req.body;
+      const user_id = req.user.id;
 
       if (!body || body.trim().length < 1) {
         return res.status(400).json({ message: "Komentar tidak boleh kosong." });
@@ -232,7 +228,8 @@ const socialController = {
   // DELETE /api/social/comments/:id { user_id, role }
   deleteComment: async (req, res) => {
     try {
-      const { user_id, role } = req.body;
+      const user_id = req.user.id;
+      const role = req.user.role;
 
       const comment = await PostComment.findByPk(req.params.id);
 
@@ -265,7 +262,8 @@ const socialController = {
   // POST /api/social/follow { follower_id, following_id }
   followUser: async (req, res) => {
     try {
-      const { follower_id, following_id } = req.body;
+      const follower_id = req.user.id;
+      const { following_id } = req.body;
 
       if (!follower_id || !following_id) {
         return res
@@ -308,8 +306,8 @@ const socialController = {
   // DELETE /api/social/follow { follower_id, following_id }
   unfollowUser: async (req, res) => {
     try {
-      const { follower_id, following_id } = req.body;
-
+      const follower_id = req.user.id;
+      const { following_id } = req.body;
       const deleted = await Follow.destroy({
         where: { follower_id, following_id },
       });
@@ -331,7 +329,7 @@ const socialController = {
   getFollowers: async (req, res) => {
     try {
       const userId = req.params.id;
-      const viewerId = Number(req.query.viewer_id) || null;
+      const viewerId = req.user?.id || null;
 
       const followers = await Follow.findAll({
         where: { following_id: userId },
@@ -374,7 +372,7 @@ const socialController = {
   getFollowing: async (req, res) => {
     try {
       const userId = req.params.id;
-      const viewerId = Number(req.query.viewer_id) || null;
+      const viewerId = req.user?.id || null;
 
       const following = await Follow.findAll({
         where: { follower_id: userId },
@@ -416,7 +414,7 @@ const socialController = {
   getFollowStats: async (req, res) => {
     try {
       const userId = req.params.id;
-      const viewerId = Number(req.query.viewer_id) || null;
+      const viewerId = req.user?.id || null;
 
       const [followers, following] = await Promise.all([
         Follow.count({ where: { following_id: userId } }),
@@ -445,11 +443,6 @@ const socialController = {
   // GET /api/social/admin/users?role=admin
   adminGetAllUsers: async (req, res) => {
     try {
-      if (req.query.role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh mengakses data user." });
-      }
 
       const users = await User.findAll({
         attributes: [
@@ -474,13 +467,7 @@ const socialController = {
   // PUT /api/social/admin/users/:id/role { role: "admin", new_role }
   adminUpdateUserRole: async (req, res) => {
     try {
-      const { role, new_role } = req.body;
-
-      if (role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh mengubah role user." });
-      }
+      const { new_role } = req.body;
 
       if (!["admin", "organizer", "user"].includes(new_role)) {
         return res.status(400).json({ message: "Role tidak valid." });
@@ -508,13 +495,7 @@ const socialController = {
   // DELETE /api/social/admin/users/:id { role: "admin" }
   adminDeleteUser: async (req, res) => {
     try {
-      const { role, admin_id } = req.body;
-
-      if (role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh menghapus user." });
-      }
+      const admin_id = req.user.id;
 
       if (Number(req.params.id) === Number(admin_id)) {
         return res
@@ -544,12 +525,6 @@ const socialController = {
   // GET /api/social/admin/posts?role=admin
   adminGetAllPosts: async (req, res) => {
     try {
-      if (req.query.role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Hanya admin yang boleh mengakses data post." });
-      }
-
       const posts = await Post.findAll({
         include: [
           {

@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const { User } = require("../models");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const { registerSchema, loginSchema } = require("../validators/authValidator");
 
 exports.register = async (req, res) => {
@@ -100,7 +101,12 @@ exports.login = async (req, res) => {
         message: "Invalid email or password",
       });
     }
-
+    if (!user.password) {
+      return res.status(400).json({
+        status: "error",
+        message: "Akun ini terdaftar menggunakan Google. Silakan login dengan Google.",
+      });
+    }
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
@@ -146,7 +152,7 @@ exports.login = async (req, res) => {
     return res.status(200).json({
       status: "success",
       message: "Login successful",
-      token,
+      token: accessToken,
       redirect: "/",
     });
   } catch (error) {
@@ -160,31 +166,69 @@ exports.login = async (req, res) => {
 };
 
 exports.refresh = async (req, res) => {
-  const cookies = req.cookies;
+  try {
+    const refreshToken = req.cookies?.refreshToken;
 
-  if (!cookies?.rtsaya) {
-    return res.status(401).json("Cookie tidak ditemukan");
-  }
+    if (!refreshToken) {
+      return res.status(401).json({
+        status: "error",
+        message: "Refresh token tidak ditemukan",
+      });
+    }
 
-  const refreshToken = cookies.rtsaya;
+    const user = await User.findOne({
+      where: { refresh_token: refreshToken },
+    });
 
-  const pengguna = await Pengguna.findOne({
-    where: { refresh_token: refreshToken },
-  });
-  if (!pengguna) {
-    return res.status(401).json("Kamu siapa?");
+    if (!user) {
+      return res.status(401).json({
+        status: "error",
+        message: "Refresh token invalid",
+      });
+    }
+
+    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+
+    const accessToken = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: "15m",
+      }
+    );
+
+    return res.status(200).json({
+      status: "success",
+      message: "Token refreshed successfully",
+      token: accessToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+      },
+    });
+  } catch (error) {
+    return res.status(401).json({
+      status: "error",
+      message: "Refresh token expired atau invalid",
+    });
   }
 };
-
 exports.logout = async (req, res) => {
   try {
     const cookies = req.cookies;
 
-    if (!cookies?.rtsaya) {
+    if (!cookies?.refreshToken) {
       return res.sendStatus(204);
     }
 
-    const refreshToken = cookies.rtsaya;
+    const refreshToken = cookies.refreshToken;
 
     const user = await User.findOne({
       where: { refresh_token: refreshToken },
@@ -196,7 +240,7 @@ exports.logout = async (req, res) => {
       });
     }
 
-    res.clearCookie("rtsaya", {
+    res.clearCookie("refreshToken", {
       httpOnly: true,
     });
 
