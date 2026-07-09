@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import EventStatusBadge from "../../components/EventStatusBadge";
-import { AUTH_USER } from "../../config/auth";
+
 
 function CancellationRequests() {
   const [requests, setRequests] = useState([]);
@@ -15,12 +16,10 @@ function CancellationRequests() {
     try {
       setLoading(true);
 
-      const res = await axios.get(
-        "http://localhost:5000/api/events/cancellation-requests",
+      const res = await api.get(
+        "/events/cancellation-requests",
         {
           params: {
-            user_id: AUTH_USER.id,
-            role: AUTH_USER.role,
             status,
             page: 1,
             limit: 50,
@@ -41,7 +40,7 @@ function CancellationRequests() {
   };
 
   useEffect(() => {
-    if (AUTH_USER.role === "admin") {
+    if (getCurrentUser().role === "admin") {
       fetchCancellationRequests();
     } else {
       setLoading(false);
@@ -63,11 +62,9 @@ function CancellationRequests() {
     try {
       setProcessingId(request.id);
 
-      const res = await axios.patch(
-        `http://localhost:5000/api/events/cancellation-requests/${request.id}/approve`,
+      const res = await api.patch(
+        `/events/cancellation-requests/${request.id}/approve`,
         {
-          user_id: AUTH_USER.id,
-          role: AUTH_USER.role,
           admin_note: adminNote || null,
         }
       );
@@ -98,11 +95,9 @@ function CancellationRequests() {
     try {
       setProcessingId(request.id);
 
-      const res = await axios.patch(
-        `http://localhost:5000/api/events/cancellation-requests/${request.id}/reject`,
+      const res = await api.patch(
+        `/events/cancellation-requests/${request.id}/reject`,
         {
-          user_id: AUTH_USER.id,
-          role: AUTH_USER.role,
           admin_note: adminNote,
         }
       );
@@ -129,7 +124,7 @@ function CancellationRequests() {
     });
   };
 
-  if (AUTH_USER.role !== "admin") {
+  if (getCurrentUser().role !== "admin") {
     return (
       <>
         <Navbar />

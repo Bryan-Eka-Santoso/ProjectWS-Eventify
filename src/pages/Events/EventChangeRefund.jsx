@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
 import AppModal from "../../components/AppModal";
 
 function EventChangeRefund() {
@@ -69,13 +69,8 @@ function EventChangeRefund() {
     try {
       setLoading(true);
 
-      const res = await axios.get(
-        `http://localhost:5000/api/events/${id}/changes/${eventChangeId}/refund-info`,
-        {
-          params: {
-            user_id: AUTH_USER.id,
-          },
-        },
+      const res = await api.get(
+        `/events/${id}/changes/${eventChangeId}/refund-info`
       );
 
       setData(res.data.data);
@@ -100,10 +95,9 @@ function EventChangeRefund() {
     try {
       setRequestingId(transaction.id);
 
-      const res = await axios.post(
-        `http://localhost:5000/api/events/${id}/refund-request`,
+      const res = await api.post(
+        `/events/${id}/refund-request`,
         {
-          user_id: AUTH_USER.id,
           transaction_id: transaction.id,
           event_change_id: eventChangeId,
           reason: reason.trim() || null,

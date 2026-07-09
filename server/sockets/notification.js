@@ -6,7 +6,7 @@ module.exports = (io) => {
     // User join room notifikasi pribadi
     socket.on("join_notification", async (data) => {
       try {
-        const { user_id } = data;
+        const user_id = socket.user.id;
 
         if (!user_id) {
           socket.emit("notification:error", {
@@ -44,7 +44,7 @@ module.exports = (io) => {
     // User keluar dari room notifikasi pribadi
     socket.on("leave_notification", (data) => {
       try {
-        const { user_id } = data;
+        const user_id = socket.user.id;
 
         if (!user_id) {
           socket.emit("notification:error", {

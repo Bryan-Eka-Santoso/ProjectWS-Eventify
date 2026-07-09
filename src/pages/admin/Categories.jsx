@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/admin/Navbar";
 import Footer from "../../components/admin/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
 
-const API_BASE = "http://localhost:5000/api/events/categories";
+
+const API_BASE = "/events/categories";
 
 function Categories() {
   const [categories, setCategories] = useState([]);
@@ -43,7 +44,7 @@ function Categories() {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(API_BASE);
+      const res = await api.get(API_BASE);
       setCategories(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error("Gagal mengambil kategori:", error);
@@ -91,13 +92,12 @@ function Categories() {
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
-        role: AUTH_USER.role,
       };
 
       if (editingId) {
-        await axios.put(`${API_BASE}/${editingId}`, payload);
+        await api.put(`${API_BASE}/${editingId}`, payload);
       } else {
-        await axios.post(API_BASE, payload);
+        await api.post(API_BASE, payload);
       }
 
       setShowForm(false);
@@ -135,9 +135,7 @@ function Categories() {
   const confirmDelete = async (category) => {
     closeModal();
     try {
-      await axios.delete(`${API_BASE}/${category.id}`, {
-        data: { role: AUTH_USER.role },
-      });
+      await api.delete(`${API_BASE}/${category.id}`);
       await fetchCategories();
       notify("success", "Berhasil", "Kategori berhasil dihapus.");
     } catch (error) {

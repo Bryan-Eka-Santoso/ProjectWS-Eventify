@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth"; // 🔑 Menggunakan pusat kendali auth saklar utama gess
+import axios from "axios";
 
 function DetailExternal() {
   const { id } = useParams();
@@ -28,22 +29,19 @@ function DetailExternal() {
   const handleAdoptEvent = () => {
     setSubmitting(true);
 
-    // 🔥 MENGIRIM ID USER DAN ROLE ASLI DARI AUTH_USER PUSAT SEKARANG WOII
-    axios
-      .post("http://localhost:5000/api/events/follow-external", {
+    api
+      .post("/events/follow-external", {
         external_id: id,
         title: event.name,
         location: event.location || "Online",
         start_date: event.date,
-        user_id: AUTH_USER.id, // Ambil data Alex/Bambang otomatis gess
-        role: AUTH_USER.role,
       })
       .then((res) => {
         alert(res.data.message);
         setSubmitting(false);
 
         // Alur redirect pasca sukses sesuai instruksimu gess
-        if (AUTH_USER.role === "admin") {
+        if (getCurrentUser().role === "admin") {
           navigate("/events");
         } else {
           navigate("/events/my-events");
@@ -119,16 +117,16 @@ function DetailExternal() {
 
             {/* TOMBOL AKSI OTOMATIS */}
             <button
-              className={`btn btn-lg w-100 rounded-3 fw-bold py-3 shadow ${AUTH_USER.role === "admin" ? "btn-success text-white" : "btn-primary"}`}
+              className={`btn btn-lg w-100 rounded-3 fw-bold py-3 shadow ${getCurrentUser().role === "admin" ? "btn-success text-white" : "btn-primary"}`}
               onClick={handleAdoptEvent}
               disabled={submitting}
             >
               {submitting ? (
                 <span>📥 Menghubungkan ke Database SQL Lokal...</span>
-              ) : AUTH_USER.role === "admin" ? (
-                `🚀 Publish Langsung ke Dashboard (${AUTH_USER.name})`
+              ) : getCurrentUser().role === "admin" ? (
+                `🚀 Publish Langsung ke Dashboard (${getCurrentUser().name})`
               ) : (
-                `📥 Adopsi sebagai Draf Organizer (${AUTH_USER.name})`
+                `📥 Adopsi sebagai Draf Organizer (${getCurrentUser().name})`
               )}
             </button>
           </div>

@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
-
-const API_BASE = "http://localhost:5000/api/social";
+const API_BASE = "/social";
 
 function CreatePost() {
   const navigate = useNavigate();
@@ -42,8 +41,7 @@ function CreatePost() {
     try {
       setSaving(true);
 
-      await axios.post(`${API_BASE}/posts`, {
-        user_id: AUTH_USER.id,
+      await api.post(`${API_BASE}/posts`, {
         content: content.trim(),
         image_url: imageUrl.trim() || null,
       });

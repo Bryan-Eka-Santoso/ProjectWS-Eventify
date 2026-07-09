@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
 import AppModal from "../../components/AppModal";
 
 function EditEvent() {
@@ -96,7 +96,7 @@ function EditEvent() {
       try {
         setLoading(true);
 
-        const res = await axios.get(`http://localhost:5000/api/events/${id}`);
+        const res = await api.get(`/events/${id}`);
         const event = res.data;
 
         setOldEvent(event);
@@ -143,8 +143,8 @@ function EditEvent() {
       try {
         setIsSearchingLocation(true);
 
-        const response = await axios.get(
-          "http://localhost:5000/api/events/locations/autocomplete",
+        const response = await api.get(
+          "/events/locations/autocomplete",
           {
             params: {
               text: keyword,
@@ -223,8 +223,6 @@ function EditEvent() {
 
       const data = new FormData();
 
-      data.append("user_id", AUTH_USER.id);
-      data.append("role", AUTH_USER.role);
       data.append("title", formData.title);
       data.append("description", formData.description || "");
       data.append("location", formData.location);
@@ -243,8 +241,8 @@ function EditEvent() {
         data.append("album", file);
       });
 
-      const res = await axios.put(
-        `http://localhost:5000/api/events/${id}`,
+      const res = await api.put(
+        `/events/${id}`,
         data,
         {
           headers: {

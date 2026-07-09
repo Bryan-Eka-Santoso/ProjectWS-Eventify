@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
 
-const API_BASE = "http://localhost:5000/api/social";
+
+const API_BASE = "/social";
 
 function PostDetail() {
   const { id } = useParams();
@@ -43,7 +44,7 @@ function PostDetail() {
 
   const fetchPost = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE}/posts/${id}`);
+      const res = await api.get(`${API_BASE}/posts/${id}`);
       setPost(res.data.data);
       return res.data.data;
     } catch (error) {
@@ -57,9 +58,8 @@ function PostDetail() {
 
   const fetchFollowStats = useCallback(async (authorId) => {
     try {
-      const res = await axios.get(
-        `${API_BASE}/users/${authorId}/follow-stats`,
-        { params: { viewer_id: AUTH_USER.id } },
+      const res = await api.get(
+        `${API_BASE}/users/${authorId}/follow-stats`
       );
       setFollowStats(res.data.data);
     } catch (error) {
@@ -87,12 +87,13 @@ function PostDetail() {
       setFollowLoading(true);
 
       if (followStats?.is_following) {
-        await axios.delete(`${API_BASE}/follow`, {
-          data: { follower_id: AUTH_USER.id, following_id: post.User.id },
+        await api.delete(`${API_BASE}/follow`, {
+          data: {
+            following_id: post.User.id,
+          },
         });
       } else {
-        await axios.post(`${API_BASE}/follow`, {
-          follower_id: AUTH_USER.id,
+        await api.post(`${API_BASE}/follow`, {
           following_id: post.User.id,
         });
       }
@@ -121,8 +122,7 @@ function PostDetail() {
     try {
       setSendingComment(true);
 
-      await axios.post(`${API_BASE}/posts/${id}/comments`, {
-        user_id: AUTH_USER.id,
+      await api.post(`${API_BASE}/posts/${id}/comments`, {
         body: commentBody.trim(),
       });
 
@@ -154,9 +154,7 @@ function PostDetail() {
   const confirmDeleteComment = async (comment) => {
     closeModal();
     try {
-      await axios.delete(`${API_BASE}/comments/${comment.id}`, {
-        data: { user_id: AUTH_USER.id, role: AUTH_USER.role },
-      });
+      await api.delete(`${API_BASE}/comments/${comment.id}`);
       await fetchPost();
     } catch (error) {
       console.error("Gagal menghapus komentar:", error);
@@ -182,9 +180,7 @@ function PostDetail() {
   const confirmDeletePost = async () => {
     closeModal();
     try {
-      await axios.delete(`${API_BASE}/posts/${id}`, {
-        data: { user_id: AUTH_USER.id, role: AUTH_USER.role },
-      });
+      await api.delete(`${API_BASE}/posts/${id}`);
       navigate("/feed");
     } catch (error) {
       console.error("Gagal menghapus post:", error);
@@ -202,7 +198,7 @@ function PostDetail() {
       timeStyle: "short",
     });
 
-  const isAuthor = post && Number(post.user_id) === Number(AUTH_USER.id);
+  const isAuthor = post && Number(post.user_id) === Number(getCurrentUser().id);
   const comments = post?.PostComments || [];
 
   return (
@@ -353,8 +349,8 @@ function PostDetail() {
                                 {formatDate(comment.created_at)}
                               </span>
                               {(Number(comment.user_id) ===
-                                Number(AUTH_USER.id) ||
-                                AUTH_USER.role === "admin") && (
+                                Number(getCurrentUser().id) ||
+                                getCurrentUser().role === "admin") && (
                                 <button
                                   className="btn btn-sm btn-link text-danger p-0"
                                   onClick={() => handleDeleteComment(comment)}
