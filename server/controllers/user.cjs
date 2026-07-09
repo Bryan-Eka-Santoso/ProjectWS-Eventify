@@ -3,6 +3,10 @@ const { OrganizerApplication, User } = require("../models");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
+const {
+  registerOrganizerSchema,
+  changePasswordSchema,
+} = require("../validators/userValidator");
 
 exports.getProfile = async (req, res) => {
   try {
@@ -49,12 +53,12 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    const { name, email, biography, organizer_name, phone_number, address } =
+    const { name, email, bio, organizer_name, phone_number, address } =
       req.body;
 
     name ? (user.name = name) : null;
     email ? (user.email = email) : null;
-    biography ? (user.biography = biography) : null;
+    bio ? (user.bio = bio) : null;
 
     await user.save();
     await OrganizerApplication.update(
@@ -85,6 +89,15 @@ exports.updateProfile = async (req, res) => {
 
 exports.changePassword = async (req, res) => {
   try {
+    const { error } = changePasswordSchema.validate(req.body);
+
+    if (error) {
+      return res.status(400).json({
+        status: "error",
+        message: error.details[0].message,
+      });
+    }
+
     const user = await User.findByPk(req.user.id);
     // const user = await User.findByPk(req.params.id);
 
@@ -170,6 +183,15 @@ exports.changeAvatar = async (req, res) => {
 
 exports.registerOrganization = async (req, res) => {
   try {
+    const { error } = registerOrganizerSchema.validate(req.body);
+
+    if (error) {
+      return res.status(400).json({
+        status: "error",
+        message: error.details[0].message,
+      });
+    }
+
     const { organizer_name, ktp_number, phone_number, address } = req.body;
 
     const user = await User.findByPk(req.user.id);
@@ -193,10 +215,14 @@ exports.registerOrganization = async (req, res) => {
     const organizerApplication = await OrganizerApplication.create({
       organizer_name,
       ktp_number,
-      ktp_image_url,
+      ktp_image_url: ktpImage,
       phone_number,
       address,
       user_id: user.id,
+    });
+
+    await user.update({
+      role: "organizer",
     });
 
     return res.status(201).json({

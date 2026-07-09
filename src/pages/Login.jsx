@@ -194,12 +194,6 @@ function Login() {
                     </div>
                   </div>
 
-                  <div className="d-flex justify-content-end mb-4">
-                    <a href="#" className="text-decoration-none small">
-                      Forgot Password?
-                    </a>
-                  </div>
-
                   <div className="d-grid gap-3">
                     <button className="btn btn-primary" type="submit">
                       Login
@@ -221,11 +215,11 @@ function Login() {
                       }}
                     />
 
-                    <div className="text-center">
+                    {/* <div className="text-center">
                       <a href="/" className="text-decoration-none text-muted">
                         Continue as Guest
                       </a>
-                    </div>
+                    </div> */}
                   </div>
                 </form>
               </div>

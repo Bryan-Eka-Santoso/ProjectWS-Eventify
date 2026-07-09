@@ -10,7 +10,7 @@ function MyProfile() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    biography: "",
+    bio: "",
 
     oldPassword: "",
     newPassword: "",
@@ -55,6 +55,15 @@ function MyProfile() {
       const data = await response.json();
 
       setUser(data.data);
+      setFormData({
+        name: data.data.name || "",
+        email: data.data.email || "",
+        bio: data.data.bio || "",
+        organizer_name:
+          data.data.OrganizerApplications?.[0]?.organizer_name || "",
+        phone_number: data.data.OrganizerApplications?.[0]?.phone_number || "",
+        address: data.data.OrganizerApplications?.[0]?.address || "",
+      });
     } catch (error) {
       console.error(error);
     }
@@ -80,7 +89,7 @@ function MyProfile() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
-          biography: formData.biography,
+          bio: formData.bio,
           organizer_name: formData.organizer_name,
           phone_number: formData.phone_number,
           address: formData.address,
@@ -98,7 +107,7 @@ function MyProfile() {
         setFormData({
           name: "",
           email: "",
-          biography: "",
+          bio: "",
           organizer_name: "",
           phone_number: "",
           address: "",
@@ -157,7 +166,7 @@ function MyProfile() {
         setFormData({
           name: "",
           email: "",
-          biography: "",
+          bio: "",
         });
 
         window.location.href = "/profile";
@@ -434,7 +443,7 @@ function MyProfile() {
                             </h5>
 
                             <p className="text-muted mb-0">
-                              {user.bio || "No biography available."}
+                              {user.bio || "No bio available."}
                             </p>
                           </div>
                         </div>
@@ -727,14 +736,14 @@ function MyProfile() {
                   required
                 />
 
-                <label className="form-label fw-semibold">Biography</label>
+                <label className="form-label fw-semibold">bio</label>
                 <br />
                 <textarea
                   className="form-control mb-3"
                   rows="4"
-                  placeholder="Write a short biography about yourself"
-                  name="biography"
-                  value={formData.biography}
+                  placeholder="Write a short bio about yourself"
+                  name="bio"
+                  value={formData.bio}
                   onChange={handleChange}
                   required
                 ></textarea>
@@ -905,13 +914,6 @@ function MyProfile() {
               </div>
 
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  data-bs-dismiss="modal"
-                >
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-danger">
                   Delete Account
                 </button>

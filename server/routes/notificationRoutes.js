@@ -5,13 +5,22 @@ const notificationController = require("../controllers/notificationController");
 const validate = require("../middlewares/validate");
 const notificationValidation = require("../validators/notificationValidation");
 
+const verifyToken = require("../middlewares/verifyJWT").verifyToken;
+const checkRoles = require("../middlewares/checkRoles").checkRoles;
+
+const apiLimiter = require("../middlewares/apiLimiter");
+const uploadLimiter = require("../middlewares/uploadLimiter");
+
+router.use(apiLimiter);
+router.use(verifyToken);
+
 // Ambil semua notification milik user
 router.get(
   "/",
   validate({
     query: notificationValidation.getNotificationsQuerySchema,
   }),
-  notificationController.getMyNotifications
+  notificationController.getMyNotifications,
 );
 
 // Ambil jumlah unread notification
@@ -20,7 +29,7 @@ router.get(
   validate({
     query: notificationValidation.userIdQuerySchema,
   }),
-  notificationController.getUnreadCount
+  notificationController.getUnreadCount,
 );
 
 // Mark semua notification sebagai read
@@ -29,7 +38,7 @@ router.patch(
   validate({
     body: notificationValidation.userIdBodySchema,
   }),
-  notificationController.markAllAsRead
+  notificationController.markAllAsRead,
 );
 
 // Mark satu notification sebagai read
@@ -39,7 +48,7 @@ router.patch(
     params: notificationValidation.notificationIdParamsSchema,
     body: notificationValidation.userIdBodySchema,
   }),
-  notificationController.markAsRead
+  notificationController.markAsRead,
 );
 
 // Delete notification
@@ -49,7 +58,7 @@ router.delete(
     params: notificationValidation.notificationIdParamsSchema,
     body: notificationValidation.userIdBodySchema,
   }),
-  notificationController.deleteNotification
+  notificationController.deleteNotification,
 );
 
 module.exports = router;

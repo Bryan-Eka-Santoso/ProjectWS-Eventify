@@ -1,6 +1,6 @@
 exports.checkRoles = (...allowedRoles) => {
   return (req, res, next) => {
-    const roleUsernya = req.yanglogin.roles.split(",");
+    const roleUsernya = req.user.role.split(",");
 
     const bolehMasuk = roleUsernya.some((role) => {
       return allowedRoles.includes(role);
