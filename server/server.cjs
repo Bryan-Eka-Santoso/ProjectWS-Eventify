@@ -38,6 +38,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["x-access-token"],
   }),
 );
 app.use(express.json());
@@ -64,8 +65,10 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
   },
 });
 
@@ -73,7 +76,8 @@ const io = new Server(server, {
 socketService.setIo(io);
 io.use((socket, next) => {
   try {
-    const token = socket.handshake.auth?.token;
+    const rawToken = socket.handshake.auth?.token;
+    const token = rawToken?.replace(/^Bearer\s+/i, "");
 
     if (!token) {
       return next(new Error("Unauthorized. Token not found."));

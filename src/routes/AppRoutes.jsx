@@ -96,6 +96,10 @@ function AppRoutes() {
         <Route path="/transactions" element={<TransactionHistory />} />
 
         <Route path="/transactions/:id" element={<TransactionDetail />} />
+        <Route
+          path="/events/:id/change/:eventChangeId"
+          element={<EventChangeRefund />}
+        />
       </Route>
 
       {/* ORGANIZER ONLY */}
@@ -116,10 +120,6 @@ function AppRoutes() {
           element={<EventParticipants />}
         />
 
-        <Route
-          path="/events/:id/change/:eventChangeId"
-          element={<EventChangeRefund />}
-        />
       </Route>
 
       {/* ADMIN */}

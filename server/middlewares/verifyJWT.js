@@ -47,6 +47,7 @@ exports.verifyToken = async (req, res, next) => {
         id: user.id,
         email: user.email,
         role: user.role,
+        name: user.name,
       },
       process.env.ACCESS_TOKEN_SECRET,
       {
@@ -60,6 +61,7 @@ exports.verifyToken = async (req, res, next) => {
       id: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
     };
 
     next();

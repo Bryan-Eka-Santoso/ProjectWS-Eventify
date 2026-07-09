@@ -1,9 +1,12 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import NotificationBell from "../NotificationBell";
+import { getCurrentUser} from "../../config/auth";
 
 function Navbar() {
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
 
   const handleLogout = async () => {
     try {
@@ -120,7 +123,12 @@ function Navbar() {
           </ul>
 
           {/* Profile Paling Kanan */}
-          <ul className="navbar-nav ms-auto">
+          <ul className="navbar-nav ms-auto align-items-center gap-2">
+            {currentUser && (
+              <li className="nav-item">
+                <NotificationBell />
+              </li>
+            )}
             <li className="nav-item dropdown">
               <a
                 className="nav-link dropdown-toggle text-nowrap"

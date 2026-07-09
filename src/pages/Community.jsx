@@ -530,7 +530,6 @@ function Community() {
         body: eventShareMessage.trim() || `Membagikan event ${getEventTitle(selectedEvent)}`,
       });
 
-      setMessages((prev) => [...prev, response.data.data]);
       setEventShareMessage("");
       setSelectedEvent(null);
       setShowEventShareModal(false);
@@ -581,8 +580,7 @@ function Community() {
       const response = await api.post(`${API_URL}/${selectedRoom.id}/messages/media`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-
-      setMessages((prev) => [...prev, response.data.data]);
+    
       closeMediaModal();
       showToast("Media berhasil dikirim");
     } catch (error) {
@@ -722,9 +720,6 @@ function Community() {
   useEffect(() => {
     socketService.connect();
 
-    return () => {
-      socketService.disconnect();
-    };
   }, []);
 
   useEffect(() => {
