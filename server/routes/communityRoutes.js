@@ -37,9 +37,6 @@ router.delete(
 
 router.get(
   "/unread-counts",
-  validate({
-    query: communityValidation.userIdQuerySchema,
-  }),
   communityController.getUnreadCounts,
 );
 

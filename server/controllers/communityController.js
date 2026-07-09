@@ -1,6 +1,6 @@
 const db = require("../models");
 const { Op, literal } = require("sequelize");
-
+const { getIo } = require("../sockets/socketService");
 const {
   ChatRoom,
   ChatRoomMember,
@@ -14,7 +14,16 @@ const {
 const canManageGroup = (role) => {
   return role === "owner" || role === "admin";
 };
+const emitNewMessageToRoom = (chat_room_id, message) => {
+  const io = getIo();
 
+  if (!io) {
+    console.log("Socket.IO belum siap untuk broadcast message");
+    return;
+  }
+
+  io.to(`room_${chat_room_id}`).emit("new_message", message);
+};
 const canKickTarget = (requesterRole, targetRole) => {
   if (requesterRole === "owner" && targetRole !== "owner") return true;
   if (requesterRole === "admin" && targetRole === "member") return true;
@@ -896,6 +905,17 @@ exports.sendMediaMessage = async (req, res) => {
       recommended_event_id: null,
     });
 
+    const messagePayload = {
+      ...newMessage.toJSON(),
+      username: req.user.name || "User",
+      Sender: {
+        id: sender_id,
+        name: req.user.name || "User",
+      },
+    };
+    emitNewMessageToRoom(chat_room_id, messagePayload);
+
+
     return res.status(201).json({
       success: true,
       message: "Media message sent successfully",
@@ -940,6 +960,18 @@ exports.shareEventToChat = async (req, res) => {
       media_url: null,
       recommended_event_id,
     });
+
+    const messagePayload = {
+      ...newMessage.toJSON(),
+      username: req.user.name || "User",
+      Sender: {
+        id: sender_id,
+        name: req.user.name || "User",
+      },
+      event,
+    };
+
+    emitNewMessageToRoom(chat_room_id, messagePayload);
 
     return res.status(201).json({
       success: true,

@@ -8,14 +8,16 @@ class SocketService {
   }
 
   connect() {
-    const token = localStorage.getItem("token");
+    const rawToken = localStorage.getItem("token");
+    const token = rawToken?.replace(/^Bearer\s+/i, "");
 
     if (!this.socket) {
       this.socket = io(SOCKET_URL, {
-        auth: (cb) => {
-          const token = localStorage.getItem("token");
-          cb({ token });
+        auth: {
+          token,
         },
+        withCredentials: true,
+        autoConnect: true,
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
@@ -30,9 +32,15 @@ class SocketService {
         console.error("🔴 Socket connect error:", error.message);
       });
 
-      this.socket.on("disconnect", () => {
-        console.log("❌ Socket disconnected");
+      this.socket.on("disconnect", (reason) => {
+        console.log("❌ Socket disconnected:", reason);
       });
+    } else if (!this.socket.connected) {
+      this.socket.auth = {
+        token,
+      };
+
+      this.socket.connect();
     }
 
     return this.socket;

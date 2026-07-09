@@ -111,7 +111,13 @@ function Navbar() {
           </ul>
 
           {/* Profile Paling Kanan */}
-          <ul className="navbar-nav ms-auto">
+          <ul className="navbar-nav ms-auto align-items-center gap-2">
+            {currentUser && (
+              <li className="nav-item">
+                <NotificationBell />
+              </li>
+            )}
+
             <li className="nav-item dropdown">
               <a
                 className="nav-link dropdown-toggle"
