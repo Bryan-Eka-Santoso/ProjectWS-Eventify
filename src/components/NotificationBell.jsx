@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import api from "../config/api";
 import { useNavigate } from "react-router-dom";
-import { AUTH_USER } from "../config/auth";
+import { getCurrentUser} from "../config/auth";
 import socketService from "../services/socketService";
 
 function NotificationBell() {
@@ -13,8 +13,9 @@ function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const [toastNotification, setToastNotification] = useState(null);
 
-  const userId = AUTH_USER?.id;
-  const userRole = AUTH_USER?.role;
+  const currentUser = getCurrentUser();
+  const userId = currentUser?.id;
+  const userRole = currentUser?.role;
 
   const notificationRules = useMemo(() => {
     return {
@@ -100,13 +101,7 @@ function NotificationBell() {
     try {
       setLoading(true);
 
-      const res = await axios.get("http://localhost:5000/api/notifications", {
-        params: {
-          user_id: userId,
-          page: 1,
-          limit: 10,
-        },
-      });
+      const res = await api.get("/notifications");
 
       setNotifications(res.data.data || []);
     } catch (error) {
@@ -120,14 +115,7 @@ function NotificationBell() {
     if (!userId) return;
 
     try {
-      const res = await axios.get(
-        "http://localhost:5000/api/notifications/unread-count",
-        {
-          params: {
-            user_id: userId,
-          },
-        }
-      );
+      const res = await api.get("/notifications/unread-count");
 
       setUnreadCount(res.data.data?.unread_count || 0);
     } catch (error) {
@@ -145,7 +133,7 @@ function NotificationBell() {
 
     const handleConnect = () => {
       console.log("Socket connected for notification:", socket.id);
-      socketService.joinNotification(userId);
+      socketService.joinNotification();
     };
 
     const handleNotificationJoined = (data) => {
@@ -180,7 +168,7 @@ function NotificationBell() {
     socketService.onNotificationNew(handleNewNotification);
 
     return () => {
-      socketService.leaveNotification(userId);
+      socketService.leaveNotification();
 
       socketService.removeListener("connect", handleConnect);
       socketService.removeListener(
@@ -215,11 +203,8 @@ function NotificationBell() {
 
   const markAsRead = async (notificationId) => {
     try {
-      await axios.patch(
-        `http://localhost:5000/api/notifications/${notificationId}/read`,
-        {
-          user_id: userId,
-        }
+      await api.patch(
+        `/notifications/${notificationId}/read`
       );
 
       setNotifications((prev) =>
@@ -243,9 +228,9 @@ function NotificationBell() {
 
   const markAllAsRead = async () => {
     try {
-      await axios.patch("http://localhost:5000/api/notifications/read-all", {
-        user_id: userId,
-      });
+      await api.patch(
+        "/notifications/read-all"
+      );
 
       setNotifications((prev) =>
         prev.map((item) => ({
@@ -258,21 +243,14 @@ function NotificationBell() {
       setUnreadCount(0);
     } catch (error) {
       console.error("Gagal mark all notification as read:", error);
-      alert(
-        error.response?.data?.message || "Gagal membaca semua notification."
-      );
+      alert(error.response?.data?.message || "Gagal membaca semua notification.");
     }
   };
 
   const deleteNotification = async (notificationId) => {
     try {
-      await axios.delete(
-        `http://localhost:5000/api/notifications/${notificationId}`,
-        {
-          data: {
-            user_id: userId,
-          },
-        }
+      await api.delete(
+        `/notifications/${notificationId}`
       );
 
       const deletedNotification = notifications.find(

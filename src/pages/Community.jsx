@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../config/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import socketService from "../services/socketService";
-import { AUTH_USER } from "../config/auth";
+import { getCurrentUser } from "../config/auth";
 
 const SERVER_URL = "http://localhost:5000";
-const API_URL = `${SERVER_URL}/api/community`;
-const EVENT_API_URL = `${SERVER_URL}/api/events/published`;
+const API_URL = `/community`;
+const EVENT_API_URL = `/events/published`;
 
 const initialCreateForm = {
   name: "",
@@ -25,7 +25,7 @@ const initialMediaForm = {
 
 function Community() {
   const navigate = useNavigate();
-  const currentUser = AUTH_USER;
+  const currentUser = getCurrentUser();
 
   const [chatRooms, setChatRooms] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -175,9 +175,7 @@ function Community() {
 
   const fetchUnreadCounts = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_URL}/unread-counts`, {
-        params: { user_id: currentUser.id },
-      });
+      const response = await api.get(`${API_URL}/unread-counts`);
 
       const counts = {};
       response.data.data.forEach((item) => {
@@ -205,7 +203,7 @@ function Community() {
         params.categoryIds = selectedCategories.join(",");
       }
 
-      const response = await axios.get(API_URL, { params });
+      const response = await api.get(API_URL, { params });
       setChatRooms(response.data.data || []);
       fetchUnreadCounts();
     } catch (error) {
@@ -218,7 +216,7 @@ function Community() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_URL}/categories`);
+      const response = await api.get(`${API_URL}/categories`);
       setCategories(response.data.data || []);
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -231,7 +229,7 @@ function Community() {
     try {
       setLoadingEvents(true);
 
-      const response = await axios.get(EVENT_API_URL);
+      const response = await api.get(EVENT_API_URL);
 
       const payload = response.data;
 
@@ -258,36 +256,32 @@ function Community() {
   }, [showToast]);
 
   const fetchRoomMembers = useCallback(async (roomId) => {
-    const response = await axios.get(`${API_URL}/${roomId}/members`, {
+    const response = await api.get(`${API_URL}/${roomId}/members`, {
       params: { page: 1, limit: 100 },
     });
     setMembers(response.data.data || []);
   }, []);
 
   const fetchMemberCount = useCallback(async (roomId) => {
-    const response = await axios.get(`${API_URL}/${roomId}/member-count`);
+    const response = await api.get(`${API_URL}/${roomId}/member-count`);
     setMemberCount(response.data.data?.total_members || 0);
   }, []);
 
   const fetchMessages = useCallback(async (roomId) => {
-    const response = await axios.get(`${API_URL}/${roomId}/messages`, {
+    const response = await api.get(`${API_URL}/${roomId}/messages`, {
       params: { page: 1, limit: 80 },
     });
     setMessages(response.data.data || []);
   }, []);
 
   const fetchPinnedMessages = useCallback(async (roomId) => {
-    const response = await axios.get(`${API_URL}/${roomId}/pinned-messages`, {
-      params: { user_id: currentUser.id },
-    });
+    const response = await api.get(`${API_URL}/${roomId}/pinned-messages`);
     setPinnedMessages(response.data.data || []);
   }, [currentUser.id]);
 
   const markAllAsRead = useCallback(async (roomId) => {
     try {
-      await axios.post(`${API_URL}/${roomId}/read-all`, {
-        user_id: currentUser.id,
-      });
+      await api.post(`${API_URL}/${roomId}/read-all`);
       fetchUnreadCounts();
     } catch (error) {
       console.error("Error marking messages as read:", error);
@@ -337,10 +331,9 @@ function Community() {
       setTypingUsers([]);
       setMessageInput("");
 
-      const membershipResponse = await axios.get(`${API_URL}/check-membership`, {
+      const membershipResponse = await api.get(`${API_URL}/check-membership`, {
         params: {
-          chat_room_id: room.id,
-          user_id: currentUser.id,
+          chat_room_id: room.id
         },
       });
 
@@ -353,7 +346,7 @@ function Community() {
       await loadSelectedRoomData(room, memberStatus);
 
       if (memberStatus) {
-        socketService.joinRoom(room.id, currentUser.id, currentUserName);
+        socketService.joinRoom(room.id, currentUserName);
       }
     } catch (error) {
       console.error("Error selecting room:", error);
@@ -365,14 +358,13 @@ function Community() {
     if (!selectedRoom) return;
 
     try {
-      await axios.post(`${API_URL}/join`, {
+      await api.post(`${API_URL}/join`, {
         chat_room_id: selectedRoom.id,
-        user_id: currentUser.id,
       });
 
       setIsMember(true);
       setCurrentMemberRole("member");
-      socketService.joinRoom(selectedRoom.id, currentUser.id, currentUserName);
+      socketService.joinRoom(selectedRoom.id, currentUserName);
       await loadSelectedRoomData(selectedRoom, true);
       fetchUnreadCounts();
       showToast("Berhasil join community");
@@ -389,9 +381,8 @@ function Community() {
     if (!confirmLeave) return;
 
     try {
-      await axios.post(`${API_URL}/leave`, {
+      await api.post(`${API_URL}/leave`, {
         chat_room_id: selectedRoom.id,
-        user_id: currentUser.id,
       });
 
       socketService.leaveRoom(selectedRoom.id, currentUserName);
@@ -413,7 +404,7 @@ function Community() {
     const body = messageInput.trim();
     if (!body) return;
 
-    socketService.sendMessage(selectedRoom.id, currentUser.id, "text", body);
+    socketService.sendMessage(selectedRoom.id, "text", body);
     socketService.userStopTyping(selectedRoom.id, currentUserName);
     setMessageInput("");
     setIsTyping(false);
@@ -455,11 +446,10 @@ function Community() {
       const formData = new FormData();
       formData.append("name", createForm.name.trim());
       formData.append("description", createForm.description.trim());
-      formData.append("creator_id", currentUser.id);
       formData.append("category_ids", JSON.stringify(createForm.category_ids));
       formData.append("profile_image", createForm.profile_image_file);
 
-      const response = await axios.post(API_URL, formData, {
+      const response = await api.post(API_URL, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -535,8 +525,7 @@ function Community() {
     }
 
     try {
-      const response = await axios.post(`${API_URL}/${selectedRoom.id}/messages/share-event`, {
-        sender_id: currentUser.id,
+      const response = await api.post(`${API_URL}/${selectedRoom.id}/messages/share-event`, {
         recommended_event_id: Number(recommendedEventId),
         body: eventShareMessage.trim() || `Membagikan event ${getEventTitle(selectedEvent)}`,
       });
@@ -585,12 +574,11 @@ function Community() {
 
       const messageType = mediaForm.file.type.startsWith("video") ? "video" : "image";
       const formData = new FormData();
-      formData.append("sender_id", currentUser.id);
       formData.append("message_type", messageType);
       formData.append("body", mediaForm.body.trim());
       formData.append("media", mediaForm.file);
 
-      const response = await axios.post(`${API_URL}/${selectedRoom.id}/messages/media`, formData, {
+      const response = await api.post(`${API_URL}/${selectedRoom.id}/messages/media`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -612,9 +600,7 @@ function Community() {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete(`${API_URL}/messages/${message.id}`, {
-        data: { user_id: currentUser.id },
-      });
+      await api.delete(`${API_URL}/messages/${message.id}`);
 
       setMessages((prev) => prev.filter((item) => item.id !== message.id));
       setPinnedMessages((prev) => prev.filter((item) => item.id !== message.id));
@@ -629,9 +615,7 @@ function Community() {
     if (!message?.id) return;
 
     try {
-      await axios.post(`${API_URL}/messages/${message.id}/pin`, {
-        user_id: currentUser.id,
-      });
+      await api.post(`${API_URL}/messages/${message.id}/pin`);
 
       await fetchPinnedMessages(selectedRoom.id);
       showToast("Pesan berhasil dipin");
@@ -645,9 +629,7 @@ function Community() {
     if (!message?.id) return;
 
     try {
-      await axios.delete(`${API_URL}/messages/${message.id}/pin`, {
-        data: { user_id: currentUser.id },
-      });
+      await api.delete(`${API_URL}/messages/${message.id}/pin`);
 
       await fetchPinnedMessages(selectedRoom.id);
       showToast("Pesan berhasil dilepas dari pinned");
@@ -661,8 +643,7 @@ function Community() {
     if (!selectedRoom) return;
 
     try {
-      await axios.put(`${API_URL}/${selectedRoom.id}/members/${member.user_id}/role`, {
-        requester_id: currentUser.id,
+      await api.put(`${API_URL}/${selectedRoom.id}/members/${member.user_id}/role`, {
         role,
       });
 
@@ -682,9 +663,7 @@ function Community() {
     if (!confirmKick) return;
 
     try {
-      await axios.delete(`${API_URL}/${selectedRoom.id}/members/${member.user_id}`, {
-        data: { requester_id: currentUser.id },
-      });
+      await api.delete(`${API_URL}/${selectedRoom.id}/members/${member.user_id}`);
 
       await Promise.all([
         fetchRoomMembers(selectedRoom.id),

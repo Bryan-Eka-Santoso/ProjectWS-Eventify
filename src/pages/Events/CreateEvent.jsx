@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
 import AppModal from "../../components/AppModal";
 
 function CreateEvent() {
@@ -61,8 +61,8 @@ function CreateEvent() {
   };
 
   useEffect(() => {
-    axios
-      .get("http://localhost:5000/api/events/categories")
+    api
+      .get("/events/categories")
       .then((res) => setCategories(res.data))
       .catch((err) => console.error("Gagal mengambil kategori:", err));
   }, []);
@@ -84,8 +84,8 @@ function CreateEvent() {
       try {
         setIsSearchingLocation(true);
 
-        const response = await axios.get(
-          "http://localhost:5000/api/events/locations/autocomplete",
+        const response = await api.get(
+          "/events/locations/autocomplete",
           {
             params: {
               text: keyword,
@@ -216,18 +216,11 @@ function CreateEvent() {
 
     album.forEach((file) => data.append("album", file));
 
-    data.append("user_id", AUTH_USER.id);
-    data.append("role", AUTH_USER.role);
     data.append("tickets", JSON.stringify(tickets));
 
     try {
-      const response = await axios.post(
-        "http://localhost:5000/api/events",
-        data,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
+      const response = await api.post("/events", data);
+
 
       showInfoModal(
         "Event Berhasil Dibuat",
@@ -236,7 +229,7 @@ function CreateEvent() {
         () => {
           closeModal();
 
-          if (AUTH_USER.role === "admin") {
+          if (getCurrentUser().role === "admin") {
             navigate("/events");
           } else {
             navigate("/events/my-events");
@@ -262,11 +255,11 @@ function CreateEvent() {
             <div className="card shadow-lg border-0 rounded-4">
               <div
                 className={`card-header text-white p-4 ${
-                  AUTH_USER.role === "admin" ? "bg-success" : "bg-primary"
+                  getCurrentUser().role === "admin" ? "bg-success" : "bg-primary"
                 }`}
               >
                 <h4 className="mb-0 fw-bold">
-                  🚀 Buat Event Baru ({AUTH_USER.role.toUpperCase()})
+                  🚀 Buat Event Baru ({getCurrentUser().role.toUpperCase()})
                 </h4>
               </div>
 
@@ -542,12 +535,12 @@ function CreateEvent() {
                     <button
                       type="submit"
                       className={`btn btn-lg px-5 fw-bold text-white ${
-                        AUTH_USER.role === "admin"
+                        getCurrentUser().role === "admin"
                           ? "btn-success"
                           : "btn-primary"
                       }`}
                     >
-                      {AUTH_USER.role === "admin"
+                      {getCurrentUser().role === "admin"
                         ? "🚀 Publish Event Langsung"
                         : "📥 Simpan sebagai Draft"}
                     </button>

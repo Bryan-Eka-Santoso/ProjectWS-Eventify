@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth"; // 🔑 Membaca privasi bookmark per akun
+
 
 function SavedEvents() {
   const [savedEvents, setSavedEvents] = useState([]);
@@ -11,9 +12,9 @@ function SavedEvents() {
 
   useEffect(() => {
     // Tarik data event spesifik yang disimpan oleh user_id aktif gess
-    axios
+    api
       .get(
-        `http://localhost:5000/api/events/saved-list?user_id=${AUTH_USER.id}`,
+        `/events/saved-list`
       )
       .then((res) => {
         setSavedEvents(res.data);
@@ -34,7 +35,7 @@ function SavedEvents() {
             <h2 className="fw-bold text-dark mb-1">🔖 My Saved Bookmarks</h2>
             <p className="text-muted mb-0">
               Menampilkan koleksi event milik:{" "}
-              <strong className="text-warning">{AUTH_USER.name}</strong>
+              <strong className="text-warning">{getCurrentUser().name}</strong>
             </p>
           </div>
           <Link

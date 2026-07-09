@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth";
+
 import EventStatusBadge from "../../components/EventStatusBadge";
 import CancelEventModal from "../../components/CancelEventModal";
 import AppModal from "../../components/AppModal";
@@ -40,15 +41,7 @@ function MyEvents() {
     try {
       setLoading(true);
 
-      const res = await axios.get(
-        "http://localhost:5000/api/events/my-events",
-        {
-          params: {
-            user_id: AUTH_USER.id,
-            role: AUTH_USER.role,
-          },
-        },
-      );
+      const res = await api.get("/events/my-events");
 
       setMyEvents(res.data);
     } catch (error) {
@@ -77,8 +70,8 @@ function MyEvents() {
             <h2 className="fw-bold text-dark mb-1">📋 My Managed Events</h2>
             <p className="text-muted mb-0">
               Menampilkan data milik:{" "}
-              <strong className="text-primary">{AUTH_USER.name}</strong> (
-              {AUTH_USER.role.toUpperCase()})
+              <strong className="text-primary">{getCurrentUser().name}</strong> (
+              {getCurrentUser().role.toUpperCase()})
             </p>
           </div>
 
@@ -90,7 +83,7 @@ function MyEvents() {
               ⬅️ Beranda Event
             </Link>
 
-            {AUTH_USER.role !== "user" && (
+            {getCurrentUser().role !== "user" && (
               <Link
                 to="/events/create"
                 className="btn btn-primary fw-bold rounded-3"
@@ -112,7 +105,7 @@ function MyEvents() {
               Kamu belum membuat / mengadopsi event apapun.
             </h5>
 
-            {AUTH_USER.role !== "user" && (
+            {getCurrentUser().role !== "user" && (
               <Link
                 to="/events/create"
                 className="btn btn-primary fw-bold mt-3 rounded-3"

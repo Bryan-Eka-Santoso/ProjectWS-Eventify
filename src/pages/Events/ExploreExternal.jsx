@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import { AUTH_USER } from "../../config/auth"; // 🔑 Menggunakan pusat kendali auth saklar utama gess
 
 function ExploreExternal() {
   const [externalEvents, setExternalEvents] = useState([]);
@@ -30,12 +31,12 @@ function ExploreExternal() {
         {/* --- ALERT INFO TESTING AKTIF --- */}
         <div className="alert alert-success border-0 shadow-sm rounded-3 mb-4 d-flex justify-content-between align-items-center">
           <div>
-            🌍 Global API Explorer Active: <strong>{AUTH_USER.name}</strong>
+            🌍 Global API Explorer Active: <strong>{getCurrentUser().name}</strong>
             <span className="badge bg-success ms-2">
-              {AUTH_USER.role.toUpperCase()}
+              {getCurrentUser().role.toUpperCase()}
             </span>
           </div>
-          <small className="text-muted">ID User: {AUTH_USER.id}</small>
+          <small className="text-muted">ID User: {getCurrentUser().id}</small>
         </div>
 
         <div className="d-flex justify-content-between align-items-center mb-4">

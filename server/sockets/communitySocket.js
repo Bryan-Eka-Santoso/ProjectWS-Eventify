@@ -8,7 +8,8 @@ module.exports = (io) => {
     // ============ JOIN CHAT ROOM ============
     socket.on("join_room", async (data) => {
       try {
-        const { chat_room_id, user_id, username } = data;
+        const { chat_room_id, username } = data;
+        const user_id = socket.user.id;
 
         // Validate
         if (!chat_room_id || !user_id) {
@@ -50,7 +51,15 @@ module.exports = (io) => {
     // ============ SEND MESSAGE ============
     socket.on("send_message", async (data) => {
       try {
-        const { chat_room_id, sender_id, message_type = "text", body, media_url, recommended_event_id } = data;
+        const {
+          chat_room_id,
+          message_type = "text",
+          body,
+          media_url,
+          recommended_event_id,
+        } = data;
+
+        const sender_id = socket.user.id;
 
         // Validate
         if (!chat_room_id || !sender_id) {

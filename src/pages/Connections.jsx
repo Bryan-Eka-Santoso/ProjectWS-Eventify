@@ -1,12 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import axios from "axios";
+import api from "../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../config/auth";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import AppModal from "../components/AppModal";
-import { AUTH_USER } from "../config/auth";
-
-const API_BASE = "http://localhost:5000/api/social";
 
 // Satu halaman untuk dua route: /profile/followers dan /profile/following
 function Connections() {
@@ -14,6 +12,9 @@ function Connections() {
   const initialTab = location.pathname.endsWith("/following")
     ? "following"
     : "followers";
+
+  // ✅ Panggil sekali saja di atas, lebih aman dan hemat memori
+  const currentUser = getCurrentUser(); 
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [followers, setFollowers] = useState([]);
@@ -33,15 +34,14 @@ function Connections() {
     setModal({ show: true, type, title, message });
 
   const fetchConnections = useCallback(async () => {
+    if (!currentUser) return; // Jaga-jaga kalau token null
+    
     try {
       setLoading(true);
+      // ✅ URL lebih pendek, dan viewer_id sudah dihapus karena backend otomatis baca token
       const [followersRes, followingRes] = await Promise.all([
-        axios.get(`${API_BASE}/users/${AUTH_USER.id}/followers`, {
-          params: { viewer_id: AUTH_USER.id },
-        }),
-        axios.get(`${API_BASE}/users/${AUTH_USER.id}/following`, {
-          params: { viewer_id: AUTH_USER.id },
-        }),
+        api.get(`/social/users/${currentUser.id}/followers`),
+        api.get(`/social/users/${currentUser.id}/following`),
       ]);
       setFollowers(followersRes.data.data || []);
       setFollowing(followingRes.data.data || []);
@@ -50,12 +50,12 @@ function Connections() {
       notify(
         "error",
         "Gagal Memuat",
-        error.response?.data?.message || "Gagal mengambil data followers.",
+        error.response?.data?.message || "Gagal mengambil data followers."
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentUser?.id]); // Masukkan currentUser sebagai dependency
 
   useEffect(() => {
     document.title =
@@ -70,31 +70,32 @@ function Connections() {
 
   const handleFollow = async (user) => {
     try {
-      await axios.post(`${API_BASE}/follow`, {
-        follower_id: AUTH_USER.id,
-        following_id: user.id,
+      // ✅ Payload jauh lebih ringkas! follower_id dihapus.
+      await api.post("/social/follow", {
+        following_id: user.id, 
       });
       await fetchConnections();
     } catch (error) {
       notify(
         "error",
         "Gagal",
-        error.response?.data?.message || "Gagal follow user.",
+        error.response?.data?.message || "Gagal follow user."
       );
     }
   };
 
   const handleUnfollow = async (user) => {
     try {
-      await axios.delete(`${API_BASE}/follow`, {
-        data: { follower_id: AUTH_USER.id, following_id: user.id },
+      // ✅ Payload jauh lebih ringkas! follower_id dihapus.
+      await api.delete("/social/follow", {
+        data: { following_id: user.id },
       });
       await fetchConnections();
     } catch (error) {
       notify(
         "error",
         "Gagal",
-        error.response?.data?.message || "Gagal unfollow user.",
+        error.response?.data?.message || "Gagal unfollow user."
       );
     }
   };

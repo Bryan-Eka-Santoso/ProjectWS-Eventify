@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/admin/Navbar";
 import Footer from "../../components/admin/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
 
-const API_BASE = "http://localhost:5000/api/social";
+
+const API_BASE = "/social";
 
 function Posts() {
   const [posts, setPosts] = useState([]);
@@ -37,9 +38,7 @@ function Posts() {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_BASE}/admin/posts`, {
-        params: { role: AUTH_USER.role },
-      });
+      const res = await api.get(`${API_BASE}/admin/posts`);
       setPosts(res.data.data || []);
     } catch (error) {
       console.error("Gagal mengambil posts:", error);
@@ -72,9 +71,7 @@ function Posts() {
   const confirmDelete = async (post) => {
     closeModal();
     try {
-      await axios.delete(`${API_BASE}/posts/${post.id}`, {
-        data: { user_id: AUTH_USER.id, role: AUTH_USER.role },
-      });
+      await api.delete(`${API_BASE}/posts/${post.id}`);
       setSelectedPost(null);
       await fetchPosts();
       notify("success", "Berhasil", "Post berhasil dihapus.");

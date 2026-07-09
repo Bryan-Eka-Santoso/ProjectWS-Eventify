@@ -2,19 +2,22 @@ import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import NotificationBell from "./NotificationBell";
-import { AUTH_USER } from "../config/auth";
+import { getCurrentUser, getAuthHeaders, logoutLocal } from "../config/auth";
+
 
 function Navbar() {
+  const currentUser = getCurrentUser();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:3005/api/auth/logout", {
+      await fetch("http://localhost:5000/api/auth/logout", {
         method: "POST",
         credentials: "include",
+        headers: getAuthHeaders(),
       });
 
-      localStorage.removeItem("token");
+      logoutLocal();
 
       await Swal.fire({
         icon: "success",
@@ -25,12 +28,17 @@ function Navbar() {
     } catch (error) {
       console.error(error);
 
+      logoutLocal();
+
       Swal.fire({
         icon: "error",
         text: "Logout failed. Please try again.",
       });
+
+      navigate("/login");
     }
   };
+
 
   return (
     <nav className="navbar navbar-expand-lg bg-primary navbar-dark shadow-sm">
@@ -159,8 +167,8 @@ function Navbar() {
                   </NavLink>
                 </li>
 
-                {(AUTH_USER?.role === "organizer" ||
-                  AUTH_USER?.role === "admin") && (
+                {(currentUser?.role === "organizer" ||
+                  currentUser?.role === "admin") && (
                   <li>
                     <NavLink className="dropdown-item" to="/events/my-events">
                       <i className="bi bi-calendar-check me-2"></i>
@@ -169,7 +177,7 @@ function Navbar() {
                   </li>
                 )}
 
-                {AUTH_USER?.role === "admin" && (
+                {currentUser?.role === "admin" && (
                   <li>
                     <NavLink
                       className="dropdown-item"

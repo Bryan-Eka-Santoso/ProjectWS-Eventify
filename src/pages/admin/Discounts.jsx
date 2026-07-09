@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/admin/Navbar";
 import Footer from "../../components/admin/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
 
-const API_BASE = "http://localhost:5000/api/events/vouchers";
+const API_BASE = "/events/vouchers";
 
 const emptyForm = {
   code: "",
@@ -52,9 +52,7 @@ function Discounts() {
   const fetchVouchers = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_BASE}/admin-list`, {
-        params: { role: AUTH_USER.role },
-      });
+      const res = await api.get(`${API_BASE}/admin-list`);
       setVouchers(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error("Gagal mengambil voucher:", error);
@@ -127,13 +125,12 @@ function Discounts() {
         stock: form.stock === "" ? null : Number(form.stock),
         valid_until: form.valid_until || null,
         is_active: form.is_active,
-        role: AUTH_USER.role,
       };
 
       if (editingId) {
-        await axios.put(`${API_BASE}/${editingId}`, payload);
+        await api.put(`${API_BASE}/${editingId}`, payload);
       } else {
-        await axios.post(API_BASE, payload);
+        await api.post(API_BASE, payload);
       }
 
       setShowForm(false);
@@ -169,9 +166,7 @@ function Discounts() {
   const confirmDelete = async (voucher) => {
     closeModal();
     try {
-      await axios.delete(`${API_BASE}/${voucher.id}`, {
-        data: { role: AUTH_USER.role },
-      });
+      await api.delete(`${API_BASE}/${voucher.id}`);
       await fetchVouchers();
       notify("success", "Berhasil", "Voucher berhasil dihapus.");
     } catch (error) {

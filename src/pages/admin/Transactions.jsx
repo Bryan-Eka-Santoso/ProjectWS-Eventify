@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config/api"; // ✅ Menggunakan instance api kita
+import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/admin/Navbar";
 import Footer from "../../components/admin/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
 
-const API_BASE = "http://localhost:5000/api/transactions/admin/all";
+const API_BASE = "/transactions/admin/all";
 
 const STATUS_BADGE = {
   paid: "bg-success",
@@ -36,9 +36,7 @@ function Transactions() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(API_BASE, {
-        params: { role: AUTH_USER.role },
-      });
+      const res = await api.get(API_BASE);
       setTransactions(res.data.data || []);
     } catch (error) {
       console.error("Gagal mengambil transaksi:", error);
