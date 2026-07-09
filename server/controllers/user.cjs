@@ -6,6 +6,8 @@ const path = require("path");
 const {
   registerOrganizerSchema,
   changePasswordSchema,
+  editProfileUserSchema,
+  editProfileOrganizerSchema,
 } = require("../validators/userValidator");
 
 exports.getProfile = async (req, res) => {
@@ -56,21 +58,41 @@ exports.updateProfile = async (req, res) => {
     const { name, email, bio, organizer_name, phone_number, address } =
       req.body;
 
+    const { error } = editProfileUserSchema.validate(req.body);
+
+    if (error) {
+      return res.status(400).json({
+        status: "error",
+        message: error.details[0].message,
+      });
+    }
+
     name ? (user.name = name) : null;
     email ? (user.email = email) : null;
     bio ? (user.bio = bio) : null;
 
     await user.save();
-    await OrganizerApplication.update(
-      {
-        organizer_name: organizer_name || user.organizer_name,
-        phone_number: phone_number || user.phone_number,
-        address: address || user.address,
-      },
-      {
-        where: { user_id: req.user.id },
-      },
-    );
+    if (req.user.role === "organizer") {
+      const { error } = editProfileOrganizerSchema.validate(req.body);
+
+      if (error) {
+        return res.status(400).json({
+          status: "error",
+          message: error.details[0].message,
+        });
+      }
+
+      await OrganizerApplication.update(
+        {
+          organizer_name: organizer_name || user.organizer_name,
+          phone_number: phone_number || user.phone_number,
+          address: address || user.address,
+        },
+        {
+          where: { user_id: req.user.id },
+        },
+      );
+    }
 
     return res.status(200).json({
       status: "success",

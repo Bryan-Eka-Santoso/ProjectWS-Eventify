@@ -60,4 +60,55 @@ const changePasswordSchema = Joi.object({
     }),
 });
 
-module.exports = { registerOrganizerSchema, changePasswordSchema };
+const editProfileUserSchema = Joi.object({
+  name: Joi.string().min(3).max(100).required().messages({
+    "string.empty": "Name cannot be empty.",
+    "string.min": "Name must be at least 3 characters.",
+    "string.max": "Name cannot exceed 100 characters.",
+    "any.required": "Name is required.",
+  }),
+  email: Joi.string().email().required().messages({
+    "string.empty": "Email cannot be empty.",
+    "string.email": "Invalid email format.",
+    "any.required": "Email is required.",
+  }),
+  bio: Joi.string().min(10).max(500).optional().messages({
+    "string.empty": "Bio cannot be empty.",
+    "string.min": "Bio must be at least 10 characters.",
+    "string.max": "Bio cannot exceed 500 characters.",
+    "any.required": "Bio is required.",
+  }),
+});
+
+const editProfileOrganizerSchema = Joi.object({
+  organizer_name: Joi.string().min(3).max(100).required().messages({
+    "string.empty": "Organizer name cannot be empty.",
+    "string.min": "Organizer name must be at least 3 characters.",
+    "string.max": "Organizer name cannot exceed 100 characters.",
+    "any.required": "Organizer name is required.",
+  }),
+  phone_number: Joi.string()
+    .pattern(/^[0-9]+$/)
+    .min(10)
+    .max(15)
+    .messages({
+      "string.empty": "Phone number cannot be empty.",
+      "string.pattern.base": "Phone number must contain only digits.",
+      "string.min": "Phone number must be at least 10 characters.",
+      "string.max": "Phone number cannot exceed 15 characters.",
+      "any.required": "Phone number is required.",
+    }),
+  address: Joi.string().min(10).max(200).required().messages({
+    "string.empty": "Address cannot be empty.",
+    "string.min": "Address must be at least 10 characters.",
+    "string.max": "Address cannot exceed 200 characters.",
+    "any.required": "Address is required.",
+  }),
+});
+
+module.exports = {
+  registerOrganizerSchema,
+  changePasswordSchema,
+  editProfileUserSchema,
+  editProfileOrganizerSchema,
+};
