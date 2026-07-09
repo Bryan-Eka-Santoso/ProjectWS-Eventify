@@ -136,7 +136,7 @@ const transactionService = {
       },
     };
 
-    const midtransTx = await snap.createTransaction(parameter);
+    const midtransTx = await snap.createTransaction(parameter); //menghubungi midtrans untuk membuat transaksi dan mendapatkan snap token
 
     // Kembalikan data murni hasil olahan ke controller
     return {
@@ -173,14 +173,17 @@ const transactionService = {
     // Deteksi kelulusan pembayaran gess
     if (
       transaction_status === "settlement" ||
-      (transaction_status === "capture" && fraud_status === "accept")
+      (transaction_status === "capture" && fraud_status === "accept") //kalau sukses transaksi kartu kredit
     ) {
       const detail = tx.Details[0];
       const buyer = await User.findByPk(tx.user_id);
 
-      const ticketTypeWithEvent = await TicketType.findByPk(detail.ticket_type_id, {
-        include: [{ model: Event, as: "Event" }],
-      });
+      const ticketTypeWithEvent = await TicketType.findByPk(
+        detail.ticket_type_id,
+        {
+          include: [{ model: Event, as: "Event" }],
+        },
+      );
       // 1. Potong kuota tiket
       if (ticketTypeWithEvent) {
         await TicketType.update(
@@ -282,7 +285,7 @@ const transactionService = {
         } catch (error) {
           console.error(
             "Failed to send ticket purchase notification:",
-            error.message
+            error.message,
           );
         }
       }
