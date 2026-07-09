@@ -20,12 +20,6 @@ function Footer() {
 
             <ul className="list-unstyled">
               <li className="mb-2">
-                <Link to="/" className="text-decoration-none text-dark">
-                  Home
-                </Link>
-              </li>
-
-              <li className="mb-2">
                 <Link to="/explore" className="text-decoration-none text-dark">
                   Explore Events
                 </Link>

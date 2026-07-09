@@ -41,19 +41,7 @@ function MyEvents() {
     try {
       setLoading(true);
 
-<<<<<<< HEAD
-      const res = await axios.get(
-        `http://localhost:5000/api/events/my-events`,
-        {
-          params: {
-            user_id: AUTH_USER.id,
-            role: AUTH_USER.role,
-          },
-        },
-      );
-=======
       const res = await api.get("/events/my-events");
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
 
       setMyEvents(res.data);
     } catch (error) {

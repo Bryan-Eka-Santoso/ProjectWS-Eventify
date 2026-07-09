@@ -22,13 +22,7 @@ function Events() {
 
   const fetchCategories = async () => {
     try {
-<<<<<<< HEAD
-      const res = await axios.get(
-        `http://localhost:5000/api/events/categories`,
-      );
-=======
       const res = await api.get("/events/categories");
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
       setCategories(res.data);
     } catch (err) {
       console.error("Gagal memuat kategori:", err);
@@ -37,15 +31,8 @@ function Events() {
 
   const fetchEvents = async () => {
     try {
-<<<<<<< HEAD
-      const url = activeCategory
-        ? `http://localhost:5000/api/events/published?category_id=${activeCategory}`
-        : `http://localhost:5000/api/events/published`;
-      const res = await axios.get(url);
-=======
       const params = activeCategory ? { category_id: activeCategory } : {};
       const res = await api.get("/events/published", { params });
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
       setEvents(res.data);
     } catch (err) {
       console.error("Gagal memuat event:", err);

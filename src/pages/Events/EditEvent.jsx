@@ -96,13 +96,7 @@ function EditEvent() {
       try {
         setLoading(true);
 
-<<<<<<< HEAD
-        const res = await axios.get(
-          `http://localhost:5000/api/events/${id}`,
-        );
-=======
         const res = await api.get(`/events/${id}`);
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
         const event = res.data;
 
         setOldEvent(event);
@@ -149,13 +143,8 @@ function EditEvent() {
       try {
         setIsSearchingLocation(true);
 
-<<<<<<< HEAD
-        const response = await axios.get(
-          `http://localhost:5000/api/events/locations/autocomplete`,
-=======
         const response = await api.get(
           "/events/locations/autocomplete",
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
           {
             params: {
               text: keyword,

@@ -80,13 +80,8 @@ function VoucherShop() {
 
   const fetchVouchers = async () => {
     try {
-<<<<<<< HEAD
-      const res = await axios.get(
-        `http://localhost:5000/api/events/vouchers/shop-list`,
-=======
       const res = await api.get(
         "/events/vouchers/shop-list",
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
       );
       setVouchers(res.data);
       setLoading(false);
@@ -98,13 +93,8 @@ function VoucherShop() {
 
   const claimVoucher = async (voucherId) => {
     try {
-<<<<<<< HEAD
-      const res = await axios.post(
-        `http://localhost:5000/api/events/vouchers/claim`,
-=======
       const res = await api.post(
         "/events/vouchers/claim",
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
         {
           voucher_id: voucherId,
         },

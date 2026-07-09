@@ -194,14 +194,14 @@ function Login() {
                     </div>
                   </div>
 
-                  <div className="d-flex justify-content-end mb-4">
+                  {/* <div className="d-flex justify-content-end mb-4">
                     <a
                       href="/forgot-password"
                       className="text-decoration-none small"
                     >
                       Forgot Password?
                     </a>
-                  </div>
+                  </div> */}
 
                   <div className="d-grid gap-3">
                     <button className="btn btn-primary" type="submit">

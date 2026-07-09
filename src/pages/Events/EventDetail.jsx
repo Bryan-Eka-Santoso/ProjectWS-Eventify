@@ -91,13 +91,8 @@ function EventDetail() {
 
   const handleToggleSave = async () => {
     try {
-<<<<<<< HEAD
-      const res = await axios.post(
-        `http://localhost:5000/api/events/toggle-save`,
-=======
       const res = await api.post(
         "/events/toggle-save",
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
         {
           event_id: id,
         },
@@ -141,13 +136,8 @@ function EventDetail() {
 
     try {
       // 1. Ambil Token Snap dan Order ID dari Backend kamu gess
-<<<<<<< HEAD
-      const res = await axios.post(
-        `http://localhost:5000/api/events/tickets/checkout`,
-=======
       const res = await api.post(
         "/events/tickets/checkout",
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
         {
           ticket_type_id: selectedTicket.id,
           quantity: quantity,
@@ -166,13 +156,8 @@ function EventDetail() {
 
             // 🎯 INI RAHASIANYA GESS: Frontend langsung nembak backend lokal kamu sendiri!
             // Mengirim parameter yang dibutuhkan oleh fungsi handleMidtransCallback kamu
-<<<<<<< HEAD
-            await axios.post(
-              `http://localhost:5000/api/events/tickets/midtrans-callback`,
-=======
             await api.post(
               "/events/tickets/midtrans-callback",
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
               {
                 order_id: orderId || result.order_id,
                 transaction_status: "settlement", // Status lunas sesuai filter backend-mu gess
@@ -213,11 +198,7 @@ function EventDetail() {
 
           api
             .post(
-<<<<<<< HEAD
-              `http://localhost:5000/api/events/tickets/midtrans-callback`,
-=======
               "/events/tickets/midtrans-callback",
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
               {
                 order_id: orderId || result.order_id,
                 transaction_status: "settlement",

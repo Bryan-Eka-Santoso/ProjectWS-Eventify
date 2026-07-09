@@ -20,23 +20,67 @@ function Footer() {
 
             <ul className="list-unstyled">
               <li className="mb-2">
-                <Link to="/" className="text-decoration-none text-dark">
-                  Home
-                </Link>
-              </li>
-
-              <li className="mb-2">
-                <Link to="/explore" className="text-decoration-none text-dark">
-                  Explore Events
-                </Link>
-              </li>
-
-              <li className="mb-2">
                 <Link
-                  to="/community"
+                  to="/admin/users"
                   className="text-decoration-none text-dark"
                 >
-                  Community
+                  Users
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link
+                  to="/admin/categories"
+                  className="text-decoration-none text-dark"
+                >
+                  Categories
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link
+                  to="/admin/discounts"
+                  className="text-decoration-none text-dark"
+                >
+                  Discounts
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link
+                  to="/admin/events"
+                  className="text-decoration-none text-dark"
+                >
+                  Events
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link
+                  to="/admin/transactions"
+                  className="text-decoration-none text-dark"
+                >
+                  Transactions
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link
+                  to="/admin/posts"
+                  className="text-decoration-none text-dark"
+                >
+                  Posts
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link
+                  to="/admin/chat-rooms"
+                  className="text-decoration-none text-dark"
+                >
+                  Chat Rooms
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link
+                  to="/admin/cancellation-requests"
+                  className="text-decoration-none text-dark"
+                >
+                  Cancellations
                 </Link>
               </li>
             </ul>

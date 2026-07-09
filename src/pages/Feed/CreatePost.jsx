@@ -5,9 +5,7 @@ import { getCurrentUser } from "../../config/auth";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import AppModal from "../../components/AppModal";
-import { AUTH_USER } from "../../config/auth";
-
-const API_BASE = `http://localhost:5000/api/social`;
+const API_BASE = "/social";
 
 function CreatePost() {
   const navigate = useNavigate();

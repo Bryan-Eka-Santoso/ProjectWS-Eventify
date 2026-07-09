@@ -29,14 +29,8 @@ function DetailExternal() {
   const handleAdoptEvent = () => {
     setSubmitting(true);
 
-<<<<<<< HEAD
-    // 🔥 MENGIRIM ID USER DAN ROLE ASLI DARI AUTH_USER PUSAT SEKARANG WOII
-    axios
-      .post(`http://localhost:5000/api/events/follow-external`, {
-=======
     api
       .post("/events/follow-external", {
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
         external_id: id,
         title: event.name,
         location: event.location || "Online",

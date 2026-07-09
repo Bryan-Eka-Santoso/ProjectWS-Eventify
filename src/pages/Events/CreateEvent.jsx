@@ -61,13 +61,8 @@ function CreateEvent() {
   };
 
   useEffect(() => {
-<<<<<<< HEAD
-    axios
-      .get(`http://localhost:5000/api/events/categories`)
-=======
     api
       .get("/events/categories")
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
       .then((res) => setCategories(res.data))
       .catch((err) => console.error("Gagal mengambil kategori:", err));
   }, []);
@@ -89,13 +84,8 @@ function CreateEvent() {
       try {
         setIsSearchingLocation(true);
 
-<<<<<<< HEAD
-        const response = await axios.get(
-          `http://localhost:5000/api/events/locations/autocomplete`,
-=======
         const response = await api.get(
           "/events/locations/autocomplete",
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
           {
             params: {
               text: keyword,
@@ -229,18 +219,8 @@ function CreateEvent() {
     data.append("tickets", JSON.stringify(tickets));
 
     try {
-<<<<<<< HEAD
-      const response = await axios.post(
-        `http://localhost:5000/api/events`,
-        data,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
-=======
       const response = await api.post("/events", data);
 
->>>>>>> 6dc3fad140a3881681fa5a10a95fea2ddd92055d
 
       showInfoModal(
         "Event Berhasil Dibuat",

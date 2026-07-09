@@ -5,9 +5,6 @@ import { getCurrentUser } from "../config/auth";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import AppModal from "../components/AppModal";
-import { AUTH_USER } from "../config/auth";
-
-const API_BASE = `http://localhost:5000/api/social`;
 
 // Satu halaman untuk dua route: /profile/followers dan /profile/following
 function Connections() {
@@ -17,7 +14,7 @@ function Connections() {
     : "followers";
 
   // ✅ Panggil sekali saja di atas, lebih aman dan hemat memori
-  const currentUser = getCurrentUser(); 
+  const currentUser = getCurrentUser();
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [followers, setFollowers] = useState([]);
@@ -38,7 +35,7 @@ function Connections() {
 
   const fetchConnections = useCallback(async () => {
     if (!currentUser) return; // Jaga-jaga kalau token null
-    
+
     try {
       setLoading(true);
       // ✅ URL lebih pendek, dan viewer_id sudah dihapus karena backend otomatis baca token
@@ -53,7 +50,7 @@ function Connections() {
       notify(
         "error",
         "Gagal Memuat",
-        error.response?.data?.message || "Gagal mengambil data followers."
+        error.response?.data?.message || "Gagal mengambil data followers.",
       );
     } finally {
       setLoading(false);
@@ -75,14 +72,14 @@ function Connections() {
     try {
       // ✅ Payload jauh lebih ringkas! follower_id dihapus.
       await api.post("/social/follow", {
-        following_id: user.id, 
+        following_id: user.id,
       });
       await fetchConnections();
     } catch (error) {
       notify(
         "error",
         "Gagal",
-        error.response?.data?.message || "Gagal follow user."
+        error.response?.data?.message || "Gagal follow user.",
       );
     }
   };
@@ -98,7 +95,7 @@ function Connections() {
       notify(
         "error",
         "Gagal",
-        error.response?.data?.message || "Gagal unfollow user."
+        error.response?.data?.message || "Gagal unfollow user.",
       );
     }
   };
