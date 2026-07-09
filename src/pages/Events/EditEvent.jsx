@@ -96,7 +96,9 @@ function EditEvent() {
       try {
         setLoading(true);
 
-        const res = await axios.get(`http://localhost:5000/api/events/${id}`);
+        const res = await axios.get(
+          `http://localhost:${process.env.PORT}/api/events/${id}`,
+        );
         const event = res.data;
 
         setOldEvent(event);
@@ -144,7 +146,7 @@ function EditEvent() {
         setIsSearchingLocation(true);
 
         const response = await axios.get(
-          "http://localhost:5000/api/events/locations/autocomplete",
+          `http://localhost:${process.env.PORT}/api/events/locations/autocomplete`,
           {
             params: {
               text: keyword,
@@ -244,7 +246,7 @@ function EditEvent() {
       });
 
       const res = await axios.put(
-        `http://localhost:5000/api/events/${id}`,
+        `http://localhost:${process.env.PORT}/api/events/${id}`,
         data,
         {
           headers: {

@@ -58,7 +58,7 @@ function EventDetail() {
 
   useEffect(() => {
     axios
-      .get(`http://localhost:5000/api/events/${id}`)
+      .get(`http://localhost:${process.env.PORT}/api/events/${id}`)
       .then((res) => {
         setEvent(res.data);
         setLoading(false);
@@ -70,7 +70,7 @@ function EventDetail() {
 
     axios
       .get(
-        `http://localhost:5000/api/events/${id}/check-save?user_id=${AUTH_USER.id}`,
+        `http://localhost:${process.env.PORT}/api/events/${id}/check-save?user_id=${AUTH_USER.id}`,
       )
       .then((res) => setIsSaved(res.data.isSaved))
       .catch((err) => console.error(err));
@@ -80,7 +80,7 @@ function EventDetail() {
     if (showModal) {
       axios
         .get(
-          `http://localhost:5000/api/events/vouchers/my-vouchers?user_id=${AUTH_USER.id}`,
+          `http://localhost:${process.env.PORT}/api/events/vouchers/my-vouchers?user_id=${AUTH_USER.id}`,
         )
         .then((res) => {
           setMyVouchers(res.data);
@@ -92,7 +92,7 @@ function EventDetail() {
   const handleToggleSave = async () => {
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/events/toggle-save",
+        `http://localhost:${process.env.PORT}/api/events/toggle-save`,
         {
           user_id: AUTH_USER.id,
           event_id: id,
@@ -138,7 +138,7 @@ function EventDetail() {
     try {
       // 1. Ambil Token Snap dan Order ID dari Backend kamu gess
       const res = await axios.post(
-        "http://localhost:5000/api/events/tickets/checkout",
+        `http://localhost:${process.env.PORT}/api/events/tickets/checkout`,
         {
           user_id: AUTH_USER.id,
           ticket_type_id: selectedTicket.id,
@@ -159,7 +159,7 @@ function EventDetail() {
             // 🎯 INI RAHASIANYA GESS: Frontend langsung nembak backend lokal kamu sendiri!
             // Mengirim parameter yang dibutuhkan oleh fungsi handleMidtransCallback kamu
             await axios.post(
-              "http://localhost:5000/api/events/tickets/midtrans-callback",
+              `http://localhost:${process.env.PORT}/api/events/tickets/midtrans-callback`,
               {
                 order_id: orderId || result.order_id,
                 transaction_status: "settlement", // Status lunas sesuai filter backend-mu gess
@@ -200,7 +200,7 @@ function EventDetail() {
 
           axios
             .post(
-              "http://localhost:5000/api/events/tickets/midtrans-callback",
+              `http://localhost:${process.env.PORT}/api/events/tickets/midtrans-callback`,
               {
                 order_id: orderId || result.order_id,
                 transaction_status: "settlement",
@@ -399,7 +399,7 @@ function EventDetail() {
           <div className="col-md-6">
             <div className="position-sticky" style={{ top: "100px" }}>
               <img
-                src={`http://localhost:5000/uploads/${event.main_image_url}`}
+                src={`http://localhost:${process.env.PORT}/uploads/${event.main_image_url}`}
                 className="img-fluid rounded-4 shadow-lg w-100 border"
                 alt={event.title}
                 style={{ maxHeight: "450px", objectFit: "cover" }}
@@ -485,7 +485,7 @@ function EventDetail() {
                 <div className="col-6 col-sm-4 col-md-3" key={img.id}>
                   <div className="card h-100 rounded-3 overflow-hidden shadow-sm border p-1 bg-white">
                     <img
-                      src={`http://localhost:5000/uploads/${img.image_url}`}
+                      src={`http://localhost:${process.env.PORT}/uploads/${img.image_url}`}
                       alt="Dokumentasi Album Event"
                       className="w-100 h-100"
                       style={{

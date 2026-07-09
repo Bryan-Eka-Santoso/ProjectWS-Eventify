@@ -36,7 +36,7 @@ function ForgotPassword() {
       setDevResetLink(null);
 
       const response = await fetch(
-        "http://localhost:3005/api/auth/forgot-password",
+        `http://localhost:${process.env.PORT}/api/auth/forgot-password`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -5,7 +5,7 @@ import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { AUTH_USER } from "../../config/auth";
 
-const API_BASE = "http://localhost:5000/api/transactions";
+const API_BASE = `http://localhost:${process.env.PORT}/api/transactions`;
 
 const STATUS_BADGE = {
   paid: "bg-success",
@@ -63,9 +63,7 @@ function TransactionHistory() {
       >
         <div className="mb-4 border-bottom pb-3">
           <h2 className="fw-bold mb-1">🧾 Transaction History</h2>
-          <p className="text-muted mb-0">
-            Riwayat pembelian tiket event kamu.
-          </p>
+          <p className="text-muted mb-0">Riwayat pembelian tiket event kamu.</p>
         </div>
 
         {loading ? (
@@ -75,9 +73,7 @@ function TransactionHistory() {
           </div>
         ) : transactions.length === 0 ? (
           <div className="text-center py-5 bg-light border rounded-4">
-            <h5 className="text-muted fw-normal mb-2">
-              Belum ada transaksi.
-            </h5>
+            <h5 className="text-muted fw-normal mb-2">Belum ada transaksi.</h5>
             <p className="small text-muted mb-3">
               Yuk cari event menarik dan beli tiket pertamamu!
             </p>

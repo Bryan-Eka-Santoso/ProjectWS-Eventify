@@ -25,7 +25,7 @@ function Login() {
   const handleGoogleLogin = async (credentialResponse) => {
     try {
       const response = await fetch(
-        "http://localhost:3005/api/auth/google-login",
+        `http://localhost:${process.env.PORT}/api/auth/google-login`,
         {
           method: "POST",
           credentials: "include",
@@ -69,17 +69,20 @@ function Login() {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:3005/api/auth/login", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `http://localhost:${process.env.PORT}/api/auth/login`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
         },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
+      );
 
       const data = await response.json();
 

@@ -6,7 +6,7 @@ import Footer from "../../components/Footer";
 import AppModal from "../../components/AppModal";
 import { AUTH_USER } from "../../config/auth";
 
-const API_BASE = "http://localhost:5000/api/social";
+const API_BASE = `http://localhost:${process.env.PORT}/api/social`;
 
 function Feed() {
   const navigate = useNavigate();
@@ -135,10 +135,7 @@ function Feed() {
         ) : (
           <div className="d-flex flex-column gap-3">
             {posts.map((post) => (
-              <div
-                key={post.id}
-                className="card border rounded-4 shadow-sm"
-              >
+              <div key={post.id} className="card border rounded-4 shadow-sm">
                 <div className="card-body p-4">
                   <div className="d-flex justify-content-between align-items-start mb-2">
                     <div className="d-flex align-items-center gap-2">

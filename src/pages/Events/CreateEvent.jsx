@@ -62,7 +62,7 @@ function CreateEvent() {
 
   useEffect(() => {
     axios
-      .get("http://localhost:5000/api/events/categories")
+      .get(`http://localhost:${process.env.PORT}/api/events/categories`)
       .then((res) => setCategories(res.data))
       .catch((err) => console.error("Gagal mengambil kategori:", err));
   }, []);
@@ -85,7 +85,7 @@ function CreateEvent() {
         setIsSearchingLocation(true);
 
         const response = await axios.get(
-          "http://localhost:5000/api/events/locations/autocomplete",
+          `http://localhost:${process.env.PORT}/api/events/locations/autocomplete`,
           {
             params: {
               text: keyword,
@@ -222,7 +222,7 @@ function CreateEvent() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/events",
+        `http://localhost:${process.env.PORT}/api/events`,
         data,
         {
           headers: { "Content-Type": "multipart/form-data" },

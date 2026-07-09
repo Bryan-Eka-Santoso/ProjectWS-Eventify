@@ -41,7 +41,7 @@ function MyEvents() {
       setLoading(true);
 
       const res = await axios.get(
-        "http://localhost:5000/api/events/my-events",
+        `http://localhost:${process.env.PORT}/api/events/my-events`,
         {
           params: {
             user_id: AUTH_USER.id,

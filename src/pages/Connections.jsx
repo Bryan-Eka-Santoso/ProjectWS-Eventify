@@ -6,7 +6,7 @@ import Footer from "../components/Footer";
 import AppModal from "../components/AppModal";
 import { AUTH_USER } from "../config/auth";
 
-const API_BASE = "http://localhost:5000/api/social";
+const API_BASE = `http://localhost:${process.env.PORT}/api/social`;
 
 // Satu halaman untuk dua route: /profile/followers dan /profile/following
 function Connections() {

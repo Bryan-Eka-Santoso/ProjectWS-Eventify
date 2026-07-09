@@ -6,7 +6,7 @@ import Footer from "../components/Footer";
 import socketService from "../services/socketService";
 import { AUTH_USER } from "../config/auth";
 
-const SERVER_URL = "http://localhost:5000";
+const SERVER_URL = `http://localhost:${process.env.PORT}`;
 const API_URL = `${SERVER_URL}/api/community`;
 const EVENT_API_URL = `${SERVER_URL}/api/events/published`;
 
@@ -90,12 +90,14 @@ function Community() {
   }, []);
 
   const getInitials = useCallback((name = "?") => {
-    return String(name)
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((word) => word[0]?.toUpperCase())
-      .join("") || "?";
+    return (
+      String(name)
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((word) => word[0]?.toUpperCase())
+        .join("") || "?"
+    );
   }, []);
 
   const formatTime = useCallback((dateValue) => {
@@ -105,7 +107,6 @@ function Community() {
       minute: "2-digit",
     });
   }, []);
-
 
   const formatEventDate = useCallback((dateValue) => {
     if (!dateValue) return "Tanggal belum tersedia";
@@ -122,21 +123,47 @@ function Community() {
     return event?.id || event?.event_id || event?.eventId;
   }, []);
 
-  const getEventTitle = useCallback((event) => {
-    return event?.title || event?.name || event?.event_name || event?.eventName || `Event #${getEventId(event) || "?"}`;
-  }, [getEventId]);
+  const getEventTitle = useCallback(
+    (event) => {
+      return (
+        event?.title ||
+        event?.name ||
+        event?.event_name ||
+        event?.eventName ||
+        `Event #${getEventId(event) || "?"}`
+      );
+    },
+    [getEventId],
+  );
 
   const getEventLocation = useCallback((event) => {
-    return event?.location || event?.venue || event?.place || event?.address || "Lokasi belum tersedia";
+    return (
+      event?.location ||
+      event?.venue ||
+      event?.place ||
+      event?.address ||
+      "Lokasi belum tersedia"
+    );
   }, []);
 
   const getEventDate = useCallback((event) => {
-    return event?.event_date || event?.date || event?.start_date || event?.start_time || event?.created_at;
+    return (
+      event?.event_date ||
+      event?.date ||
+      event?.start_date ||
+      event?.start_time ||
+      event?.created_at
+    );
   }, []);
 
   const getEventPrice = useCallback((event) => {
-    const value = event?.price || event?.ticket_price || event?.start_price || event?.min_price;
-    if (value === undefined || value === null || value === "") return "Harga belum tersedia";
+    const value =
+      event?.price ||
+      event?.ticket_price ||
+      event?.start_price ||
+      event?.min_price;
+    if (value === undefined || value === null || value === "")
+      return "Harga belum tersedia";
     if (typeof value === "number") return `Rp${value.toLocaleString("id-ID")}`;
     return String(value);
   }, []);
@@ -170,7 +197,9 @@ function Community() {
   }, [currentMemberRole]);
 
   const sharedEvents = useMemo(() => {
-    return messages.filter((message) => message.message_type === "recommendation");
+    return messages.filter(
+      (message) => message.message_type === "recommendation",
+    );
   }, [messages]);
 
   const fetchUnreadCounts = useCallback(async () => {
@@ -210,7 +239,9 @@ function Community() {
       fetchUnreadCounts();
     } catch (error) {
       console.error("Error fetching chat rooms:", error);
-      showToast(error.response?.data?.message || "Gagal mengambil data community");
+      showToast(
+        error.response?.data?.message || "Gagal mengambil data community",
+      );
     } finally {
       setLoadingRooms(false);
     }
@@ -225,7 +256,6 @@ function Community() {
       setCategories([]);
     }
   }, []);
-
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -276,52 +306,70 @@ function Community() {
     setMessages(response.data.data || []);
   }, []);
 
-  const fetchPinnedMessages = useCallback(async (roomId) => {
-    const response = await axios.get(`${API_URL}/${roomId}/pinned-messages`, {
-      params: { user_id: currentUser.id },
-    });
-    setPinnedMessages(response.data.data || []);
-  }, [currentUser.id]);
-
-  const markAllAsRead = useCallback(async (roomId) => {
-    try {
-      await axios.post(`${API_URL}/${roomId}/read-all`, {
-        user_id: currentUser.id,
+  const fetchPinnedMessages = useCallback(
+    async (roomId) => {
+      const response = await axios.get(`${API_URL}/${roomId}/pinned-messages`, {
+        params: { user_id: currentUser.id },
       });
-      fetchUnreadCounts();
-    } catch (error) {
-      console.error("Error marking messages as read:", error);
-    }
-  }, [currentUser.id, fetchUnreadCounts]);
+      setPinnedMessages(response.data.data || []);
+    },
+    [currentUser.id],
+  );
 
-  const loadSelectedRoomData = useCallback(async (room, memberStatus) => {
-    if (!room) return;
-
-    try {
-      setLoadingRoomDetail(true);
-
-      await Promise.all([
-        fetchRoomMembers(room.id),
-        fetchMemberCount(room.id),
-      ]);
-
-      if (memberStatus) {
-        await Promise.all([
-          fetchMessages(room.id),
-          fetchPinnedMessages(room.id),
-        ]);
-        markAllAsRead(room.id);
-      } else {
-        setMessages([]);
-        setPinnedMessages([]);
+  const markAllAsRead = useCallback(
+    async (roomId) => {
+      try {
+        await axios.post(`${API_URL}/${roomId}/read-all`, {
+          user_id: currentUser.id,
+        });
+        fetchUnreadCounts();
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
       }
-    } catch (error) {
-      console.error("Error loading room data:", error);
-      showToast(error.response?.data?.message || "Gagal memuat detail community");
-    } finally {
-      setLoadingRoomDetail(false);
-    }
-  }, [fetchMemberCount, fetchMessages, fetchPinnedMessages, fetchRoomMembers, markAllAsRead, showToast]);
+    },
+    [currentUser.id, fetchUnreadCounts],
+  );
+
+  const loadSelectedRoomData = useCallback(
+    async (room, memberStatus) => {
+      if (!room) return;
+
+      try {
+        setLoadingRoomDetail(true);
+
+        await Promise.all([
+          fetchRoomMembers(room.id),
+          fetchMemberCount(room.id),
+        ]);
+
+        if (memberStatus) {
+          await Promise.all([
+            fetchMessages(room.id),
+            fetchPinnedMessages(room.id),
+          ]);
+          markAllAsRead(room.id);
+        } else {
+          setMessages([]);
+          setPinnedMessages([]);
+        }
+      } catch (error) {
+        console.error("Error loading room data:", error);
+        showToast(
+          error.response?.data?.message || "Gagal memuat detail community",
+        );
+      } finally {
+        setLoadingRoomDetail(false);
+      }
+    },
+    [
+      fetchMemberCount,
+      fetchMessages,
+      fetchPinnedMessages,
+      fetchRoomMembers,
+      markAllAsRead,
+      showToast,
+    ],
+  );
 
   const handleSelectRoom = async (room) => {
     try {
@@ -337,12 +385,15 @@ function Community() {
       setTypingUsers([]);
       setMessageInput("");
 
-      const membershipResponse = await axios.get(`${API_URL}/check-membership`, {
-        params: {
-          chat_room_id: room.id,
-          user_id: currentUser.id,
+      const membershipResponse = await axios.get(
+        `${API_URL}/check-membership`,
+        {
+          params: {
+            chat_room_id: room.id,
+            user_id: currentUser.id,
+          },
         },
-      });
+      );
 
       const memberStatus = !!membershipResponse.data.isMember;
       const role = membershipResponse.data.data?.role || null;
@@ -499,9 +550,7 @@ function Community() {
 
   const openEventPage = (eventOrId) => {
     const eventId =
-      typeof eventOrId === "object"
-        ? getEventId(eventOrId)
-        : eventOrId;
+      typeof eventOrId === "object" ? getEventId(eventOrId) : eventOrId;
 
     if (!eventId) {
       showToast("Event ID tidak ditemukan");
@@ -518,7 +567,9 @@ function Community() {
 
   const openEventShare = (event) => {
     setSelectedEvent(event);
-    setEventShareMessage(`Aku share event ${getEventTitle(event)}. Mungkin cocok untuk group ini.`);
+    setEventShareMessage(
+      `Aku share event ${getEventTitle(event)}. Mungkin cocok untuk group ini.`,
+    );
     setShowEventPickerModal(false);
     setShowEventShareModal(true);
   };
@@ -535,11 +586,16 @@ function Community() {
     }
 
     try {
-      const response = await axios.post(`${API_URL}/${selectedRoom.id}/messages/share-event`, {
-        sender_id: currentUser.id,
-        recommended_event_id: Number(recommendedEventId),
-        body: eventShareMessage.trim() || `Membagikan event ${getEventTitle(selectedEvent)}`,
-      });
+      const response = await axios.post(
+        `${API_URL}/${selectedRoom.id}/messages/share-event`,
+        {
+          sender_id: currentUser.id,
+          recommended_event_id: Number(recommendedEventId),
+          body:
+            eventShareMessage.trim() ||
+            `Membagikan event ${getEventTitle(selectedEvent)}`,
+        },
+      );
 
       setMessages((prev) => [...prev, response.data.data]);
       setEventShareMessage("");
@@ -583,16 +639,22 @@ function Community() {
     try {
       setMediaUploading(true);
 
-      const messageType = mediaForm.file.type.startsWith("video") ? "video" : "image";
+      const messageType = mediaForm.file.type.startsWith("video")
+        ? "video"
+        : "image";
       const formData = new FormData();
       formData.append("sender_id", currentUser.id);
       formData.append("message_type", messageType);
       formData.append("body", mediaForm.body.trim());
       formData.append("media", mediaForm.file);
 
-      const response = await axios.post(`${API_URL}/${selectedRoom.id}/messages/media`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await axios.post(
+        `${API_URL}/${selectedRoom.id}/messages/media`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
 
       setMessages((prev) => [...prev, response.data.data]);
       closeMediaModal();
@@ -617,7 +679,9 @@ function Community() {
       });
 
       setMessages((prev) => prev.filter((item) => item.id !== message.id));
-      setPinnedMessages((prev) => prev.filter((item) => item.id !== message.id));
+      setPinnedMessages((prev) =>
+        prev.filter((item) => item.id !== message.id),
+      );
       showToast("Pesan berhasil dihapus");
     } catch (error) {
       console.error("Error deleting message:", error);
@@ -661,10 +725,13 @@ function Community() {
     if (!selectedRoom) return;
 
     try {
-      await axios.put(`${API_URL}/${selectedRoom.id}/members/${member.user_id}/role`, {
-        requester_id: currentUser.id,
-        role,
-      });
+      await axios.put(
+        `${API_URL}/${selectedRoom.id}/members/${member.user_id}/role`,
+        {
+          requester_id: currentUser.id,
+          role,
+        },
+      );
 
       await fetchRoomMembers(selectedRoom.id);
       showToast("Role member berhasil diubah");
@@ -682,9 +749,12 @@ function Community() {
     if (!confirmKick) return;
 
     try {
-      await axios.delete(`${API_URL}/${selectedRoom.id}/members/${member.user_id}`, {
-        data: { requester_id: currentUser.id },
-      });
+      await axios.delete(
+        `${API_URL}/${selectedRoom.id}/members/${member.user_id}`,
+        {
+          data: { requester_id: currentUser.id },
+        },
+      );
 
       await Promise.all([
         fetchRoomMembers(selectedRoom.id),
@@ -710,7 +780,7 @@ function Community() {
     setSelectedCategories((prev) =>
       prev.includes(categoryId)
         ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
+        : [...prev, categoryId],
     );
   };
 
@@ -755,7 +825,8 @@ function Community() {
       if (Number(data.chat_room_id) !== Number(selectedRoom.id)) return;
 
       setMessages((prev) => {
-        if (prev.some((message) => String(message.id) === String(data.id))) return prev;
+        if (prev.some((message) => String(message.id) === String(data.id)))
+          return prev;
         return [...prev, data];
       });
     };
@@ -829,13 +900,21 @@ function Community() {
         <div>
           <p>{message.body || "Membagikan event"}</p>
           <div className="community-event-card-mini">
-            <strong>{event?.title || event?.name || `Event #${message.recommended_event_id}`}</strong>
-            <span>{event?.location || "Detail event mengikuti data backend event."}</span>
-           <button
+            <strong>
+              {event?.title ||
+                event?.name ||
+                `Event #${message.recommended_event_id}`}
+            </strong>
+            <span>
+              {event?.location || "Detail event mengikuti data backend event."}
+            </span>
+            <button
               type="button"
               className="community-btn community-btn-primary community-btn-small"
               onClick={() => {
-                const eventId = event ? getEventId(event) : message.recommended_event_id;
+                const eventId = event
+                  ? getEventId(event)
+                  : message.recommended_event_id;
                 openEventPage(eventId);
               }}
             >
@@ -854,16 +933,21 @@ function Community() {
     const userName = user.name || `User #${member.user_id}`;
     const isTargetOwner = member.role === "owner";
     const isSelf = Number(member.user_id) === Number(currentUser.id);
-    const canOwnerChangeRole = currentMemberRole === "owner" && !isTargetOwner && !isSelf;
-    const canKick = !isSelf && (
-      (currentMemberRole === "owner" && !isTargetOwner) ||
-      (currentMemberRole === "admin" && member.role === "member")
-    );
+    const canOwnerChangeRole =
+      currentMemberRole === "owner" && !isTargetOwner && !isSelf;
+    const canKick =
+      !isSelf &&
+      ((currentMemberRole === "owner" && !isTargetOwner) ||
+        (currentMemberRole === "admin" && member.role === "member"));
 
     return (
       <div className="community-member-item" key={member.id || member.user_id}>
         <div className="community-avatar community-avatar-small">
-          {user.avatar ? <img src={imageSrc(user.avatar)} alt={userName} /> : getInitials(userName)}
+          {user.avatar ? (
+            <img src={imageSrc(user.avatar)} alt={userName} />
+          ) : (
+            getInitials(userName)
+          )}
         </div>
 
         <div className="community-member-info">
@@ -871,14 +955,18 @@ function Community() {
           <span>{user.email || "No email"}</span>
         </div>
 
-        <span className={`community-role community-role-${member.role}`}>{member.role}</span>
+        <span className={`community-role community-role-${member.role}`}>
+          {member.role}
+        </span>
 
         {!compact && (canOwnerChangeRole || canKick) && (
           <div className="community-member-actions">
             {canOwnerChangeRole && (
               <select
                 value={member.role}
-                onChange={(event) => handleUpdateMemberRole(member, event.target.value)}
+                onChange={(event) =>
+                  handleUpdateMemberRole(member, event.target.value)
+                }
               >
                 <option value="member">member</option>
                 <option value="admin">admin</option>
@@ -931,7 +1019,10 @@ function Community() {
 
             <div className="community-filter-block">
               <label>Sort</label>
-              <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value)}
+              >
                 <option value="newest">Newest</option>
                 <option value="trending">Trending</option>
                 <option value="recently-active">Recently active</option>
@@ -944,7 +1035,9 @@ function Community() {
                 <button
                   type="button"
                   key={category.id}
-                  className={selectedCategories.includes(category.id) ? "active" : ""}
+                  className={
+                    selectedCategories.includes(category.id) ? "active" : ""
+                  }
                   onClick={() => toggleFilterCategory(category.id)}
                 >
                   {category.name}
@@ -952,8 +1045,14 @@ function Community() {
               ))}
             </div>
 
-            {(searchInput || selectedCategories.length > 0 || sortBy !== "newest") && (
-              <button type="button" className="community-reset-filter" onClick={resetFilters}>
+            {(searchInput ||
+              selectedCategories.length > 0 ||
+              sortBy !== "newest") && (
+              <button
+                type="button"
+                className="community-reset-filter"
+                onClick={resetFilters}
+              >
                 Reset filter
               </button>
             )}
@@ -967,11 +1066,15 @@ function Community() {
               {loadingRooms ? (
                 <div className="community-empty-small">Loading groups...</div>
               ) : chatRooms.length === 0 ? (
-                <div className="community-empty-small">Tidak ada community yang cocok.</div>
+                <div className="community-empty-small">
+                  Tidak ada community yang cocok.
+                </div>
               ) : (
                 chatRooms.map((room) => {
                   const unread = unreadCounts[room.id] || 0;
-                  const categoriesText = roomCategories(room).map((item) => item.name).join(", ");
+                  const categoriesText = roomCategories(room)
+                    .map((item) => item.name)
+                    .join(", ");
 
                   return (
                     <button
@@ -981,14 +1084,19 @@ function Community() {
                       onClick={() => handleSelectRoom(room)}
                     >
                       <div className="community-room-avatar">
-                        <img src={imageSrc(room.profile_image_url)} alt={room.name} />
+                        <img
+                          src={imageSrc(room.profile_image_url)}
+                          alt={room.name}
+                        />
                       </div>
                       <div className="community-room-card-content">
                         <strong>{room.name}</strong>
                         <span>{room.description || "No description"}</span>
                         <small>{categoriesText || "General"}</small>
                       </div>
-                      {unread > 0 && <b className="community-unread-badge">{unread}</b>}
+                      {unread > 0 && (
+                        <b className="community-unread-badge">{unread}</b>
+                      )}
                     </button>
                   );
                 })
@@ -1001,30 +1109,50 @@ function Community() {
               <div className="community-empty-state">
                 <div className="community-empty-icon">💬</div>
                 <h2>Pilih community</h2>
-                <p>Pilih salah satu group di sidebar untuk melihat detail, member, dan chat.</p>
+                <p>
+                  Pilih salah satu group di sidebar untuk melihat detail,
+                  member, dan chat.
+                </p>
               </div>
             ) : (
               <>
                 <div className="community-chat-header">
                   <div className="community-chat-title">
                     <div className="community-avatar">
-                      <img src={imageSrc(selectedRoom.profile_image_url)} alt={selectedRoom.name} />
+                      <img
+                        src={imageSrc(selectedRoom.profile_image_url)}
+                        alt={selectedRoom.name}
+                      />
                     </div>
                     <div>
                       <h2>{selectedRoom.name}</h2>
-                      <p>{memberCount || selectedRoom.ChatRoomMembers?.length || 0} members · {isMember ? `You are ${currentMemberRole}` : "Not joined yet"}</p>
+                      <p>
+                        {memberCount ||
+                          selectedRoom.ChatRoomMembers?.length ||
+                          0}{" "}
+                        members ·{" "}
+                        {isMember
+                          ? `You are ${currentMemberRole}`
+                          : "Not joined yet"}
+                      </p>
                     </div>
                   </div>
 
                   <div className="community-chat-actions">
-                    <button type="button" className="community-btn community-btn-outline" onClick={() => setShowDetailModal(true)}>
+                    <button
+                      type="button"
+                      className="community-btn community-btn-outline"
+                      onClick={() => setShowDetailModal(true)}
+                    >
                       Detail
                     </button>
                   </div>
                 </div>
 
                 {loadingRoomDetail ? (
-                  <div className="community-empty-state compact">Loading room detail...</div>
+                  <div className="community-empty-state compact">
+                    Loading room detail...
+                  </div>
                 ) : isMember ? (
                   <>
                     <div className="community-message-list">
@@ -1035,12 +1163,21 @@ function Community() {
                         </div>
                       ) : (
                         messages.map((message, index) => {
-                          const isMe = Number(message.sender_id) === Number(currentUser.id);
-                          const senderName = isMe ? "You" : message.Sender?.name || message.username || `User #${message.sender_id}`;
+                          const isMe =
+                            Number(message.sender_id) ===
+                            Number(currentUser.id);
+                          const senderName = isMe
+                            ? "You"
+                            : message.Sender?.name ||
+                              message.username ||
+                              `User #${message.sender_id}`;
                           const canDelete = isMe || canManageGroup;
 
                           return (
-                            <div className={`community-message ${isMe ? "me" : ""}`} key={message.id || index}>
+                            <div
+                              className={`community-message ${isMe ? "me" : ""}`}
+                              key={message.id || index}
+                            >
                               <div className="community-avatar community-avatar-small">
                                 {getInitials(senderName)}
                               </div>
@@ -1052,16 +1189,31 @@ function Community() {
                                 <div className="community-message-content">
                                   {renderMessageContent(message)}
                                 </div>
-                                {message.id && (canDelete || canManageGroup) && (
-                                  <div className="community-message-actions">
-                                    {canManageGroup && (
-                                      <button type="button" onClick={() => handlePinMessage(message)}>Pin</button>
-                                    )}
-                                    {canDelete && (
-                                      <button type="button" onClick={() => handleDeleteMessage(message)}>Delete</button>
-                                    )}
-                                  </div>
-                                )}
+                                {message.id &&
+                                  (canDelete || canManageGroup) && (
+                                    <div className="community-message-actions">
+                                      {canManageGroup && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handlePinMessage(message)
+                                          }
+                                        >
+                                          Pin
+                                        </button>
+                                      )}
+                                      {canDelete && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleDeleteMessage(message)
+                                          }
+                                        >
+                                          Delete
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
                               </div>
                             </div>
                           );
@@ -1078,7 +1230,11 @@ function Community() {
 
                     <div className="community-chat-input">
                       <div className="community-plus-wrapper">
-                        <button type="button" className="community-btn community-btn-outline community-plus-button" onClick={openAttachmentMenu}>
+                        <button
+                          type="button"
+                          className="community-btn community-btn-outline community-plus-button"
+                          onClick={openAttachmentMenu}
+                        >
                           +
                         </button>
 
@@ -1086,7 +1242,9 @@ function Community() {
                           <div className="community-attachment-menu">
                             <button type="button" onClick={openEventPicker}>
                               <strong>Share Event</strong>
-                              <span>Pilih event dari daftar lalu bagikan ke chat</span>
+                              <span>
+                                Pilih event dari daftar lalu bagikan ke chat
+                              </span>
                             </button>
                             <button type="button" onClick={openMediaPicker}>
                               <strong>Upload Media</strong>
@@ -1105,7 +1263,11 @@ function Community() {
                           if (event.key === "Enter") handleSendMessage();
                         }}
                       />
-                      <button type="button" className="community-btn community-btn-primary" onClick={handleSendMessage}>
+                      <button
+                        type="button"
+                        className="community-btn community-btn-primary"
+                        onClick={handleSendMessage}
+                      >
                         Send
                       </button>
                     </div>
@@ -1113,25 +1275,44 @@ function Community() {
                 ) : (
                   <div className="community-join-view">
                     <div className="community-join-hero">
-                      <img src={imageSrc(selectedRoom.profile_image_url)} alt={selectedRoom.name} />
+                      <img
+                        src={imageSrc(selectedRoom.profile_image_url)}
+                        alt={selectedRoom.name}
+                      />
                       <h2>{selectedRoom.name}</h2>
-                      <p>{selectedRoom.description || "Community ini belum memiliki deskripsi."}</p>
+                      <p>
+                        {selectedRoom.description ||
+                          "Community ini belum memiliki deskripsi."}
+                      </p>
                       <div className="community-join-meta">
                         <span>{memberCount || 0} members</span>
                         {selectedRoomCategories.map((category) => (
                           <span key={category.id}>{category.name}</span>
                         ))}
                       </div>
-                      <button type="button" className="community-btn community-btn-primary" onClick={handleJoinRoom}>
+                      <button
+                        type="button"
+                        className="community-btn community-btn-primary"
+                        onClick={handleJoinRoom}
+                      >
                         Join Community
                       </button>
                     </div>
 
                     <div className="community-locked-preview">
                       <h3>Preview discussion</h3>
-                      <div>Member sedang berdiskusi tentang event, ticket, venue, dan pengalaman mereka.</div>
-                      <div>Join community untuk membaca full chat dan ikut mengirim message.</div>
-                      <div>Event tidak selalu wajib di-highlight; member dapat share event jika relevan.</div>
+                      <div>
+                        Member sedang berdiskusi tentang event, ticket, venue,
+                        dan pengalaman mereka.
+                      </div>
+                      <div>
+                        Join community untuk membaca full chat dan ikut mengirim
+                        message.
+                      </div>
+                      <div>
+                        Event tidak selalu wajib di-highlight; member dapat
+                        share event jika relevan.
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1141,29 +1322,49 @@ function Community() {
 
           <aside className="community-detail community-panel">
             {!selectedRoom ? (
-              <div className="community-empty-small center">Detail group akan muncul di sini.</div>
+              <div className="community-empty-small center">
+                Detail group akan muncul di sini.
+              </div>
             ) : (
               <>
                 <div className="community-detail-cover">
-                  <img src={imageSrc(selectedRoom.profile_image_url)} alt={selectedRoom.name} />
+                  <img
+                    src={imageSrc(selectedRoom.profile_image_url)}
+                    alt={selectedRoom.name}
+                  />
                 </div>
 
                 <div className="community-detail-title">
                   <h2>{selectedRoom.name}</h2>
-                  <p>{selectedRoom.description || "Community ini belum memiliki bio."}</p>
+                  <p>
+                    {selectedRoom.description ||
+                      "Community ini belum memiliki bio."}
+                  </p>
                 </div>
 
                 <div className="community-detail-actions">
                   {isMember ? (
-                    <button type="button" className="community-btn community-btn-danger" onClick={handleLeaveRoom}>
+                    <button
+                      type="button"
+                      className="community-btn community-btn-danger"
+                      onClick={handleLeaveRoom}
+                    >
                       Leave
                     </button>
                   ) : (
-                    <button type="button" className="community-btn community-btn-primary" onClick={handleJoinRoom}>
+                    <button
+                      type="button"
+                      className="community-btn community-btn-primary"
+                      onClick={handleJoinRoom}
+                    >
                       Join
                     </button>
                   )}
-                  <button type="button" className="community-btn community-btn-outline" onClick={() => setShowMembersModal(true)}>
+                  <button
+                    type="button"
+                    className="community-btn community-btn-outline"
+                    onClick={() => setShowMembersModal(true)}
+                  >
                     Members
                   </button>
                 </div>
@@ -1171,9 +1372,12 @@ function Community() {
                 <div className="community-detail-section">
                   <h3>Info</h3>
                   <div className="community-info-grid">
-                    <span>Members</span><strong>{memberCount || 0}</strong>
-                    <span>Your Role</span><strong>{isMember ? currentMemberRole : "Guest"}</strong>
-                    <span>Creator ID</span><strong>{selectedRoom.creator_id}</strong>
+                    <span>Members</span>
+                    <strong>{memberCount || 0}</strong>
+                    <span>Your Role</span>
+                    <strong>{isMember ? currentMemberRole : "Guest"}</strong>
+                    <span>Creator ID</span>
+                    <strong>{selectedRoom.creator_id}</strong>
                   </div>
                 </div>
 
@@ -1181,7 +1385,9 @@ function Community() {
                   <h3>Categories</h3>
                   <div className="community-category-chips static">
                     {selectedRoomCategories.length > 0 ? (
-                      selectedRoomCategories.map((category) => <span key={category.id}>{category.name}</span>)
+                      selectedRoomCategories.map((category) => (
+                        <span key={category.id}>{category.name}</span>
+                      ))
                     ) : (
                       <span>General</span>
                     )}
@@ -1192,7 +1398,11 @@ function Community() {
                   <div className="community-section-title-row">
                     <h3>Members</h3>
                     {members.length > 0 && (
-                      <button type="button" className="community-link-button compact" onClick={() => setShowMembersModal(true)}>
+                      <button
+                        type="button"
+                        className="community-link-button compact"
+                        onClick={() => setShowMembersModal(true)}
+                      >
                         View all
                       </button>
                     )}
@@ -1212,10 +1422,17 @@ function Community() {
                   {isMember && pinnedMessages.length > 0 ? (
                     pinnedMessages.map((message) => (
                       <div className="community-pinned-card" key={message.id}>
-                        <strong>{message.Sender?.name || `User #${message.sender_id}`}</strong>
+                        <strong>
+                          {message.Sender?.name || `User #${message.sender_id}`}
+                        </strong>
                         <p>{message.body || "Pinned message"}</p>
                         {canManageGroup && (
-                          <button type="button" onClick={() => handleUnpinMessage(message)}>Unpin</button>
+                          <button
+                            type="button"
+                            onClick={() => handleUnpinMessage(message)}
+                          >
+                            Unpin
+                          </button>
                         )}
                       </div>
                     ))
@@ -1231,8 +1448,13 @@ function Community() {
                       <button
                         type="button"
                         className="community-shared-event"
-                        key={message.id || `${message.recommended_event_id}-${message.created_at}`}
-                        onClick={() => openEventPage(message.recommended_event_id)}
+                        key={
+                          message.id ||
+                          `${message.recommended_event_id}-${message.created_at}`
+                        }
+                        onClick={() =>
+                          openEventPage(message.recommended_event_id)
+                        }
                         style={{
                           width: "100%",
                           textAlign: "left",
@@ -1244,7 +1466,9 @@ function Community() {
                       </button>
                     ))
                   ) : (
-                    <p className="community-muted">Belum ada event yang dibagikan.</p>
+                    <p className="community-muted">
+                      Belum ada event yang dibagikan.
+                    </p>
                   )}
                 </div>
               </>
@@ -1260,14 +1484,18 @@ function Community() {
           <form className="community-modal" onSubmit={handleCreateRoom}>
             <div className="community-modal-header">
               <h2>Create Community</h2>
-              <button type="button" onClick={() => setShowCreateModal(false)}>×</button>
+              <button type="button" onClick={() => setShowCreateModal(false)}>
+                ×
+              </button>
             </div>
 
             <label>Community Name</label>
             <input
               type="text"
               value={createForm.name}
-              onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
+              onChange={(event) =>
+                setCreateForm((prev) => ({ ...prev, name: event.target.value }))
+              }
               placeholder="Contoh: Festival Squad Indonesia"
             />
 
@@ -1275,7 +1503,12 @@ function Community() {
             <textarea
               rows="4"
               value={createForm.description}
-              onChange={(event) => setCreateForm((prev) => ({ ...prev, description: event.target.value }))}
+              onChange={(event) =>
+                setCreateForm((prev) => ({
+                  ...prev,
+                  description: event.target.value,
+                }))
+              }
               placeholder="Jelaskan tujuan community..."
             />
 
@@ -1285,12 +1518,21 @@ function Community() {
               accept="image/*"
               onChange={(event) => {
                 const file = event.target.files?.[0];
-                setCreateForm((prev) => ({ ...prev, profile_image_file: file || null }));
+                setCreateForm((prev) => ({
+                  ...prev,
+                  profile_image_file: file || null,
+                }));
                 if (imagePreview) URL.revokeObjectURL(imagePreview);
                 setImagePreview(file ? URL.createObjectURL(file) : null);
               }}
             />
-            {imagePreview && <img className="community-image-preview" src={imagePreview} alt="Preview" />}
+            {imagePreview && (
+              <img
+                className="community-image-preview"
+                src={imagePreview}
+                alt="Preview"
+              />
+            )}
 
             <label>Categories</label>
             <div className="community-category-chips modal-chips">
@@ -1298,7 +1540,11 @@ function Community() {
                 <button
                   type="button"
                   key={category.id}
-                  className={createForm.category_ids.includes(category.id) ? "active" : ""}
+                  className={
+                    createForm.category_ids.includes(category.id)
+                      ? "active"
+                      : ""
+                  }
                   onClick={() => toggleCreateCategory(category.id)}
                 >
                   {category.name}
@@ -1307,10 +1553,18 @@ function Community() {
             </div>
 
             <div className="community-modal-actions">
-              <button type="button" className="community-btn community-btn-outline" onClick={() => setShowCreateModal(false)}>
+              <button
+                type="button"
+                className="community-btn community-btn-outline"
+                onClick={() => setShowCreateModal(false)}
+              >
                 Cancel
               </button>
-              <button type="submit" className="community-btn community-btn-primary" disabled={creatingRoom}>
+              <button
+                type="submit"
+                className="community-btn community-btn-primary"
+                disabled={creatingRoom}
+              >
                 {creatingRoom ? "Creating..." : "Create"}
               </button>
             </div>
@@ -1323,11 +1577,17 @@ function Community() {
           <div className="community-modal community-modal-wide">
             <div className="community-modal-header">
               <h2>Pilih Event untuk Dibagikan</h2>
-              <button type="button" onClick={() => setShowEventPickerModal(false)}>×</button>
+              <button
+                type="button"
+                onClick={() => setShowEventPickerModal(false)}
+              >
+                ×
+              </button>
             </div>
 
             <p className="community-muted">
-              Pilih salah satu event, lihat detailnya bila perlu, lalu tekan Bagikan untuk menambahkan pesan sebelum dikirim ke chat.
+              Pilih salah satu event, lihat detailnya bila perlu, lalu tekan
+              Bagikan untuk menambahkan pesan sebelum dikirim ke chat.
             </p>
 
             {loadingEvents ? (
@@ -1339,8 +1599,14 @@ function Community() {
             ) : (
               <div className="community-event-grid">
                 {events.map((event) => (
-                  <div className="community-event-card" key={getEventId(event) || getEventTitle(event)}>
-                    <img src={getEventImage(event)} alt={getEventTitle(event)} />
+                  <div
+                    className="community-event-card"
+                    key={getEventId(event) || getEventTitle(event)}
+                  >
+                    <img
+                      src={getEventImage(event)}
+                      alt={getEventTitle(event)}
+                    />
                     <div className="community-event-card-body">
                       <h3>{getEventTitle(event)}</h3>
                       <p>{formatEventDate(getEventDate(event))}</p>
@@ -1348,10 +1614,18 @@ function Community() {
                       <strong>{getEventPrice(event)}</strong>
                     </div>
                     <div className="community-event-card-actions">
-                      <button type="button" className="community-btn community-btn-outline" onClick={() => openEventDetail(event)}>
+                      <button
+                        type="button"
+                        className="community-btn community-btn-outline"
+                        onClick={() => openEventDetail(event)}
+                      >
                         Detail
                       </button>
-                      <button type="button" className="community-btn community-btn-primary" onClick={() => openEventShare(event)}>
+                      <button
+                        type="button"
+                        className="community-btn community-btn-primary"
+                        onClick={() => openEventShare(event)}
+                      >
                         Bagikan
                       </button>
                     </div>
@@ -1368,23 +1642,52 @@ function Community() {
           <div className="community-modal">
             <div className="community-modal-header">
               <h2>Detail Event</h2>
-              <button type="button" onClick={() => setShowEventDetailModal(false)}>×</button>
+              <button
+                type="button"
+                onClick={() => setShowEventDetailModal(false)}
+              >
+                ×
+              </button>
             </div>
 
             <div className="community-event-detail">
-              <img src={getEventImage(selectedEvent)} alt={getEventTitle(selectedEvent)} />
+              <img
+                src={getEventImage(selectedEvent)}
+                alt={getEventTitle(selectedEvent)}
+              />
               <h3>{getEventTitle(selectedEvent)}</h3>
-              <p><b>Tanggal:</b> {formatEventDate(getEventDate(selectedEvent))}</p>
-              <p><b>Lokasi:</b> {getEventLocation(selectedEvent)}</p>
-              <p><b>Harga:</b> {getEventPrice(selectedEvent)}</p>
-              <p>{selectedEvent.description || selectedEvent.detail || "Deskripsi event belum tersedia."}</p>
+              <p>
+                <b>Tanggal:</b> {formatEventDate(getEventDate(selectedEvent))}
+              </p>
+              <p>
+                <b>Lokasi:</b> {getEventLocation(selectedEvent)}
+              </p>
+              <p>
+                <b>Harga:</b> {getEventPrice(selectedEvent)}
+              </p>
+              <p>
+                {selectedEvent.description ||
+                  selectedEvent.detail ||
+                  "Deskripsi event belum tersedia."}
+              </p>
             </div>
 
             <div className="community-modal-actions">
-              <button type="button" className="community-btn community-btn-outline" onClick={() => setShowEventDetailModal(false)}>
+              <button
+                type="button"
+                className="community-btn community-btn-outline"
+                onClick={() => setShowEventDetailModal(false)}
+              >
                 Tutup
               </button>
-              <button type="button" className="community-btn community-btn-primary" onClick={() => { setShowEventDetailModal(false); openEventShare(selectedEvent); }}>
+              <button
+                type="button"
+                className="community-btn community-btn-primary"
+                onClick={() => {
+                  setShowEventDetailModal(false);
+                  openEventShare(selectedEvent);
+                }}
+              >
                 Bagikan Event
               </button>
             </div>
@@ -1397,14 +1700,25 @@ function Community() {
           <form className="community-modal" onSubmit={handleShareSelectedEvent}>
             <div className="community-modal-header">
               <h2>Bagikan Event</h2>
-              <button type="button" onClick={() => setShowEventShareModal(false)}>×</button>
+              <button
+                type="button"
+                onClick={() => setShowEventShareModal(false)}
+              >
+                ×
+              </button>
             </div>
 
             <div className="community-selected-event-box">
-              <img src={getEventImage(selectedEvent)} alt={getEventTitle(selectedEvent)} />
+              <img
+                src={getEventImage(selectedEvent)}
+                alt={getEventTitle(selectedEvent)}
+              />
               <div>
                 <h3>{getEventTitle(selectedEvent)}</h3>
-                <p>{formatEventDate(getEventDate(selectedEvent))} · {getEventLocation(selectedEvent)}</p>
+                <p>
+                  {formatEventDate(getEventDate(selectedEvent))} ·{" "}
+                  {getEventLocation(selectedEvent)}
+                </p>
                 <strong>{getEventPrice(selectedEvent)}</strong>
               </div>
             </div>
@@ -1418,10 +1732,17 @@ function Community() {
             />
 
             <div className="community-modal-actions">
-              <button type="button" className="community-btn community-btn-outline" onClick={() => setShowEventShareModal(false)}>
+              <button
+                type="button"
+                className="community-btn community-btn-outline"
+                onClick={() => setShowEventShareModal(false)}
+              >
                 Cancel
               </button>
-              <button type="submit" className="community-btn community-btn-primary">
+              <button
+                type="submit"
+                className="community-btn community-btn-primary"
+              >
                 Kirim ke Chat
               </button>
             </div>
@@ -1434,11 +1755,17 @@ function Community() {
           <form className="community-modal" onSubmit={handleMediaSubmit}>
             <div className="community-modal-header">
               <h2>Kirim Media</h2>
-              <button type="button" onClick={closeMediaModal}>×</button>
+              <button type="button" onClick={closeMediaModal}>
+                ×
+              </button>
             </div>
 
             <label>Pilih foto / video</label>
-            <input type="file" accept="image/*,video/*" onChange={handleMediaFileChange} />
+            <input
+              type="file"
+              accept="image/*,video/*"
+              onChange={handleMediaFileChange}
+            />
 
             {mediaForm.file && (
               <div className="community-media-preview">
@@ -1455,15 +1782,25 @@ function Community() {
             <textarea
               rows="3"
               value={mediaForm.body}
-              onChange={(event) => setMediaForm((prev) => ({ ...prev, body: event.target.value }))}
+              onChange={(event) =>
+                setMediaForm((prev) => ({ ...prev, body: event.target.value }))
+              }
               placeholder="Tulis caption untuk media ini..."
             />
 
             <div className="community-modal-actions">
-              <button type="button" className="community-btn community-btn-outline" onClick={closeMediaModal}>
+              <button
+                type="button"
+                className="community-btn community-btn-outline"
+                onClick={closeMediaModal}
+              >
                 Cancel
               </button>
-              <button type="submit" className="community-btn community-btn-primary" disabled={mediaUploading}>
+              <button
+                type="submit"
+                className="community-btn community-btn-primary"
+                disabled={mediaUploading}
+              >
                 {mediaUploading ? "Uploading..." : "Kirim Media"}
               </button>
             </div>
@@ -1476,11 +1813,16 @@ function Community() {
           <div className="community-modal">
             <div className="community-modal-header">
               <h2>Group Detail</h2>
-              <button type="button" onClick={() => setShowDetailModal(false)}>×</button>
+              <button type="button" onClick={() => setShowDetailModal(false)}>
+                ×
+              </button>
             </div>
 
             <div className="community-detail-modal-head">
-              <img src={imageSrc(selectedRoom.profile_image_url)} alt={selectedRoom.name} />
+              <img
+                src={imageSrc(selectedRoom.profile_image_url)}
+                alt={selectedRoom.name}
+              />
               <div>
                 <h3>{selectedRoom.name}</h3>
                 <p>{selectedRoom.description || "No description"}</p>
@@ -1488,13 +1830,26 @@ function Community() {
             </div>
 
             <div className="community-info-grid modal-grid">
-              <span>Members</span><strong>{memberCount}</strong>
-              <span>Your Role</span><strong>{isMember ? currentMemberRole : "Guest"}</strong>
-              <span>Creator ID</span><strong>{selectedRoom.creator_id}</strong>
-              <span>Created At</span><strong>{new Date(selectedRoom.created_at).toLocaleDateString("id-ID")}</strong>
+              <span>Members</span>
+              <strong>{memberCount}</strong>
+              <span>Your Role</span>
+              <strong>{isMember ? currentMemberRole : "Guest"}</strong>
+              <span>Creator ID</span>
+              <strong>{selectedRoom.creator_id}</strong>
+              <span>Created At</span>
+              <strong>
+                {new Date(selectedRoom.created_at).toLocaleDateString("id-ID")}
+              </strong>
             </div>
 
-            <button type="button" className="community-btn community-btn-primary full" onClick={() => { setShowDetailModal(false); setShowMembersModal(true); }}>
+            <button
+              type="button"
+              className="community-btn community-btn-primary full"
+              onClick={() => {
+                setShowDetailModal(false);
+                setShowMembersModal(true);
+              }}
+            >
               View Members
             </button>
           </div>
@@ -1506,7 +1861,9 @@ function Community() {
           <div className="community-modal community-modal-wide">
             <div className="community-modal-header">
               <h2>Members - {selectedRoom.name}</h2>
-              <button type="button" onClick={() => setShowMembersModal(false)}>×</button>
+              <button type="button" onClick={() => setShowMembersModal(false)}>
+                ×
+              </button>
             </div>
 
             <div className="community-members-modal-list">

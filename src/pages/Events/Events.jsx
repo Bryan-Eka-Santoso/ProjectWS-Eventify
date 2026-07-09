@@ -22,7 +22,7 @@ function Events() {
   const fetchCategories = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/events/categories",
+        `http://localhost:${process.env.PORT}/api/events/categories`,
       );
       setCategories(res.data);
     } catch (err) {
@@ -33,8 +33,8 @@ function Events() {
   const fetchEvents = async () => {
     try {
       const url = activeCategory
-        ? `http://localhost:5000/api/events/published?category_id=${activeCategory}`
-        : "http://localhost:5000/api/events/published";
+        ? `http://localhost:${process.env.PORT}/api/events/published?category_id=${activeCategory}`
+        : `http://localhost:${process.env.PORT}/api/events/published`;
       const res = await axios.get(url);
       setEvents(res.data);
     } catch (err) {
@@ -166,7 +166,7 @@ function Events() {
               <div className="col-sm-6 col-md-4 col-lg-3" key={e.id}>
                 <div className="card h-100 shadow shadow-sm border-0 rounded-4 overflow-hidden">
                   <img
-                    src={`http://localhost:5000/uploads/${e.main_image_url}`}
+                    src={`http://localhost:${process.env.PORT}/uploads/${e.main_image_url}`}
                     alt={e.title}
                     className="card-img-top"
                     style={{ height: "180px", objectFit: "cover" }}

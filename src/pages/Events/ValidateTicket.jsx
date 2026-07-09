@@ -42,7 +42,9 @@ function ValidateTicket() {
     try {
       setLoadingEvent(true);
 
-      const res = await axios.get(`http://localhost:5000/api/events/${id}`);
+      const res = await axios.get(
+        `http://localhost:${process.env.PORT}/api/events/${id}`,
+      );
       setEvent(res.data);
     } catch (error) {
       console.error("Gagal mengambil detail event:", error);
@@ -77,7 +79,7 @@ function ValidateTicket() {
       setResult(null);
 
       const res = await axios.patch(
-        `http://localhost:5000/api/events/${id}/tickets/validate`,
+        `http://localhost:${process.env.PORT}/api/events/${id}/tickets/validate`,
         {
           user_id: AUTH_USER.id,
           role: AUTH_USER.role,

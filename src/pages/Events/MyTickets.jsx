@@ -13,7 +13,7 @@ function MyTickets() {
   useEffect(() => {
     axios
       .get(
-        `http://localhost:5000/api/events/tickets/my-tickets?user_id=${AUTH_USER.id}`,
+        `http://localhost:${process.env.PORT}/api/events/tickets/my-tickets?user_id=${AUTH_USER.id}`,
       )
       .then((res) => {
         setTickets(res.data);
@@ -139,9 +139,7 @@ function MyTickets() {
             <div className="modal-dialog modal-dialog-centered" role="document">
               <div className="modal-content border-0 rounded-4 shadow-lg">
                 <div className="modal-header bg-primary text-white rounded-top-4">
-                  <h5 className="modal-title fw-bold mb-0">
-                    🎫 Detail Tiket
-                  </h5>
+                  <h5 className="modal-title fw-bold mb-0">🎫 Detail Tiket</h5>
                   <button
                     type="button"
                     className="btn-close btn-close-white"
