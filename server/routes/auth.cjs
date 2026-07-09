@@ -18,6 +18,10 @@ router.post("/login", authLimiter, authController.login);
 
 router.post("/google-login", authLimiter, authController.googleLogin);
 
+router.post("/forgot-password", authLimiter, userController.forgotPassword);
+
+router.post("/reset-password", authLimiter, userController.resetPassword);
+
 router.post("/logout", verifyToken, apiLimiter, authController.logout);
 
 router.get("/profile", verifyToken, apiLimiter, userController.getProfile);

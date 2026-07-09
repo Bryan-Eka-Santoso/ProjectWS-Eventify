@@ -254,3 +254,131 @@ exports.deleteProfile = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// FORGOT & RESET PASSWORD
+// =====================================================
+
+// Token reset ditandatangani pakai secret + hash password user saat ini,
+// jadi token otomatis hangus begitu password berhasil diganti (single-use).
+const buildResetSecret = (user) =>
+  process.env.ACCESS_TOKEN_SECRET + (user.password || "");
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        status: "error",
+        message: "Email wajib diisi",
+      });
+    }
+
+    const user = await User.findOne({ where: { email } });
+
+    // Selalu balas sukses walau email tidak terdaftar,
+    // supaya orang tidak bisa menebak-nebak email yang terdaftar.
+    if (!user || !user.password) {
+      return res.status(200).json({
+        status: "success",
+        message:
+          "Jika email terdaftar, link reset password sudah dikirim ke email tersebut.",
+      });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, purpose: "password_reset" },
+      buildResetSecret(user),
+      { expiresIn: "15m" },
+    );
+
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const resetLink = `${frontendUrl}/reset-password?id=${user.id}&token=${token}`;
+
+    const { sendPasswordResetEmail } = require("../services/emailService");
+    const mailResult = await sendPasswordResetEmail({
+      to: user.email,
+      name: user.name,
+      resetLink,
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message:
+        "Jika email terdaftar, link reset password sudah dikirim ke email tersebut.",
+      // Kalau SMTP belum dikonfigurasi (mode development), kirim linknya
+      // langsung supaya fitur tetap bisa didemokan.
+      ...(mailResult?.skipped ? { dev_reset_link: resetLink } : {}),
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Internal Server Error",
+    });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { id, token, newPassword } = req.body;
+
+    if (!id || !token || !newPassword) {
+      return res.status(400).json({
+        status: "error",
+        message: "Data reset password tidak lengkap",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        status: "error",
+        message: "Password baru minimal 6 karakter",
+      });
+    }
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "User tidak ditemukan",
+      });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(token, buildResetSecret(user));
+    } catch {
+      return res.status(400).json({
+        status: "error",
+        message: "Link reset password tidak valid atau sudah kedaluwarsa",
+      });
+    }
+
+    if (payload.purpose !== "password_reset" || Number(payload.id) !== user.id) {
+      return res.status(400).json({
+        status: "error",
+        message: "Link reset password tidak valid",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Password berhasil direset. Silakan login dengan password baru.",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Internal Server Error",
+    });
+  }
+};

@@ -29,6 +29,10 @@ const SavedEvent = require("./SavedEvent")(sequelize, DataTypes);
 const TicketType = require("./TicketType")(sequelize, DataTypes);
 const Comment = require("./Comment")(sequelize, DataTypes);
 
+// Feed sosial
+const Post = require("./Post")(sequelize, DataTypes);
+const PostComment = require("./PostComment")(sequelize, DataTypes);
+
 // Voucher, transaction, ticket, refund
 const Voucher = require("./Voucher")(sequelize, DataTypes);
 const UserVoucher = require("./UserVoucher")(sequelize, DataTypes);
@@ -303,6 +307,37 @@ Event.hasMany(Comment, {
 Comment.belongsTo(Event, {
   foreignKey: "event_id",
   as: "Event",
+});
+
+// Post & PostComment (feed sosial)
+User.hasMany(Post, {
+  foreignKey: "user_id",
+  as: "Posts",
+});
+
+Post.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "User",
+});
+
+Post.hasMany(PostComment, {
+  foreignKey: "post_id",
+  as: "PostComments",
+});
+
+PostComment.belongsTo(Post, {
+  foreignKey: "post_id",
+  as: "Post",
+});
+
+User.hasMany(PostComment, {
+  foreignKey: "user_id",
+  as: "PostComments",
+});
+
+PostComment.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "User",
 });
 
 // Event & TicketType
@@ -580,6 +615,10 @@ const db = {
   SavedEvent,
   TicketType,
   Comment,
+
+  // Feed sosial
+  Post,
+  PostComment,
 
   // Voucher, transaction, ticket
   Voucher,

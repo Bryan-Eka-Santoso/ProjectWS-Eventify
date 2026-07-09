@@ -13,6 +13,16 @@ const communityValidation = require("../validators/communityValidation");
 
 router.get("/categories", communityController.getCategories);
 
+// =========================
+// 🔥 ADMIN CHAT ROOM OVERSIGHT
+// Ditaruh sebelum route dinamis /:chat_room_id agar tidak bentrok.
+// =========================
+router.get("/admin/all-rooms", communityController.adminGetAllChatRooms);
+router.delete(
+  "/admin/rooms/:chat_room_id",
+  communityController.adminDeleteChatRoom
+);
+
 router.get(
   "/unread-counts",
   validate({

@@ -88,6 +88,18 @@ function Navbar() {
                 Community
               </NavLink>
             </li>
+
+            <li className="nav-item">
+              <NavLink
+                to="/feed"
+                className={({ isActive }) =>
+                  `nav-link ${isActive ? "active fw-bold" : ""}`
+                }
+              >
+                <i className="bi bi-newspaper me-1"></i>
+                Feed
+              </NavLink>
+            </li>
           </ul>
 
           {/* Profile Paling Kanan */}
@@ -123,6 +135,27 @@ function Navbar() {
                   <NavLink className="dropdown-item" to="/events/saved">
                     <i className="bi bi-bookmark me-2"></i>
                     Saved Events
+                  </NavLink>
+                </li>
+
+                <li>
+                  <NavLink className="dropdown-item" to="/transactions">
+                    <i className="bi bi-receipt me-2"></i>
+                    Transactions
+                  </NavLink>
+                </li>
+
+                <li>
+                  <NavLink className="dropdown-item" to="/profile/points">
+                    <i className="bi bi-coin me-2"></i>
+                    Point History
+                  </NavLink>
+                </li>
+
+                <li>
+                  <NavLink className="dropdown-item" to="/profile/followers">
+                    <i className="bi bi-people me-2"></i>
+                    Followers & Following
                   </NavLink>
                 </li>
 

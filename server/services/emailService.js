@@ -244,8 +244,29 @@ const sendTicketPurchaseSuccessEmail = async ({ to, name, event, transaction, ti
   });
 };
 
+const sendPasswordResetEmail = async ({ to, name, resetLink }) => {
+  return sendMail({
+    to,
+    subject: "Reset Password Akun Eventify Kamu",
+    html: `
+      <h2>Halo, ${name}!</h2>
+      <p>Kami menerima permintaan reset password untuk akun Eventify kamu.</p>
+      <p>Klik tombol di bawah untuk membuat password baru. Link ini hanya berlaku selama <b>15 menit</b>.</p>
+      <p>
+        <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;">
+          Reset Password
+        </a>
+      </p>
+      <p>Atau salin link berikut ke browser kamu:</p>
+      <p><a href="${resetLink}">${resetLink}</a></p>
+      <p>Kalau kamu tidak merasa meminta reset password, abaikan saja email ini. Password kamu tetap aman.</p>
+    `,
+  });
+};
+
 module.exports = {
   sendMail,
+  sendPasswordResetEmail,
   sendEventCanceledEmail,
   sendEventChangedEmail,
   sendRefundSuccessEmail,

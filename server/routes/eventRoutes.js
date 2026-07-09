@@ -21,6 +21,12 @@ router.get("/vouchers/user-points", eventController.getUserPoints);
 router.get("/vouchers/shop-list", eventController.getAllVouchers);
 router.post("/vouchers/claim", eventController.claimVoucher);
 router.get("/vouchers/my-vouchers", eventController.getMyVouchers);
+
+// 🔥 ADMIN VOUCHER (DISCOUNT) CRUD
+router.get("/vouchers/admin-list", eventController.getAllVouchersAdmin);
+router.post("/vouchers", eventController.createVoucher);
+router.put("/vouchers/:id", eventController.updateVoucher);
+router.delete("/vouchers/:id", eventController.deleteVoucher);
 const validate = require("../middlewares/validate");
 const eventValidation = require("../validators/eventValidation");
 
@@ -42,6 +48,9 @@ router.get(
   eventController.getMyEvents,
 );
 
+// 🔥 ADMIN: ambil SEMUA event dari semua organizer + filter status
+router.get("/admin/all-events", eventController.getAllEventsAdmin);
+
 // Ambil saved event milik user
 router.get(
   "/saved-list",
@@ -51,6 +60,14 @@ router.get(
 
 // Ambil categories
 router.get("/categories", eventController.getCategories);
+
+// =====================================================
+// 🔥 ADMIN CATEGORY CRUD (create/update/delete)
+// Ditaruh sebelum route /:id agar tidak dianggap ID event.
+// =====================================================
+router.post("/categories", eventController.createCategory);
+router.put("/categories/:id", eventController.updateCategory);
+router.delete("/categories/:id", eventController.deleteCategory);
 
 // =====================================================
 // 🔥 GEOAPIFY LOCATION AUTOCOMPLETE

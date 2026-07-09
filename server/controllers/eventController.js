@@ -11,6 +11,7 @@ const TicketType = db.TicketType;
 const Voucher = db.Voucher;
 const UserVoucher = db.UserVoucher;
 const RefundRequest = db.RefundRequest;
+const PointHistory = db.PointHistory;
 
 // Ambil model relasi transaksi baru dari database gess
 const Transaction = db.Transaction;
@@ -452,6 +453,50 @@ const eventController = {
       const events = await Event.findAll(options);
       res.json(events);
     } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  // =====================================================
+  // 🔥 ADMIN EVENT MODERATION
+  // Ambil SEMUA event dari semua organizer + filter status (admin only)
+  // =====================================================
+  getAllEventsAdmin: async (req, res) => {
+    try {
+      const { role, status } = req.query;
+
+      if (role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Hanya admin yang boleh melihat semua event." });
+      }
+
+      const whereClause = {};
+      if (status) {
+        whereClause.status = status;
+      }
+
+      const events = await Event.findAll({
+        where: whereClause,
+        include: [
+          {
+            model: User,
+            as: "Organizer",
+            attributes: ["id", "name", "email"],
+          },
+          {
+            model: Category,
+            as: "Categories",
+            attributes: ["id", "name"],
+            through: { attributes: [] },
+          },
+        ],
+        order: [["created_at", "DESC"]],
+      });
+
+      res.json(events);
+    } catch (error) {
+      console.error("Error getAllEventsAdmin:", error);
       res.status(500).json({ message: error.message });
     }
   },
@@ -930,6 +975,138 @@ const eventController = {
     }
   },
 
+  // =====================================================
+  // 🔥 ADMIN CATEGORY CRUD
+  // =====================================================
+
+  // Buat kategori baru (admin only)
+  createCategory: async (req, res) => {
+    try {
+      const { name, description, role } = req.body;
+
+      if (role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Hanya admin yang boleh membuat kategori." });
+      }
+
+      if (!name || name.trim().length < 2) {
+        return res
+          .status(400)
+          .json({ message: "Nama kategori minimal 2 karakter." });
+      }
+
+      const existing = await Category.findOne({
+        where: { name: name.trim() },
+      });
+
+      if (existing) {
+        return res
+          .status(400)
+          .json({ message: "Kategori dengan nama ini sudah ada." });
+      }
+
+      const category = await Category.create({
+        name: name.trim(),
+        description: description?.trim() || null,
+      });
+
+      return res.status(201).json({
+        message: "Kategori berhasil dibuat.",
+        data: category,
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Update kategori (admin only)
+  updateCategory: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description, role } = req.body;
+
+      if (role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Hanya admin yang boleh mengubah kategori." });
+      }
+
+      const category = await Category.findByPk(id);
+
+      if (!category) {
+        return res.status(404).json({ message: "Kategori tidak ditemukan." });
+      }
+
+      if (!name || name.trim().length < 2) {
+        return res
+          .status(400)
+          .json({ message: "Nama kategori minimal 2 karakter." });
+      }
+
+      const duplicate = await Category.findOne({
+        where: { name: name.trim(), id: { [Op.ne]: id } },
+      });
+
+      if (duplicate) {
+        return res
+          .status(400)
+          .json({ message: "Kategori dengan nama ini sudah ada." });
+      }
+
+      category.name = name.trim();
+      category.description = description?.trim() || null;
+      await category.save();
+
+      return res.json({
+        message: "Kategori berhasil diperbarui.",
+        data: category,
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Hapus kategori (admin only) — ditolak kalau masih dipakai event/chat room
+  deleteCategory: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { role } = req.body;
+
+      if (role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Hanya admin yang boleh menghapus kategori." });
+      }
+
+      const category = await Category.findByPk(id);
+
+      if (!category) {
+        return res.status(404).json({ message: "Kategori tidak ditemukan." });
+      }
+
+      const eventUsage = await db.EventCategory.count({
+        where: { category_id: id },
+      });
+
+      const chatRoomUsage = await db.ChatRoomCategory.count({
+        where: { category_id: id },
+      });
+
+      if (eventUsage > 0 || chatRoomUsage > 0) {
+        return res.status(400).json({
+          message: `Kategori masih dipakai oleh ${eventUsage} event dan ${chatRoomUsage} chat room. Lepaskan dulu sebelum menghapus.`,
+        });
+      }
+
+      await category.destroy();
+
+      return res.json({ message: "Kategori berhasil dihapus." });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
   followExternalEvent: async (req, res) => {
     try {
       const { external_id, title, location, start_date, user_id, role } =
@@ -1383,6 +1560,214 @@ const eventController = {
     }
   },
 
+  // =====================================================
+  // 🔥 ADMIN VOUCHER (DISCOUNT) CRUD
+  // =====================================================
+
+  // Ambil SEMUA voucher termasuk yang non-aktif (admin only)
+  getAllVouchersAdmin: async (req, res) => {
+    try {
+      const { role } = req.query;
+
+      if (role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Hanya admin yang boleh melihat semua voucher." });
+      }
+
+      const vouchers = await Voucher.findAll({ order: [["id", "DESC"]] });
+      return res.json(vouchers);
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Buat voucher baru (admin only)
+  createVoucher: async (req, res) => {
+    try {
+      const {
+        code,
+        name,
+        percentage,
+        max_cut,
+        points_required,
+        stock,
+        valid_until,
+        is_active,
+        role,
+      } = req.body;
+
+      if (role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Hanya admin yang boleh membuat voucher." });
+      }
+
+      if (!code || code.trim().length < 3) {
+        return res
+          .status(400)
+          .json({ message: "Kode voucher minimal 3 karakter." });
+      }
+
+      if (!name || name.trim().length < 2) {
+        return res
+          .status(400)
+          .json({ message: "Nama voucher minimal 2 karakter." });
+      }
+
+      if (percentage != null && (percentage < 1 || percentage > 100)) {
+        return res
+          .status(400)
+          .json({ message: "Persentase diskon harus antara 1 - 100." });
+      }
+
+      const existing = await Voucher.findOne({
+        where: { code: code.trim() },
+      });
+
+      if (existing) {
+        return res
+          .status(400)
+          .json({ message: "Kode voucher ini sudah dipakai." });
+      }
+
+      const voucher = await Voucher.create({
+        code: code.trim(),
+        name: name.trim(),
+        percentage: percentage != null ? Number(percentage) : null,
+        max_cut: max_cut != null && max_cut !== "" ? Number(max_cut) : null,
+        points_required:
+          points_required != null && points_required !== ""
+            ? Number(points_required)
+            : 0,
+        stock: stock != null && stock !== "" ? Number(stock) : null,
+        valid_until: valid_until || null,
+        is_active: is_active != null ? Boolean(is_active) : true,
+      });
+
+      return res.status(201).json({
+        message: "Voucher berhasil dibuat.",
+        data: voucher,
+      });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Update voucher (admin only)
+  updateVoucher: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        code,
+        name,
+        percentage,
+        max_cut,
+        points_required,
+        stock,
+        valid_until,
+        is_active,
+        role,
+      } = req.body;
+
+      if (role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Hanya admin yang boleh mengubah voucher." });
+      }
+
+      const voucher = await Voucher.findByPk(id);
+
+      if (!voucher) {
+        return res.status(404).json({ message: "Voucher tidak ditemukan." });
+      }
+
+      if (!code || code.trim().length < 3) {
+        return res
+          .status(400)
+          .json({ message: "Kode voucher minimal 3 karakter." });
+      }
+
+      if (!name || name.trim().length < 2) {
+        return res
+          .status(400)
+          .json({ message: "Nama voucher minimal 2 karakter." });
+      }
+
+      if (percentage != null && (percentage < 1 || percentage > 100)) {
+        return res
+          .status(400)
+          .json({ message: "Persentase diskon harus antara 1 - 100." });
+      }
+
+      const duplicate = await Voucher.findOne({
+        where: { code: code.trim(), id: { [Op.ne]: id } },
+      });
+
+      if (duplicate) {
+        return res
+          .status(400)
+          .json({ message: "Kode voucher ini sudah dipakai." });
+      }
+
+      voucher.code = code.trim();
+      voucher.name = name.trim();
+      voucher.percentage = percentage != null ? Number(percentage) : null;
+      voucher.max_cut =
+        max_cut != null && max_cut !== "" ? Number(max_cut) : null;
+      voucher.points_required =
+        points_required != null && points_required !== ""
+          ? Number(points_required)
+          : 0;
+      voucher.stock = stock != null && stock !== "" ? Number(stock) : null;
+      voucher.valid_until = valid_until || null;
+      if (is_active != null) voucher.is_active = Boolean(is_active);
+
+      await voucher.save();
+
+      return res.json({
+        message: "Voucher berhasil diperbarui.",
+        data: voucher,
+      });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Hapus voucher (admin only) — kalau sudah pernah diklaim, sarankan non-aktifkan
+  deleteVoucher: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { role } = req.body;
+
+      if (role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Hanya admin yang boleh menghapus voucher." });
+      }
+
+      const voucher = await Voucher.findByPk(id);
+
+      if (!voucher) {
+        return res.status(404).json({ message: "Voucher tidak ditemukan." });
+      }
+
+      const claimed = await UserVoucher.count({ where: { voucher_id: id } });
+
+      if (claimed > 0) {
+        return res.status(400).json({
+          message: `Voucher sudah diklaim oleh ${claimed} user, jadi tidak bisa dihapus. Non-aktifkan saja lewat Edit.`,
+        });
+      }
+
+      await voucher.destroy();
+
+      return res.json({ message: "Voucher berhasil dihapus." });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  },
+
   claimVoucher: async (req, res) => {
     try {
       const { user_id, voucher_id } = req.body;
@@ -1426,6 +1811,14 @@ const eventController = {
         user_id,
         voucher_id,
         is_used: false,
+      });
+
+      // Catat pengeluaran poin ke riwayat poin
+      await PointHistory.create({
+        user_id,
+        amount: voucher.points_required,
+        type: "spend",
+        description: `Tukar poin dengan voucher ${voucher.name}`,
       });
 
       res.json({

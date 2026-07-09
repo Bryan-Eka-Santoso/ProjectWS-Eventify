@@ -30,61 +30,91 @@ function Navbar() {
     }
   };
 
+  const linkClass = ({ isActive }) =>
+    `nav-link text-nowrap ${isActive ? "active fw-bold" : ""}`;
+
   return (
-    <nav className="navbar navbar-expand-lg bg-primary navbar-dark">
+    <nav className="navbar navbar-expand-lg bg-primary navbar-dark shadow-sm">
       <div className="container">
-        <a className="navbar-brand fw-bold" href="#">
+        <NavLink className="navbar-brand fw-bold" to="/admin/home">
           Eventify
-        </a>
+        </NavLink>
 
         <button
           className="navbar-toggler"
           type="button"
           data-bs-toggle="collapse"
-          data-bs-target="#navbarSupportedContent"
-          aria-controls="navbarSupportedContent"
+          data-bs-target="#adminNavbarContent"
+          aria-controls="adminNavbarContent"
           aria-expanded="false"
           aria-label="Toggle navigation"
         >
           <span className="navbar-toggler-icon"></span>
         </button>
 
-        <div
-          className="collapse navbar-collapse position-relative"
-          id="navbarSupportedContent"
-        >
+        <div className="collapse navbar-collapse" id="adminNavbarContent">
           {/* Menu Tengah */}
-          <ul className="navbar-nav me-auto mb-2 mb-lg-0 gap-2 position-lg-absolute start-lg-50 translate-middle-lg-x">
+          <ul className="navbar-nav mx-auto mb-2 mb-lg-0 gap-1">
             <li className="nav-item">
-              <NavLink
-                to="/admin/home"
-                className={({ isActive }) =>
-                  `nav-link ${isActive ? "active" : ""}`
-                }
-              >
-                <i className="bi bi-house-fill"></i> Home
+              <NavLink to="/admin/home" className={linkClass}>
+                <i className="bi bi-house-fill me-1"></i>
+                Home
               </NavLink>
             </li>
 
             <li className="nav-item">
-              <NavLink
-                to="/events"
-                className={({ isActive }) =>
-                  `nav-link ${isActive ? "active" : ""}`
-                }
-              >
-                <i className="bi bi-calendar4-week"></i> Explore Events
+              <NavLink to="/admin/users" className={linkClass}>
+                <i className="bi bi-people me-1"></i>
+                Users
               </NavLink>
             </li>
 
             <li className="nav-item">
-              <NavLink
-                to="/community"
-                className={({ isActive }) =>
-                  `nav-link ${isActive ? "active" : ""}`
-                }
-              >
-                <i className="bi bi-chat"></i> Community
+              <NavLink to="/admin/categories" className={linkClass}>
+                <i className="bi bi-tags me-1"></i>
+                Categories
+              </NavLink>
+            </li>
+
+            <li className="nav-item">
+              <NavLink to="/admin/discounts" className={linkClass}>
+                <i className="bi bi-percent me-1"></i>
+                Discounts
+              </NavLink>
+            </li>
+
+            <li className="nav-item">
+              <NavLink to="/admin/events" className={linkClass}>
+                <i className="bi bi-calendar-check me-1"></i>
+                Events
+              </NavLink>
+            </li>
+
+            <li className="nav-item">
+              <NavLink to="/admin/transactions" className={linkClass}>
+                <i className="bi bi-credit-card me-1"></i>
+                Transactions
+              </NavLink>
+            </li>
+
+            <li className="nav-item">
+              <NavLink to="/admin/posts" className={linkClass}>
+                <i className="bi bi-newspaper me-1"></i>
+                Posts
+              </NavLink>
+            </li>
+
+            <li className="nav-item">
+              <NavLink to="/admin/chat-rooms" className={linkClass}>
+                <i className="bi bi-chat-dots me-1"></i>
+                Chat Rooms
+              </NavLink>
+            </li>
+
+            <li className="nav-item">
+              <NavLink to="/admin/cancellation-requests" className={linkClass}>
+                <i className="bi bi-exclamation-triangle me-1"></i>
+                Cancellations
               </NavLink>
             </li>
           </ul>
@@ -93,33 +123,37 @@ function Navbar() {
           <ul className="navbar-nav ms-auto">
             <li className="nav-item dropdown">
               <a
-                className="nav-link dropdown-toggle"
+                className="nav-link dropdown-toggle text-nowrap"
                 href="#"
                 role="button"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
               >
-                <i className="bi bi-person-circle"></i> Profile
+                <i className="bi bi-person-circle me-1"></i>
+                Profile
               </a>
 
               {/* Dropdown ke kiri */}
               <ul className="dropdown-menu dropdown-menu-end">
                 <li>
-                  <a className="dropdown-item" href="#">
-                    <i className="bi bi-person"></i> My Profile
-                  </a>
+                  <NavLink className="dropdown-item" to="/profile">
+                    <i className="bi bi-person me-2"></i>
+                    My Profile
+                  </NavLink>
                 </li>
 
                 <li>
-                  <a className="dropdown-item" href="#">
-                    <i className="bi bi-ticket"></i> My Tickets
-                  </a>
+                  <NavLink className="dropdown-item" to="/events">
+                    <i className="bi bi-calendar4-week me-2"></i>
+                    Explore Events
+                  </NavLink>
                 </li>
 
                 <li>
-                  <a className="dropdown-item" href="#">
-                    <i className="bi bi-bookmark"></i> Saved Events
-                  </a>
+                  <NavLink className="dropdown-item" to="/community">
+                    <i className="bi bi-chat me-2"></i>
+                    Community
+                  </NavLink>
                 </li>
 
                 <li>
@@ -132,7 +166,8 @@ function Navbar() {
                     type="button"
                     onClick={handleLogout}
                   >
-                    <i className="bi bi-box-arrow-right"></i> Logout
+                    <i className="bi bi-box-arrow-right me-2"></i>
+                    Logout
                   </button>
                 </li>
               </ul>

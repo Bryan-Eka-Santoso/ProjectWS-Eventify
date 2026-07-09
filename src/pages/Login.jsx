@@ -195,7 +195,10 @@ function Login() {
                   </div>
 
                   <div className="d-flex justify-content-end mb-4">
-                    <a href="#" className="text-decoration-none small">
+                    <a
+                      href="/forgot-password"
+                      className="text-decoration-none small"
+                    >
                       Forgot Password?
                     </a>
                   </div>

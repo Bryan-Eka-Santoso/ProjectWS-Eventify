@@ -404,6 +404,133 @@ exports.deleteChatRoom = async (req, res) => {
   }
 };
 
+// =====================================================
+// 🔥 ADMIN CHAT ROOM OVERSIGHT
+// =====================================================
+
+// Ambil SEMUA chat room + jumlah member + info creator (admin only)
+exports.adminGetAllChatRooms = async (req, res) => {
+  try {
+    const { role, search } = req.query;
+
+    if (role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Hanya admin yang boleh melihat semua chat room.",
+      });
+    }
+
+    let whereClause = {};
+    if (search) {
+      whereClause = {
+        [Op.or]: [
+          { name: { [Op.like]: `%${search}%` } },
+          { description: { [Op.like]: `%${search}%` } },
+        ],
+      };
+    }
+
+    const chatRooms = await ChatRoom.findAll({
+      where: whereClause,
+      include: [
+        {
+          association: "Creator",
+          attributes: ["id", "name", "email"],
+          required: false,
+        },
+        {
+          association: "ChatRoomMembers",
+          attributes: ["id"],
+          required: false,
+        },
+      ],
+      order: [["created_at", "DESC"]],
+    });
+
+    const data = chatRooms.map((room) => {
+      const plain = room.get({ plain: true });
+      return {
+        ...plain,
+        member_count: plain.ChatRoomMembers ? plain.ChatRoomMembers.length : 0,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Chat rooms retrieved successfully",
+      data,
+    });
+  } catch (error) {
+    console.error("Error adminGetAllChatRooms:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve chat rooms",
+      error: error.message,
+    });
+  }
+};
+
+// Force-delete chat room apapun (admin only) + bersihkan data turunannya
+exports.adminDeleteChatRoom = async (req, res) => {
+  const t = await db.sequelize.transaction();
+  try {
+    const { chat_room_id } = req.params;
+    const { role } = req.body;
+
+    if (role !== "admin") {
+      await t.rollback();
+      return res.status(403).json({
+        success: false,
+        message: "Hanya admin yang boleh menghapus chat room.",
+      });
+    }
+
+    const chatRoom = await ChatRoom.findByPk(chat_room_id);
+
+    if (!chatRoom) {
+      await t.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Chat room not found",
+      });
+    }
+
+    // Bersihkan data turunan supaya tidak kena foreign key constraint
+    await MessageRead.destroy({
+      where: { chat_room_id },
+      transaction: t,
+    });
+    await Message.destroy({
+      where: { chat_room_id },
+      transaction: t,
+    });
+    await ChatRoomMember.destroy({
+      where: { chat_room_id },
+      transaction: t,
+    });
+    await ChatRoomCategory.destroy({
+      where: { chat_room_id },
+      transaction: t,
+    });
+    await chatRoom.destroy({ transaction: t });
+
+    await t.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: "Chat room deleted successfully",
+    });
+  } catch (error) {
+    await t.rollback();
+    console.error("Error adminDeleteChatRoom:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete chat room",
+      error: error.message,
+    });
+  }
+};
+
 exports.getChatRoomMemberCount = async (req, res) => {
   try {
     const { chat_room_id } = req.params;

@@ -17,6 +17,8 @@ const app = express();
 const eventRoutes = require("./routes/eventRoutes");
 const communityRoutes = require("./routes/communityRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const socialRoutes = require("./routes/socialRoutes");
+const transactionRoutes = require("./routes/transactionRoutes");
 
 // =====================================================
 // SOCKET IMPORT
@@ -51,6 +53,8 @@ app.use("/api/auth", require("./routes/auth.cjs"));
 app.use("/api/events", eventRoutes);
 app.use("/api/community", communityRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/social", socialRoutes);
+app.use("/api/transactions", transactionRoutes);
 
 // =====================================================
 // HTTP SERVER + SOCKET.IO
@@ -77,6 +81,14 @@ app.set("io", io);
 // =====================================================
 // RUN SERVER
 // =====================================================
+
+// Auto-create tabel feed sosial kalau belum ada (biar teman setim tidak perlu
+// menjalankan migration tambahan secara manual)
+const { Post, PostComment } = require("./models");
+Post.sync()
+  .then(() => PostComment.sync())
+  .catch((err) => console.error("Gagal sync tabel posts:", err.message));
+
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {

@@ -165,6 +165,13 @@ function MyEvents() {
                           Detail
                         </Link>
 
+                        <Link
+                          to={`/events/${event.id}/participants`}
+                          className="btn btn-sm btn-outline-secondary rounded-3 fw-semibold"
+                        >
+                          Peserta
+                        </Link>
+
                         {event.status !== "canceled" && (
                           <>
                             <Link
