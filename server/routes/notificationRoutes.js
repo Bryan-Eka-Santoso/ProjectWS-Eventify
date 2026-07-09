@@ -36,7 +36,7 @@ router.patch(
   validate({
     body: notificationValidation.userIdBodySchema,
   }),
-  notificationController.markAllAsRead
+  notificationController.markAllAsRead,
 );
 
 router.patch(

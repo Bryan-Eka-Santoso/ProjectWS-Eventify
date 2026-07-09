@@ -106,6 +106,8 @@ exports.login = async (req, res) => {
         status: "error",
         message:
           "Akun ini terdaftar menggunakan Google. Silakan login dengan Google.",
+        message:
+          "This account is registered via Google login. Please use Google login to access your account.",
       });
     }
     const isPasswordValid = await bcrypt.compare(password, user.password);
