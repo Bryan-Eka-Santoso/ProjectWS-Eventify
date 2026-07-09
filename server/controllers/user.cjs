@@ -58,6 +58,8 @@ exports.updateProfile = async (req, res) => {
     const { name, email, bio, organizer_name, phone_number, address } =
       req.body;
 
+    // console.error("Request body:", req.body);
+
     const { error } = editProfileUserSchema.validate(req.body);
 
     if (error) {
@@ -70,6 +72,9 @@ exports.updateProfile = async (req, res) => {
     name ? (user.name = name) : null;
     email ? (user.email = email) : null;
     bio ? (user.bio = bio) : null;
+    organizer_name ? (user.organizer_name = organizer_name) : null;
+    phone_number ? (user.phone_number = phone_number) : null;
+    address ? (user.address = address) : null;
 
     await user.save();
     if (req.user.role === "organizer") {
@@ -406,7 +411,10 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    if (payload.purpose !== "password_reset" || Number(payload.id) !== user.id) {
+    if (
+      payload.purpose !== "password_reset" ||
+      Number(payload.id) !== user.id
+    ) {
       return res.status(400).json({
         status: "error",
         message: "Link reset password tidak valid",

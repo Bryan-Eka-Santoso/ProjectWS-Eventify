@@ -49,7 +49,6 @@ const MessageRead = require("./MessageRead")(sequelize, DataTypes);
 
 const ApiLog = require("./ApiLog")(sequelize, DataTypes);
 
-
 // =====================================================
 // EVENT CHANGE RELATIONSHIPS
 // =====================================================
@@ -591,7 +590,6 @@ User.hasMany(ApiLog, {
   foreignKey: "user_id",
   as: "ApiLogs",
 });
-
 
 // =====================================================
 // DB EXPORT

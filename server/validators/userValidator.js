@@ -78,9 +78,29 @@ const editProfileUserSchema = Joi.object({
     "string.max": "Bio cannot exceed 500 characters.",
     "any.required": "Bio is required.",
   }),
+  organizer_name: Joi.string().optional(),
+  phone_number: Joi.string().optional(),
+  address: Joi.string().optional(),
 });
 
 const editProfileOrganizerSchema = Joi.object({
+  name: Joi.string().min(3).max(100).required().messages({
+    "string.empty": "Name cannot be empty.",
+    "string.min": "Name must be at least 3 characters.",
+    "string.max": "Name cannot exceed 100 characters.",
+    "any.required": "Name is required.",
+  }),
+  email: Joi.string().email().required().messages({
+    "string.empty": "Email cannot be empty.",
+    "string.email": "Invalid email format.",
+    "any.required": "Email is required.",
+  }),
+  bio: Joi.string().min(10).max(500).optional().messages({
+    "string.empty": "Bio cannot be empty.",
+    "string.min": "Bio must be at least 10 characters.",
+    "string.max": "Bio cannot exceed 500 characters.",
+    "any.required": "Bio is required.",
+  }),
   organizer_name: Joi.string().min(3).max(100).required().messages({
     "string.empty": "Organizer name cannot be empty.",
     "string.min": "Organizer name must be at least 3 characters.",

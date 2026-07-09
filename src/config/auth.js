@@ -6,7 +6,7 @@
 
 export const AUTH_USER = {
   id: 2, // <--- Ganti angka ini saja untuk ganti user (5=Alex, 6=Bambang, dst)
-  name: "Organizer Event",
+  name: "GILBERT ANTONIUS WIJAYA",
   role: "organizer", // <--- "admin" atau "organizer"
 };
 
